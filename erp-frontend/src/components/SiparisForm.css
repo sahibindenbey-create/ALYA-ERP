@@ -1,0 +1,35 @@
+.vba-container {
+  background: #ebebeb; font-family: 'Tahoma', sans-serif; border: 1px solid #777;
+  height: 98vh; width: 1200px; margin: 5px auto; display: flex; flex-direction: column;
+}
+.vba-header { background: #000080; color: white; padding: 3px 10px; font-weight: bold; font-size: 12px; }
+.vba-body { padding: 8px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.vba-panel { border: 1px solid #999; padding: 5px; background: #f5f5f5; }
+.vba-row { display: flex; gap: 8px; }
+.vba-f { display: flex; flex-direction: column; flex: 1; }
+.vba-f label { font-size: 10px; font-weight: bold; margin-bottom: 1px; color: #333; }
+.vba-f input, .vba-f select { border: 1px solid #888; padding: 2px; font-size: 11px; height: 22px; }
+.vba-read { background: #e1e1e1; }
+
+.vba-address-grid { display: flex; gap: 10px; margin-top: 5px; }
+.vba-addr-col { flex: 1; border: 1px inset #fff; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
+.vba-label-sm { font-size: 9px; font-weight: bold; color: navy; }
+.vba-row-sm { display: flex; gap: 3px; }
+.vba-addr-col input, .vba-addr-col textarea { border: 1px solid #888; font-size: 11px; padding: 2px; }
+textarea { height: 40px; resize: none; font-family: sans-serif; }
+
+.vba-product-bar { background: #ccc; border: 1px solid #888; padding: 4px; }
+.vba-pb-labels { display: flex; gap: 4px; font-size: 9px; font-weight: bold; text-align: center; }
+.vba-pb-labels span { flex: 1; }
+.vba-pb-inputs { display: flex; gap: 2px; margin-top: 2px; }
+.vba-pb-inputs input, .vba-pb-inputs select { flex: 1; border: 1px solid #888; height: 22px; font-size: 10px; }
+.vba-add-btn { background: #e1e1e1; border: 2px solid; border-color: #fff #808080 #808080 #fff; cursor: pointer; font-weight: bold; padding: 0 10px; }
+
+.vba-grid { background: white; border: 1px solid #888; height: 200px; overflow-y: scroll; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { background: #d6d6d6; border: 1px solid #999; padding: 3px; position: sticky; top: 0; }
+td { border: 1px solid #eee; padding: 3px; text-align: center; }
+
+.vba-totals { flex: 1.5; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.vba-total-row { font-size: 14px; font-weight: bold; color: red; }
+.vba-save-btn { background: #d6d6d6; border: 2px solid; border-color: #fff #808080 #808080 #fff; color: navy; font-weight: bold; padding: 5px 20px; cursor: pointer; }

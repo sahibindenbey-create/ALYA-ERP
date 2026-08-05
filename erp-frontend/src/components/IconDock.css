@@ -1,0 +1,106 @@
+/* Dock */
+.icon-dock {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  background: #2c3e50;
+  padding: 10px 5px;
+  border-radius: 0 10px 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  z-index: 1200;
+  cursor: pointer;
+}
+
+.dock-icon {
+  font-size: 32px;
+  color: white;
+  text-align: center;
+  transition: transform 0.2s, color 0.2s;
+  user-select: none;
+}
+
+.dock-icon:hover {
+  transform: scale(1.3);
+  color: #1abc9c;
+}
+
+/* Popup overlay */
+.icon-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 70px;
+  width: calc(100% - 70px);
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1300;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+
+/* Popup box */
+.icon-popup {
+  background: white;
+  color: black;
+  border-radius: 10px;
+  max-width: 900px;
+  width: 100%;
+  padding: 20px 30px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.popup-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.popup-group {
+  margin-bottom: 30px;
+}
+
+.popup-group h3 {
+  margin-bottom: 15px;
+  font-size: 18px;
+  color: #2c3e50;
+}
+
+.popup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(110px,1fr));
+  gap: 20px;
+}
+
+.popup-grid-item {
+  text-decoration: none;
+  color: black;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 10px 8px;
+  transition: background-color 0.3s ease;
+  user-select: none;
+}
+
+.popup-grid-item:hover {
+  background-color: #e0f7f4;
+}
+
+.popup-icon {
+  font-size: 50px;
+  margin-bottom: 8px;
+}
+
+.popup-text {
+  font-size: 14px;
+}

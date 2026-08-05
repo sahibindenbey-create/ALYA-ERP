@@ -1,0 +1,160 @@
+/* Sidebar dar hali */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  background: #2c3e50;
+  color: white;
+  overflow-y: auto;
+  transition: width 0.3s ease;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  z-index: 1100;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  flex-shrink: 0;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 22px;
+  z-index: 1200;
+}
+
+.menu-groups {
+  margin-top: 20px;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.menu-group {
+  margin-bottom: 20px;
+}
+
+.group-title {
+  font-weight: bold;
+  padding-left: 10px;
+  margin-bottom: 5px;
+}
+
+.menu-item {
+  list-style: none;
+}
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  color: white;
+  text-decoration: none;
+  transition: background 0.2s;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+
+.menu-link:hover,
+.menu-link.active {
+  background: #1abc9c;
+  color: white;
+}
+
+.menu-icon {
+  font-size: 28px;
+  margin-right: 12px;
+  min-width: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  position: relative;
+  z-index: 1200;
+}
+
+.sidebar.collapsed .menu-icon {
+  margin: 0 auto;
+  font-size: 40px;
+}
+
+/* Popup overlay */
+.sidebar-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
+  z-index: 1300;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  overflow-y: auto;
+}
+
+/* Popup box */
+.sidebar-popup {
+  background: white;
+  color: black;
+  border-radius: 10px;
+  max-width: 900px;
+  width: 100%;
+  padding: 20px 30px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.popup-close-btn {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.popup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(110px,1fr));
+  gap: 25px;
+  margin-top: 30px;
+}
+
+.popup-grid-item {
+  text-decoration: none;
+  color: black;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 10px 8px;
+  transition: background-color 0.3s ease;
+  user-select: none;
+}
+
+.popup-grid-item:hover {
+  background-color: #e0f7f4;
+}
+
+.popup-icon {
+  font-size: 50px;
+  margin-bottom: 8px;
+  user-select: none;
+}
+
+.popup-text {
+  font-size: 14px;
+}

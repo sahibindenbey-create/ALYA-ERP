@@ -1,0 +1,32 @@
+# Visual Studio
+.vs/
+**/.vs/
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Node.js
+node_modules/
+**/node_modules/
+
+# React
+build/
+dist/
+
+# Environment
+.env
+.env.local
+**/.env
+
+# Logs
+*.log
+
+# ZIP
+*.zip
+
+# Windows
+Thumbs.db
+.DS_Store
