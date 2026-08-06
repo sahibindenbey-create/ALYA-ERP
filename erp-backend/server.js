@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { poolPromise } = require('./db');
+const { sql, poolPromise } = require('./db');
 const app = express();
 const PORT = 5000;
 
@@ -28,7 +28,7 @@ app.get('/api/cariler', async (req, res) => {
     
     res.json(result.recordset);
   } catch (err) {
-    console.error('Hata:', err);
+    console.error('Hata (GET /api/cariler):', err.message || err);
     res.status(500).json({ error: 'Veri getirme hatasi' });
   }
 });
@@ -38,24 +38,26 @@ app.post('/api/cariler', async (req, res) => {
   try {
     const pool = await poolPromise;
     const { CompanyId, CariKodu, CariAdi, CariTipi, VergiDairesi, VergiNo, TCNo } = req.body;
-    
-    await pool.request()
-      .input('CompanyId', CompanyId)
-      .input('CariKodu', CariKodu)
-      .input('CariAdi', CariAdi)
-      .input('CariTipi', CariTipi)
-      .input('VergiDairesi', VergiDairesi)
-      .input('VergiNo', VergiNo)
-      .input('TCNo', TCNo)
+
+    const result = await pool.request()
+      .input('CompanyId', sql.Int, CompanyId)
+      .input('CariKodu', sql.NVarChar(50), CariKodu)
+      .input('CariAdi', sql.NVarChar(200), CariAdi)
+      .input('CariTipi', sql.Int, CariTipi)
+      .input('VergiDairesi', sql.NVarChar(100), VergiDairesi)
+      .input('VergiNo', sql.NVarChar(50), VergiNo)
+      .input('TCNo', sql.NVarChar(50), TCNo)
       .query(`
         INSERT INTO CariListesi (CompanyId, CariKodu, CariAdi, CariTipi, VergiDairesi, VergiNo, TCNo)
+        OUTPUT INSERTED.*
         VALUES (@CompanyId, @CariKodu, @CariAdi, @CariTipi, @VergiDairesi, @VergiNo, @TCNo)
       `);
-    
-    res.json({ success: true, message: 'Cari basariyla eklendi' });
+
+    const inserted = result.recordset && result.recordset[0] ? result.recordset[0] : null;
+    res.json({ success: true, inserted });
   } catch (err) {
-    console.error('Hata:', err);
-    res.status(500).json({ error: 'Cari eklenirken hata olustu' });
+    console.error('Hata (POST /api/cariler):', err.message || err);
+    res.status(500).json({ error: 'Cari eklenirken hata olustu', details: err.message || err });
   }
 });
 
@@ -65,13 +67,13 @@ app.delete('/api/cariler/:id', async (req, res) => {
     const pool = await poolPromise;
     const { id } = req.params;
     
-    await pool.request()
-      .input('CariId', id)
+    const result = await pool.request()
+      .input('CariId', sql.Int, id)
       .query('DELETE FROM CariListesi WHERE CariId = @CariId');
     
     res.json({ success: true, message: 'Cari silindi' });
   } catch (err) {
-    console.error('Hata:', err);
+    console.error('Hata (DELETE /api/cariler/:id):', err.message || err);
     res.status(500).json({ error: 'Cari silinirken hata olustu' });
   }
 });
