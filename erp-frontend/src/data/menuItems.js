@@ -2,9 +2,9 @@ const menuItems = [
   {
     group: "Uygulamalar",
     items: [
-      { name: "Cariler", path: "cariler", icon: "👥" },
-      { name: "Ürün ve Stoklar", path: "urun-stoklar", icon: "📦" },
-      { name: "Satış", path: "satis", icon: "💰" },
+      { name: "Cariler", path: "/cariler", icon: "👥" },
+      { name: "Ürün ve Stoklar", path: "/stok", icon: "📦" },
+      { name: "Satış", path: "/siparis", icon: "💰" },
       { name: "Satınalma", path: "satinalma", icon: "🛒" },
       { name: "Sevkiyat-Lojistik", path: "sevkiyat-lojistik", icon: "🚚" },
       { name: "Nakit Yönetimi", path: "nakit-yonetimi", icon: "💵" },
