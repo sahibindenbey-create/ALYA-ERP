@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import "./SiparisForm.css";
 
 const SiparisForm = () => {
@@ -24,9 +25,13 @@ const SiparisForm = () => {
   });
 
   const [entry, setEntry] = useState({
-    urunKodu: "", urunAdi: "", miktar: "", birim: "ADET", 
+    UrunId: null, urunKodu: "", urunAdi: "", miktar: "", birim: "ADET",
     koliIci: 24, koliAdedi: 0, listeFiyati: "", iskonto: 0
   });
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchTimeout, setSearchTimeout] = useState(null);
 
   // --- VBA cmbOdemeSekli_Change MANTIĞI ---
   useEffect(() => {
@@ -56,11 +61,46 @@ const SiparisForm = () => {
     }
   };
 
+  // --- Urun arama (typeahead) ---
+  useEffect(() => {
+    if (!searchTerm) {
+      setSuggestions([]);
+      return;
+    }
+    if (searchTimeout) clearTimeout(searchTimeout);
+    const to = setTimeout(async () => {
+      try {
+        const resp = await axios.get(`http://localhost:5000/api/urunler?q=${encodeURIComponent(searchTerm)}`);
+        setSuggestions(resp.data || []);
+      } catch (err) {
+        console.error('Urun arama hatasi', err);
+        setSuggestions([]);
+      }
+    }, 250);
+    setSearchTimeout(to);
+    return () => clearTimeout(to);
+  }, [searchTerm]);
+
+  const selectSuggestion = (s) => {
+    setEntry(prev => ({
+      ...prev,
+      UrunId: s.UrunId || null,
+      urunKodu: s.UrunKodu || "",
+      urunAdi: s.UrunAdi || "",
+      listeFiyati: s.ListeFiyati != null ? s.ListeFiyati : prev.listeFiyati,
+      koliIci: s.KoliIci != null ? s.KoliIci : prev.koliIci
+    }));
+    setSuggestions([]);
+    setSearchTerm("");
+  };
+
   const urunEkle = () => {
     const lFiyat = parseFloat(entry.listeFiyati || 0);
     const miktar = parseFloat(entry.miktar || 0);
     const iskonto = parseFloat(entry.iskonto || 0);
-    
+    if (!entry.urunKodu || !entry.urunAdi || isNaN(miktar) || miktar <= 0) {
+      return alert('Lütfen ürün kodu, adı ve miktarı giriniz.');
+    }
     const iskBirimFiyat = lFiyat * (1 - iskonto / 100);
     const kdvTutari = iskBirimFiyat * 0.20;
     const birimFiyatKdvDahil = iskBirimFiyat + kdvTutari;
@@ -78,7 +118,43 @@ const SiparisForm = () => {
     };
 
     setItems([...items, yeniSatir]);
-    setEntry({ ...entry, urunKodu: "", urunAdi: "", miktar: "", listeFiyati: "" });
+    setEntry({ UrunId: null, urunKodu: "", urunAdi: "", miktar: "", birim: "ADET", koliIci: 24, koliAdedi: 0, listeFiyati: "", iskonto: 0 });
+  };
+
+  const kaydetSiparis = async () => {
+    if (items.length === 0) return alert('Lütfen en az 1 ürün ekleyin.');
+    const body = {
+      header: {
+        SiparisNo: form.siparisKodu,
+        SiparisTarihi: form.siparisTarihi,
+        CariId: null, // isterseniz cariId ekleyebilirsiniz
+        OdemeSekli: form.odemeSekli
+      },
+      items: items.map(it => ({
+        UrunId: it.UrunId,
+        UrunKodu: it.urunKodu,
+        Miktar: it.miktar,
+        Birim: it.birim,
+        ListeFiyati: it.listeFiyati,
+        Iskonto: it.iskonto,
+        SatirToplam: it.satirToplam
+      }))
+    };
+
+    try {
+      const resp = await axios.post('http://localhost:5000/api/siparisler', body);
+      if (resp.data && resp.data.success) {
+        alert('Sipariş kaydedildi. ID: ' + (resp.data.siparisId || '—'));
+        setItems([]);
+        setForm(f => ({ ...f, siparisKodu: 'SIP-' + Date.now() }));
+      } else {
+        console.error('Beklenmeyen cevap', resp.data);
+        alert('Kaydetme başarısız oldu.');
+      }
+    } catch (err) {
+      console.error('Sipariş kaydetme hatası', err);
+      alert('Sipariş kaydedilirken hata oluştu. Konsolu kontrol edin.');
+    }
   };
 
   return (
@@ -90,7 +166,7 @@ const SiparisForm = () => {
         <div className="vba-panel">
           <div className="vba-row">
             <div className="vba-f"><label>SİPARİŞ NO</label><input value={form.siparisKodu} readOnly className="vba-read" /></div>
-            <div className="vba-f"><label>TARİH</label><input type="date" value={form.siparisTarihi} /></div>
+            <div className="vba-f"><label>TARİH</label><input type="date" value={form.siparisTarihi} onChange={e=>setForm({...form, siparisTarihi: e.target.value})} /></div>
             <div className="vba-f"><label>SİPARİŞ TİPİ</label>
               <select value={form.siparisTipi} onChange={e => setForm({...form, siparisTipi: e.target.value})}>
                 {siparisTipleri.map(t => <option key={t}>{t}</option>)}
@@ -145,16 +221,26 @@ const SiparisForm = () => {
         {/* BÖLÜM 3: ÜRÜN GİRİŞ BARI (VBA Sütun 16-27) */}
         <div className="vba-product-bar">
           <div className="vba-pb-labels">
-            <span style={{flex:1.5}}>ÜRÜN KODU</span><span style={{flex:3}}>ÜRÜN ADI</span><span>MİKTAR</span><span>BİRİM</span><span>KOLİ İÇİ</span><span>LİSTE FİYAT</span><span>İSK %</span>
+            <span style={{flex:1.5}}>ÜRÜN KODU</span><span style={{flex:3}}>ÜRÜN ADI</span><span>MİKTAR</span><span>BİRİM</span><span>KOLİ İÇİ</span><span>LİSTE FİYAT</span><span>İS[...]
           </div>
           <div className="vba-pb-inputs">
-            <input style={{flex:1.5}} value={entry.urunKodu} onChange={e=>setEntry({...entry, urunKodu:e.target.value})} />
-            <input style={{flex:3}} value={entry.urunAdi} onChange={e=>setEntry({...entry, urunAdi:e.target.value})} />
-            <input type="number" value={entry.miktar} onChange={e=>setEntry({...entry, miktar:e.target.value})} />
-            <select value={entry.birim} onChange={e=>setEntry({...entry, birim:e.target.value})}><option>ADET</option><option>KG</option></select>
-            <input value={entry.koliIci} onChange={e=>setEntry({...entry, koliIci:e.target.value})} />
-            <input value={entry.listeFiyati} onChange={e=>setEntry({...entry, listeFiyati:e.target.value})} />
-            <input value={entry.iskonto} onChange={e=>setEntry({...entry, iskonto:e.target.value})} />
+            <div style={{position:'relative', flex:1.5}}>
+              <input style={{width:'100%'}} value={entry.urunKodu} onChange={e=>{ setEntry({...entry, urunKodu: e.target.value}); setSearchTerm(e.target.value); }} placeholder="Ürün kodu veya adı yazın..." />
+              {suggestions.length > 0 && (
+                <div className="typeahead-list">
+                  {suggestions.map(s => (
+                    <div key={s.UrunId} className="typeahead-item" onClick={()=>selectSuggestion(s)}>{s.UrunKodu} - {s.UrunAdi}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <input style={{flex:3}} value={entry.urunAdi} onChange={e=>setEntry({...entry, urunAdi: e.target.value})} />
+            <input type="number" value={entry.miktar} onChange={e=>setEntry({...entry, miktar: e.target.value})} />
+            <select value={entry.birim} onChange={e=>setEntry({...entry, birim: e.target.value})}><option>ADET</option><option>KG</option></select>
+            <input value={entry.koliIci} onChange={e=>setEntry({...entry, koliIci: e.target.value})} />
+            <input value={entry.listeFiyati} onChange={e=>setEntry({...entry, listeFiyati: e.target.value})} />
+            <input value={entry.iskonto} onChange={e=>setEntry({...entry, iskonto: e.target.value})} />
             <button className="vba-add-btn" onClick={urunEkle}>EKLE</button>
           </div>
         </div>
@@ -198,7 +284,7 @@ const SiparisForm = () => {
             
             <div className="vba-totals">
                <div className="vba-total-row">TOPLAM: <span>{items.reduce((a,b)=>a+b.satirToplam,0).toLocaleString()} ₺</span></div>
-               <button className="vba-save-btn">SİPARİŞİ KAYDET (YENİ DURUM)</button>
+               <button className="vba-save-btn" onClick={kaydetSiparis}>SİPARİŞİ KAYDET (YENİ DURUM)</button>
             </div>
           </div>
         </div>
