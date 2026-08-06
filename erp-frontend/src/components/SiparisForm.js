@@ -202,18 +202,18 @@ const SiparisForm = () => {
               </div>
               <textarea placeholder="Adres Detay" value={form.faturaAdres} onChange={e=>setForm({...form, faturaAdres:e.target.value})} />
             </div>
-            
+
             <div className="vba-addr-col">
               <div className="vba-row-sm" style={{justifyContent:'space-between'}}>
                 <label className="vba-label-sm">SEVKİYAT ADRES BİLGİLERİ</label>
                 <label style={{fontSize:'9px'}}><input type="checkbox" checked={adresAyni} onChange={e=>handleAdresSync(e.target.checked)} /> Fatura ile Aynı</label>
               </div>
-              <input placeholder="Ülke" value={form.sevkiyatUlke} disabled={adresAyni} />
+              <input placeholder="Ülke" value={form.sevkiyatUlke} disabled={adresAyni} onChange={e=>setForm({...form, sevkiyatUlke:e.target.value})} />
               <div className="vba-row-sm">
-                <input placeholder="İl" value={form.sevkiyatIl} disabled={adresAyni} />
-                <input placeholder="İlçe" value={form.sevkiyatIlce} disabled={adresAyni} />
+                <input placeholder="İl" value={form.sevkiyatIl} disabled={adresAyni} onChange={e=>setForm({...form, sevkiyatIl:e.target.value})} />
+                <input placeholder="İlçe" value={form.sevkiyatIlce} disabled={adresAyni} onChange={e=>setForm({...form, sevkiyatIlce:e.target.value})} />
               </div>
-              <textarea placeholder="Adres Detay" value={form.sevkiyatAdres} disabled={adresAyni} />
+              <textarea placeholder="Adres Detay" value={form.sevkiyatAdres} disabled={adresAyni} onChange={e=>setForm({...form, sevkiyatAdres:e.target.value})} />
             </div>
           </div>
         </div>
@@ -221,7 +221,14 @@ const SiparisForm = () => {
         {/* BÖLÜM 3: ÜRÜN GİRİŞ BARI (VBA Sütun 16-27) */}
         <div className="vba-product-bar">
           <div className="vba-pb-labels">
-            <span style={{flex:1.5}}>ÜRÜN KODU</span><span style={{flex:3}}>ÜRÜN ADI</span><span>MİKTAR</span><span>BİRİM</span><span>KOLİ İÇİ</span><span>LİSTE FİYAT</span><span>İS[...]
+            <span style={{flex:1.5}}>ÜRÜN KODU</span>
+            <span style={{flex:3}}>ÜRÜN ADI</span>
+            <span style={{flex:1}}>MİKTAR</span>
+            <span style={{flex:0.8}}>BİRİM</span>
+            <span style={{flex:1}}>KOLİ İÇİ</span>
+            <span style={{flex:1}}>LİSTE FİYAT</span>
+            <span style={{flex:1}}>İSKONTO</span>
+            <span style={{flex:1}}>ARA TOPLAM</span>
           </div>
           <div className="vba-pb-inputs">
             <div style={{position:'relative', flex:1.5}}>
