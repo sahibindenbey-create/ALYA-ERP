@@ -25,12 +25,24 @@ const CariForm = () => {
   const [ayniAdres, setAyniAdres] = useState(false);
   const dropdownRef = useRef(null);
 
+  // Kapanma: dropdown dışına tıklayınca kapat
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const fetchCariler = async () => {
     try {
       const response = await axios.get("http://localhost:5000/api/cariler");
-      setSavedData(response.data);
+      setSavedData(response.data || []);
     } catch (err) {
       console.error("Veri çekme hatası:", err);
+      setSavedData([]);
     }
   };
 
@@ -43,7 +55,7 @@ const CariForm = () => {
       const prefix = formData.cariTipi.substring(0, 3).toUpperCase();
       const usedNumbers = savedData
         .filter(item => (item.CariKodu || "").startsWith(prefix))
-        .map(item => parseInt((item.CariKodu).split("-")[1]))
+        .map(item => parseInt(((item.CariKodu || "").split("-")[1] || "")))
         .filter(num => !isNaN(num)).sort((a, b) => a - b);
       
       let nextNum = 1001;
@@ -103,7 +115,11 @@ const CariForm = () => {
         TCNo: formData.tcNo
       });
       alert("Cari SQL Server'a Kaydedildi.");
-      fetchCariler();
+      // yenile ve formu temizle
+      await fetchCariler();
+      setFormData(prev => ({ ...prev, cariKodu: "", cariTipi: "", musteriTuru: "", cariAdi: "", vergiDairesi: "", vergiNo: "", tcNo: "" }));
+      setListSearch("");
+      setIsDropdownOpen(false);
     } catch (error) {
       console.error("SQL Kayıt Hatası:", error);
       alert("Kayıt sırasında bir hata oluştu.");
@@ -229,7 +245,7 @@ const CariForm = () => {
                     <input type="text" placeholder="Ara..." onChange={(e) => setSearchTerm(e.target.value)} />
                     <div className="scroll-area">
                       {TAX_OFFICES.filter(x => x.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 30).map(office => (
-                        <div key={office} className="item" onClick={() => { setFormData({...formData, vergiDairesi: office}); setIsDropdownOpen(false); }}>{office}</div>
+                        <div key={office} className="item" onClick={() => { setFormData(prev => ({...prev, vergiDairesi: office})); setIsDropdownOpen(false); }}>{office}</div>
                       ))}
                     </div>
                   </div>
@@ -329,28 +345,26 @@ const CariForm = () => {
         </div>
       </div>
 
-      {listSearch && (
-        <div className="cari-list-section mt-20">
-          <table className="modern-table">
-            <thead>
-              <tr><th>Kod</th><th>Ünvan</th><th>TC/Vergi</th><th>Tür</th><th>İşlem</th></tr>
-            </thead>
-            <tbody>
-              {filteredList.map((item) => (
-                <tr key={item.CariId}>
-                  <td><strong>{item.CariKodu}</strong></td>
-                  <td>{item.CariAdi}</td>
-                  <td>{item.VergiNo || item.TCNo}</td>
-                  <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
-                  <td>
-                    <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="cari-list-section mt-20">
+        <table className="modern-table">
+          <thead>
+            <tr><th>Kod</th><th>Ünvan</th><th>TC/Vergi</th><th>Tür</th><th>İşlem</th></tr>
+          </thead>
+          <tbody>
+            {filteredList.map((item) => (
+              <tr key={item.CariId}>
+                <td><strong>{item.CariKodu}</strong></td>
+                <td>{item.CariAdi}</td>
+                <td>{item.VergiNo || item.TCNo}</td>
+                <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
+                <td>
+                  <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
