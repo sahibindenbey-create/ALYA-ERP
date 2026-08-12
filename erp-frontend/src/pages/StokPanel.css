@@ -1,0 +1,18 @@
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+.modern-table th, .modern-table td {
+  padding: 8px 12px;
+  border: 1px solid #e6e6e6;
+  text-align: left;
+}
+.modern-table thead {
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 600;
+}
+.vba-container, .cari-master-container {
+  font-family: Inter, Roboto, Arial, sans-serif;
+}

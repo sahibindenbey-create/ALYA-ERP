@@ -1,0 +1,227 @@
+.urun-container {
+  background: var(--bg-page);
+  min-height: 100vh;
+  padding: 20px;
+  font-family: var(--font);
+  color: #333;
+}
+
+/* Özet kartları */
+.urun-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto 24px;
+}
+
+.urun-summary-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  border-bottom: 4px solid var(--accent);
+}
+
+.urun-summary-card.warn {
+  border-bottom-color: #e65100;
+  background: #fff3e0;
+}
+
+.urun-tur-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.urun-tur-toggle button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.urun-tur-toggle button.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.urun-tur-toggle button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.urun-summary-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.urun-summary-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 5px;
+}
+
+/* Form kartı */
+.urun-form-card {
+  max-width: 1100px;
+  margin: 0 auto 24px;
+  background: white;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
+.urun-form-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #eef0f5;
+}
+
+.urun-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.urun-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.urun-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.urun-field input,
+.urun-field select,
+.urun-field textarea {
+  padding: 10px 12px;
+  border: 1px solid #dcdfe3;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.urun-field input:focus,
+.urun-field select:focus,
+.urun-field textarea:focus {
+  border-color: var(--accent);
+}
+
+.urun-form-footer {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.urun-btn-save {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.urun-btn-cancel {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Liste kartı */
+.urun-list-card {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: white;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
+.urun-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.urun-list-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.urun-search {
+  padding: 8px 14px;
+  border: 1px solid #dcdfe3;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  min-width: 220px;
+}
+
+.urun-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.urun-table th {
+  text-align: left;
+  padding: 10px 8px;
+  color: #666;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  border-bottom: 2px solid #eef0f5;
+}
+
+.urun-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.urun-row-critical {
+  background: #fff8f0;
+}
+
+.urun-btn-edit {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.urun-btn-del {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { TAX_OFFICES } from "../data/taxOffices";
 import * as LocationSource from "../data/turkiyeIlIlce"; 
+import ExportToolbar from "./ExportToolbar";
 import "./CariForm.css";
 
 const CariForm = () => {
@@ -23,26 +24,66 @@ const CariForm = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [ayniAdres, setAyniAdres] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const dropdownRef = useRef(null);
 
-  // Kapanma: dropdown dışına tıklayınca kapat
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const emptyForm = {
+    companyId: 1,
+    cariKodu: "", cariTipi: "", musteriTuru: "", cariAdi: "", segment: "",
+    vergiDairesi: "", vergiNo: "", tcNo: "", faturaIl: "", faturaIlce: "",
+    faturaAdresDetay: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "",
+    yetkili1Ad: "", yetkili1Gorev: "", yetkili1Cep: "", yetkili1Mail: "",
+    yetkili2Ad: "", yetkili2Gorev: "", yetkili2Cep: "", yetkili2Mail: "",
+    dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL"
+  };
+
+  const cariTipiToLabel = (val) => (val === 1 ? "Müşteri" : val === 2 ? "Tedarikçi" : "Her İkisi");
+
+  const handleEdit = (item) => {
+    setEditingId(item.CariId);
+    setFormData({
+      companyId: item.CompanyId || 1,
+      cariKodu: item.CariKodu || "",
+      cariTipi: cariTipiToLabel(item.CariTipi),
+      musteriTuru: item.MusteriTuru || "",
+      cariAdi: item.CariAdi || "",
+      segment: item.Segment || "",
+      vergiDairesi: item.VergiDairesi || "",
+      vergiNo: item.VergiNo || "",
+      tcNo: item.TCNo || "",
+      faturaIl: item.FaturaIl || "",
+      faturaIlce: item.FaturaIlce || "",
+      faturaAdresDetay: item.FaturaAdresDetay || "",
+      sevkiyatIl: item.SevkiyatIl || "",
+      sevkiyatIlce: item.SevkiyatIlce || "",
+      sevkiyatAdresDetay: item.SevkiyatAdresDetay || "",
+      yetkili1Ad: item.Yetkili1Ad || "",
+      yetkili1Gorev: item.Yetkili1Gorev || "",
+      yetkili1Cep: item.Yetkili1Cep || "",
+      yetkili1Mail: item.Yetkili1Mail || "",
+      yetkili2Ad: item.Yetkili2Ad || "",
+      yetkili2Gorev: item.Yetkili2Gorev || "",
+      yetkili2Cep: item.Yetkili2Cep || "",
+      yetkili2Mail: item.Yetkili2Mail || "",
+      dosyalar: [],
+      riskLimiti: String(item.RiskLimiti ?? "0"),
+      vadeGunu: String(item.VadeGunu ?? "0"),
+      paraBirimi: item.ParaBirimi || "TL"
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setFormData(emptyForm);
+  };
 
   const fetchCariler = async () => {
     try {
       const response = await axios.get("http://localhost:5000/api/cariler");
-      setSavedData(response.data || []);
+      setSavedData(response.data);
     } catch (err) {
       console.error("Veri çekme hatası:", err);
-      setSavedData([]);
     }
   };
 
@@ -50,12 +91,23 @@ const CariForm = () => {
     fetchCariler();
   }, []);
 
+  // Gerçek Kişi seçilince vergi alanlarını temizle; tüzel kişide TC'yi temizle
   useEffect(() => {
+    if (formData.musteriTuru === "Gerçek Kişi") {
+      setFormData(f => (f.vergiDairesi || f.vergiNo) ? { ...f, vergiDairesi: "", vergiNo: "" } : f);
+    } else if (formData.musteriTuru && formData.musteriTuru !== "Gerçek Kişi") {
+      setFormData(f => f.tcNo ? { ...f, tcNo: "" } : f);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.musteriTuru]);
+
+  useEffect(() => {
+    if (editingId) return; // düzenleme modunda kodu otomatik değiştirme
     if (formData.cariTipi) {
       const prefix = formData.cariTipi.substring(0, 3).toUpperCase();
       const usedNumbers = savedData
         .filter(item => (item.CariKodu || "").startsWith(prefix))
-        .map(item => parseInt(((item.CariKodu || "").split("-")[1] || "")))
+        .map(item => parseInt((item.CariKodu).split("-")[1]))
         .filter(num => !isNaN(num)).sort((a, b) => a - b);
       
       let nextNum = 1001;
@@ -67,7 +119,7 @@ const CariForm = () => {
     } else {
       setFormData(prev => ({ ...prev, cariKodu: "" }));
     }
-  }, [formData.cariTipi, savedData]);
+  }, [formData.cariTipi, savedData, editingId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -94,35 +146,61 @@ const CariForm = () => {
     }
   }, [ayniAdres, formData.faturaIl, formData.faturaIlce, formData.faturaAdresDetay]);
 
+  const buildPayload = () => ({
+    CompanyId: formData.companyId,
+    CariKodu: formData.cariKodu,
+    CariAdi: formData.cariAdi,
+    CariTipi: formData.cariTipi === "Müşteri" ? 1 : formData.cariTipi === "Tedarikçi" ? 2 : 3,
+    MusteriTuru: formData.musteriTuru,
+    Segment: formData.segment,
+    VergiDairesi: formData.vergiDairesi,
+    VergiNo: formData.vergiNo,
+    TCNo: formData.tcNo,
+    FaturaIl: formData.faturaIl,
+    FaturaIlce: formData.faturaIlce,
+    FaturaAdresDetay: formData.faturaAdresDetay,
+    SevkiyatIl: ayniAdres ? formData.faturaIl : formData.sevkiyatIl,
+    SevkiyatIlce: ayniAdres ? formData.faturaIlce : formData.sevkiyatIlce,
+    SevkiyatAdresDetay: ayniAdres ? formData.faturaAdresDetay : formData.sevkiyatAdresDetay,
+    Yetkili1Ad: formData.yetkili1Ad,
+    Yetkili1Gorev: formData.yetkili1Gorev,
+    Yetkili1Cep: formData.yetkili1Cep,
+    Yetkili1Mail: formData.yetkili1Mail,
+    Yetkili2Ad: formData.yetkili2Ad,
+    Yetkili2Gorev: formData.yetkili2Gorev,
+    Yetkili2Cep: formData.yetkili2Cep,
+    Yetkili2Mail: formData.yetkili2Mail,
+    RiskLimiti: formData.riskLimiti,
+    VadeGunu: formData.vadeGunu,
+    ParaBirimi: formData.paraBirimi
+  });
+
   const handleSave = async () => {
     if (!formData.cariTipi || !formData.cariAdi || !formData.musteriTuru) {
       return alert("Lütfen Cari Türü, Müşteri Türü ve Ünvanı doldurunuz!");
     }
     const identityValue = formData.musteriTuru === "Gerçek Kişi" ? formData.tcNo : formData.vergiNo;
-    const isDuplicate = savedData.some(item => 
+    const isDuplicate = savedData.some(item =>
+      item.CariId !== editingId &&
       (item.MusteriTuru === "Gerçek Kişi" ? item.TCNo : item.VergiNo) === identityValue && identityValue !== ""
     );
     if (isDuplicate) return alert(`HATA: ${identityValue} numaralı kayıt zaten mevcut!`);
-    
+
     try {
-      await axios.post("http://localhost:5000/api/cariler", {
-        CompanyId: formData.companyId,
-        CariKodu: formData.cariKodu,
-        CariAdi: formData.cariAdi,
-        CariTipi: formData.cariTipi === "Müşteri" ? 1 : formData.cariTipi === "Tedarikçi" ? 2 : 3,
-        VergiDairesi: formData.vergiDairesi,
-        VergiNo: formData.vergiNo,
-        TCNo: formData.tcNo
-      });
-      alert("Cari SQL Server'a Kaydedildi.");
-      // yenile ve formu temizle
-      await fetchCariler();
-      setFormData(prev => ({ ...prev, cariKodu: "", cariTipi: "", musteriTuru: "", cariAdi: "", vergiDairesi: "", vergiNo: "", tcNo: "" }));
-      setListSearch("");
-      setIsDropdownOpen(false);
+      if (editingId) {
+        await axios.put(`http://localhost:5000/api/cariler/${editingId}`, buildPayload());
+        alert("Cari güncellendi.");
+      } else {
+        await axios.post("http://localhost:5000/api/cariler", buildPayload());
+        alert("Cari SQL Server'a Kaydedildi.");
+      }
+      setEditingId(null);
+      setFormData(emptyForm);
+      fetchCariler();
     } catch (error) {
       console.error("SQL Kayıt Hatası:", error);
-      alert("Kayıt sırasında bir hata oluştu.");
+      alert("Kayıt sırasında bir hata oluştu:\n" + (error.response?.data?.error || error.response?.data?.detail || error.message));
+      console.error("Detay:", error.response?.data || error);
     }
   };
 
@@ -237,15 +315,19 @@ const CariForm = () => {
               </div>
               <div className="field search-container" ref={dropdownRef}>
                 <label>Vergi Dairesi</label>
-                <div className="custom-input" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
-                  {formData.vergiDairesi || "Daire Seç..."}
+                <div
+                  className="custom-input"
+                  onClick={() => { if (formData.musteriTuru !== "Gerçek Kişi") setIsDropdownOpen(!isDropdownOpen); }}
+                  style={formData.musteriTuru === "Gerçek Kişi" ? { background: "#f0f0f0", color: "#999", cursor: "not-allowed" } : undefined}
+                >
+                  {formData.musteriTuru === "Gerçek Kişi" ? "Gerçek kişide gerekmez" : (formData.vergiDairesi || "Daire Seç...")}
                 </div>
-                {isDropdownOpen && (
+                {isDropdownOpen && formData.musteriTuru !== "Gerçek Kişi" && (
                   <div className="dropdown-list">
                     <input type="text" placeholder="Ara..." onChange={(e) => setSearchTerm(e.target.value)} />
                     <div className="scroll-area">
                       {TAX_OFFICES.filter(x => x.toLowerCase().includes(searchTerm.toLowerCase())).slice(0, 30).map(office => (
-                        <div key={office} className="item" onClick={() => { setFormData(prev => ({...prev, vergiDairesi: office})); setIsDropdownOpen(false); }}>{office}</div>
+                        <div key={office} className="item" onClick={() => { setFormData({...formData, vergiDairesi: office}); setIsDropdownOpen(false); }}>{office}</div>
                       ))}
                     </div>
                   </div>
@@ -341,30 +423,58 @@ const CariForm = () => {
         </div>
 
         <div className="cari-footer">
-          <button className="btn-save" onClick={handleSave}>Cariyi Kaydet</button>
+          {editingId && (
+            <span style={{ marginRight: 12, color: "#d35400", fontWeight: "bold" }}>
+              ✏️ Düzenleme modu: {formData.cariKodu}
+            </span>
+          )}
+          <button className="btn-save" onClick={handleSave}>
+            {editingId ? "Değişiklikleri Kaydet" : "Cariyi Kaydet"}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              style={{ marginLeft: 10, padding: "8px 16px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
+            >
+              İptal / Yeni Kayıt
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="cari-list-section mt-20">
-        <table className="modern-table">
-          <thead>
-            <tr><th>Kod</th><th>Ünvan</th><th>TC/Vergi</th><th>Tür</th><th>İşlem</th></tr>
-          </thead>
-          <tbody>
-            {filteredList.map((item) => (
-              <tr key={item.CariId}>
-                <td><strong>{item.CariKodu}</strong></td>
-                <td>{item.CariAdi}</td>
-                <td>{item.VergiNo || item.TCNo}</td>
-                <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
-                <td>
-                  <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {savedData.length > 0 && (
+        <div className="cari-list-section mt-20">
+          <ExportToolbar
+            data={filteredList}
+            columns={[
+              { key: "CariKodu", label: "Kod" }, { key: "CariAdi", label: "Ünvan" },
+              { key: "VergiNo", label: "Vergi No" }, { key: "TCNo", label: "TC No" },
+              { key: "FaturaIl", label: "İl" }, { key: "VadeGunu", label: "Vade Günü" }
+            ]}
+            filename="cari-listesi"
+          />
+          <table className="modern-table">
+            <thead>
+              <tr><th>Kod</th><th>Ünvan</th><th>TC/Vergi</th><th>Tür</th><th>İşlem</th></tr>
+            </thead>
+            <tbody>
+              {filteredList.map((item) => (
+                <tr key={item.CariId}>
+                  <td><strong>{item.CariKodu}</strong></td>
+                  <td>{item.CariAdi}</td>
+                  <td>{item.VergiNo || item.TCNo}</td>
+                  <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
+                  <td>
+                    <button className="btn-edit" onClick={() => handleEdit(item)} style={{ marginRight: 6 }}>Düzenle</button>
+                    <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

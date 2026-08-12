@@ -1,0 +1,87 @@
+.fason-container {
+  font-family: var(--font);
+  color: var(--text-primary);
+}
+
+.fason-form-card, .fason-list-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.fason-form-header {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fason-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.fason-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.fason-field input, .fason-field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  box-sizing: border-box;
+  font-family: var(--font);
+}
+
+.fason-form-footer {
+  margin-top: 18px;
+}
+
+.fason-btn-save {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 11px 28px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.fason-btn-save:hover { background: var(--accent-dark); }
+
+.fason-list-card h3 { margin: 0 0 14px; }
+
+.fason-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.fason-table th {
+  text-align: left; padding: 10px 8px; color: var(--text-secondary);
+  font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border);
+}
+.fason-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
+
+.fason-badge {
+  padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+}
+.fason-badge.green { background: var(--success-bg); color: var(--success); }
+.fason-badge.orange { background: var(--warning-bg); color: var(--warning); }
+
+.fason-btn-edit {
+  background: var(--accent-light); color: var(--accent); border: none;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; margin-right: 6px;
+}
+.fason-btn-del {
+  background: var(--danger-bg); color: var(--danger); border: none;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600;
+}

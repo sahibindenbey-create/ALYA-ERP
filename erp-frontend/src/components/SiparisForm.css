@@ -1,35 +1,242 @@
 .vba-container {
-  background: #ebebeb; font-family: 'Tahoma', sans-serif; border: 1px solid #777;
-  height: 98vh; width: 1200px; margin: 5px auto; display: flex; flex-direction: column;
+  background: var(--bg-page);
+  font-family: var(--font);
+  min-height: 100vh;
+  padding: 24px;
+  color: var(--text-primary);
 }
-.vba-header { background: #000080; color: white; padding: 3px 10px; font-weight: bold; font-size: 12px; }
-.vba-body { padding: 8px; flex: 1; display: flex; flex-direction: column; gap: 5px; }
-.vba-panel { border: 1px solid #999; padding: 5px; background: #f5f5f5; }
-.vba-row { display: flex; gap: 8px; }
-.vba-f { display: flex; flex-direction: column; flex: 1; }
-.vba-f label { font-size: 10px; font-weight: bold; margin-bottom: 1px; color: #333; }
-.vba-f input, .vba-f select { border: 1px solid #888; padding: 2px; font-size: 11px; height: 22px; }
-.vba-read { background: #e1e1e1; }
 
-.vba-address-grid { display: flex; gap: 10px; margin-top: 5px; }
-.vba-addr-col { flex: 1; border: 1px inset #fff; padding: 4px; display: flex; flex-direction: column; gap: 3px; }
-.vba-label-sm { font-size: 9px; font-weight: bold; color: navy; }
-.vba-row-sm { display: flex; gap: 3px; }
-.vba-addr-col input, .vba-addr-col textarea { border: 1px solid #888; font-size: 11px; padding: 2px; }
-textarea { height: 40px; resize: none; font-family: sans-serif; }
+.vba-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
-.vba-product-bar { background: #ccc; border: 1px solid #888; padding: 4px; }
-.vba-pb-labels { display: flex; gap: 4px; font-size: 9px; font-weight: bold; text-align: center; }
+.vba-body {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vba-panel {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 20px;
+  border: none;
+}
+
+.vba-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.vba-f {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 140px;
+}
+
+.vba-f label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.vba-f input, .vba-f select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 0.88rem;
+  height: auto;
+  font-family: var(--font);
+  outline: none;
+}
+
+.vba-f input:focus, .vba-f select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.vba-read {
+  background: #f1f5f9;
+  color: var(--text-secondary);
+}
+
+/* Adres alanları */
+.vba-address-grid {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.vba-addr-col {
+  flex: 1;
+  min-width: 240px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fafbfc;
+}
+
+.vba-label-sm {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.vba-row-sm {
+  display: flex;
+  gap: 8px;
+}
+
+.vba-addr-col input, .vba-addr-col textarea {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  font-family: var(--font);
+}
+
+textarea {
+  height: 50px;
+  resize: none;
+  font-family: var(--font);
+}
+
+/* Ürün satırı ekleme */
+.vba-product-bar {
+  background: #fafbfc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.vba-pb-labels {
+  display: flex;
+  gap: 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  text-align: left;
+  padding: 0 2px;
+}
+
 .vba-pb-labels span { flex: 1; }
-.vba-pb-inputs { display: flex; gap: 2px; margin-top: 2px; }
-.vba-pb-inputs input, .vba-pb-inputs select { flex: 1; border: 1px solid #888; height: 22px; font-size: 10px; }
-.vba-add-btn { background: #e1e1e1; border: 2px solid; border-color: #fff #808080 #808080 #fff; cursor: pointer; font-weight: bold; padding: 0 10px; }
 
-.vba-grid { background: white; border: 1px solid #888; height: 200px; overflow-y: scroll; }
-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-th { background: #d6d6d6; border: 1px solid #999; padding: 3px; position: sticky; top: 0; }
-td { border: 1px solid #eee; padding: 3px; text-align: center; }
+.vba-pb-inputs {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
 
-.vba-totals { flex: 1.5; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-.vba-total-row { font-size: 14px; font-weight: bold; color: red; }
-.vba-save-btn { background: #d6d6d6; border: 2px solid; border-color: #fff #808080 #808080 #fff; color: navy; font-weight: bold; padding: 5px 20px; cursor: pointer; }
+.vba-pb-inputs input, .vba-pb-inputs select {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  height: 36px;
+  font-size: 0.82rem;
+  padding: 0 8px;
+  font-family: var(--font);
+}
+
+.vba-add-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0 16px;
+  height: 36px;
+}
+.vba-add-btn:hover { background: var(--accent-dark); }
+
+/* Tablo */
+.vba-grid {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th {
+  background: #fafbfc;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 8px;
+  position: sticky;
+  top: 0;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+td {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+/* Toplam & kaydet */
+.vba-totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.vba-total-row {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.vba-total-row span { color: var(--accent); }
+
+.vba-save-btn {
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-weight: 700;
+  padding: 12px 28px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 0.92rem;
+}
+.vba-save-btn:hover { background: var(--accent-dark); }
+.vba-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.vba-del-btn {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+}

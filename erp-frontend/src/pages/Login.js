@@ -1,20 +1,34 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { TextField, Button, Container, Box, Typography, Alert } from "@mui/material";
+import { loginUser } from "../auth";
+
+const API_URL = "http://localhost:5000/api";
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [kullaniciAdi, setKullaniciAdi] = useState("");
+  const [sifre, setSifre] = useState("");
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (email === "admin@example.com" && password === "1234") {
+    setMessage("");
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/auth/login`, { kullaniciAdi, sifre });
+      loginUser({ name: res.data.user.name, kullaniciAdi: res.data.user.kullaniciAdi, role: res.data.user.role });
       navigate("/dashboard");
-    } else {
-      setMessage("Email veya şifre yanlış");
+    } catch (err) {
+      if (err.code === "ERR_NETWORK") {
+        setMessage("Sunucuya bağlanılamadı. Backend (node server.js) çalışıyor mu kontrol et.");
+      } else {
+        setMessage(err.response?.data?.error || "Giriş sırasında bir hata oluştu.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -27,28 +41,37 @@ function Login() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          bgcolor: "#f5f5f5",
-          borderRadius: 2
+          bgcolor: "#fff",
+          borderRadius: 3,
+          boxShadow: "0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)"
         }}
       >
-        <Typography variant="h4" mb={3}>ERP Login</Typography>
+        <Box sx={{
+          width: 48, height: 48, borderRadius: 2, bgcolor: "#2563eb",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "white", fontWeight: 800, fontSize: 20, mb: 2
+        }}>E</Box>
+        <Typography variant="h5" fontWeight={700} mb={0.5}>ERP Sistemi</Typography>
+        <Typography variant="body2" color="text.secondary" mb={3}>
+          Devam etmek için giriş yapın
+        </Typography>
 
         <Box component="form" onSubmit={handleSubmit} sx={{ width: "100%" }}>
           <TextField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            label="Kullanıcı Adı"
+            value={kullaniciAdi}
+            onChange={(e) => setKullaniciAdi(e.target.value)}
             fullWidth
             margin="normal"
             required
+            autoFocus
           />
 
           <TextField
             label="Şifre"
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={sifre}
+            onChange={(e) => setSifre(e.target.value)}
             fullWidth
             margin="normal"
             required
@@ -57,14 +80,18 @@ function Login() {
           <Button
             type="submit"
             variant="contained"
-            color="primary"
             fullWidth
-            sx={{ mt: 2 }}
+            disabled={loading}
+            sx={{ mt: 2, py: 1.2, bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}
           >
-            Giriş Yap
+            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
           </Button>
 
           {message && <Alert severity="error" sx={{ mt: 2 }}>{message}</Alert>}
+
+          <Typography variant="caption" display="block" color="text.secondary" mt={2} textAlign="center">
+            İlk kurulum sonrası varsayılan giriş: <strong>admin</strong> / <strong>Admin123!</strong>
+          </Typography>
         </Box>
       </Box>
     </Container>

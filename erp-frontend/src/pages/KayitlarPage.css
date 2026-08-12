@@ -1,0 +1,124 @@
+.ky-container {
+  font-family: var(--font);
+  color: #333;
+}
+
+.ky-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.ky-summary-card {
+  background: white;
+  border-radius: var(--card-radius-sm);
+  padding: 16px;
+  box-shadow: var(--card-shadow);
+  border-bottom: 4px solid #dcdfe3;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ky-summary-card:hover {
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+}
+
+.ky-summary-card.active {
+  border-bottom-color: var(--accent);
+  background: #eef1fb;
+}
+
+.ky-summary-label {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.ky-summary-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.ky-panel {
+  background: white;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px;
+}
+
+.ky-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ky-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ky-tab {
+  background: #f0f2f5;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.ky-tab.active {
+  background: var(--accent);
+  color: white;
+}
+
+.ky-search {
+  padding: 8px 14px;
+  border: 1px solid #dcdfe3;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  min-width: 200px;
+}
+
+.ky-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.ky-table th {
+  text-align: left;
+  padding: 10px 8px;
+  color: #666;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  border-bottom: 2px solid #eef0f5;
+}
+
+.ky-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.ky-row-warn {
+  background: #fff8f0;
+}
+
+.ky-empty {
+  text-align: center;
+  color: #999;
+  padding: 16px;
+}
+
+@media (max-width: 900px) {
+  .ky-summary { grid-template-columns: repeat(2, 1fr); }
+}

@@ -1,6 +1,6 @@
 /* Genel Konteyner */
 .cari-master-container {
-  background: #f4f7f9;
+  background: var(--bg-page);
   min-height: 100vh;
   padding: 20px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -41,7 +41,7 @@
 .summary-value {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #1a237e;
+  color: var(--text-primary);
   margin-top: 5px;
 }
 
@@ -108,7 +108,7 @@
 }
 
 .cari-header {
-  background: #1a237e;
+  background: var(--text-primary);
   color: white;
   padding: 25px 35px;
   display: flex;
@@ -132,12 +132,12 @@
 .code-label { font-size: 0.75rem; color: #a5b4fc; font-weight: 700; }
 .code-value { font-family: monospace; font-size: 1.3rem; font-weight: 800; color: #4ade80; }
 
-.type-select { padding: 12px 20px; border-radius: 8px; font-weight: bold; border: none; background: white; color: #1a237e; cursor: pointer; }
+.type-select { padding: 12px 20px; border-radius: 8px; font-weight: bold; border: none; background: white; color: var(--text-primary); cursor: pointer; }
 
 /* Form Gövdesi */
 .cari-body { padding: 40px; }
 .form-section { margin-bottom: 40px; }
-.section-title { color: #1a237e; border-left: 5px solid #3f51b5; padding-left: 15px; margin-bottom: 25px; font-size: 1.2rem; font-weight: 700; }
+.section-title { color: var(--text-primary); border-left: 5px solid #3f51b5; padding-left: 15px; margin-bottom: 25px; font-size: 1.2rem; font-weight: 700; }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
 .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 25px; }
@@ -177,6 +177,7 @@ input:focus { border-color: #3f51b5; outline: none; }
 .modern-table th { background: #f1f5f9; padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0; }
 .modern-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
 .btn-del { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.btn-edit { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
 
 .mt-5 { margin-top: 5px; }
 .mt-10 { margin-top: 10px; }

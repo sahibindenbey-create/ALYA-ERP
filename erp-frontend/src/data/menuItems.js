@@ -2,8 +2,12 @@ const menuItems = [
   {
     group: "Uygulamalar",
     items: [
-      { name: "Cariler", path: "cariler", icon: "👥" },
-      { name: "Ürün ve Stoklar", path: "urun-stoklar", icon: "📦" },
+      { name: "Cariler", path: "cari-yonetimi", icon: "👥" },
+      { name: "Sipariş Girişi", path: "siparis-yonetimi", icon: "🧾" },
+      { name: "Ürün ve Hizmetler", path: "urun-stoklar", icon: "📦" },
+      { name: "Üretim Reçeteleri", path: "receteler", icon: "🧪" },
+      { name: "Fason Takip", path: "fason", icon: "🏭" },
+      { name: "Tüm Kayıtlar", path: "kayitlar", icon: "🗂️" },
       { name: "Satış", path: "satis", icon: "💰" },
       { name: "Satınalma", path: "satinalma", icon: "🛒" },
       { name: "Sevkiyat-Lojistik", path: "sevkiyat-lojistik", icon: "🚚" },

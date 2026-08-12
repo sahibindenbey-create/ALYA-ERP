@@ -1,118 +1,204 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, Outlet, Link, useLocation } from "react-router-dom";
-import { 
-  Box, Typography, Button, Grid, Paper, List, 
-  ListItem, ListItemButton, ListItemIcon, ListItemText 
-} from "@mui/material";
-
-// İkonlar (Daha önce hata aldığın için importları kontrol et)
+import axios from "axios";
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+import Inventory2Icon from '@mui/icons-material/Inventory2';
+import ScienceIcon from '@mui/icons-material/Science';
+import FactoryIcon from '@mui/icons-material/Factory';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import AppsIcon from '@mui/icons-material/Apps';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import LogoutIcon from '@mui/icons-material/Logout';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import { logoutUser, getCurrentUser } from "../auth";
+import "./Dashboard.css";
+
+const NAV_GROUPS = [
+  {
+    title: "GENEL BAKIŞ",
+    items: [{ to: "/dashboard", label: "Panel Özet", icon: <DashboardIcon fontSize="small" />, exact: true }],
+  },
+  {
+    title: "OPERASYON",
+    items: [
+      { to: "/dashboard/cari-yonetimi", label: "Cari Kartlar", icon: <PeopleIcon fontSize="small" /> },
+      { to: "/dashboard/siparis-yonetimi", label: "Sipariş Girişi", icon: <ShoppingCartIcon fontSize="small" /> },
+      { to: "/dashboard/urun-stoklar", label: "Ürün ve Hizmetler", icon: <Inventory2Icon fontSize="small" /> },
+      { to: "/dashboard/receteler", label: "Üretim Reçeteleri", icon: <ScienceIcon fontSize="small" /> },
+      { to: "/dashboard/fason", label: "Fason Takip", icon: <FactoryIcon fontSize="small" /> },
+    ],
+  },
+  {
+    title: "KAYITLAR",
+    items: [
+      { to: "/dashboard/kayitlar", label: "Tüm Kayıtlar", icon: <ListAltIcon fontSize="small" /> },
+      { to: "/menu", label: "Tüm Modüller", icon: <AppsIcon fontSize="small" /> },
+    ],
+  },
+];
+
+const YONETIM_GROUP = {
+  title: "YÖNETİM",
+  items: [
+    { to: "/dashboard/kullanicilar", label: "Kullanıcılar", icon: <ManageAccountsIcon fontSize="small" /> },
+  ],
+};
+
+const PAGE_TITLES = {
+  "/dashboard": "Panel Özet",
+  "/dashboard/cari-yonetimi": "Cari Kartlar",
+  "/dashboard/siparis-yonetimi": "Sipariş Girişi",
+  "/dashboard/urun-stoklar": "Ürün ve Hizmetler",
+  "/dashboard/receteler": "Üretim Reçeteleri",
+  "/dashboard/fason": "Fason Takip",
+  "/dashboard/kayitlar": "Tüm Kayıtlar",
+  "/dashboard/kullanicilar": "Kullanıcılar",
+};
 
 function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = getCurrentUser();
+  const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
+  const pageTitle = PAGE_TITLES[location.pathname] || "Modül";
 
   const handleLogout = () => {
-    navigate("/");
+    logoutUser();
+    navigate("/login");
   };
 
-  // Sadece /dashboard dizinindeyken özet kartlarını göster
-  const isMainDashboard = location.pathname === "/dashboard" || location.pathname === "/dashboard/";
+  const isActive = (item) =>
+    item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
+
+  const navGroups = user?.role === "Yönetici" ? [...NAV_GROUPS, YONETIM_GROUP] : NAV_GROUPS;
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f5f5f5" }}>
-      
-      {/* Sidebar - Sol Menü */}
-      <Box sx={{ width: 260, bgcolor: "#1976d2", color: "#fff", p: 2, display: "flex", flexDirection: "column", position: "fixed", height: "100vh" }}>
-        <Typography variant="h5" sx={{ mb: 4, fontWeight: "bold", textAlign: "center", pt: 2 }}>
-          ERP SİSTEMİ
-        </Typography>
+    <div className="db-layout">
+      {/* SIDEBAR */}
+      <aside className="db-sidebar">
+        <div className="db-logo">
+          <div className="db-logo-icon">E</div>
+          <div>
+            <div className="db-logo-title">ERP Sistemi</div>
+            <div className="db-logo-sub">{user?.name || "Kullanıcı"}</div>
+          </div>
+        </div>
 
-        <List sx={{ flexGrow: 1 }}>
-          <ListItem disablePadding>
-            {/* to="/dashboard" ana özet ekranına döndürür */}
-            <ListItemButton component={Link} to="/dashboard">
-              <ListItemIcon sx={{ color: "white" }}><DashboardIcon /></ListItemIcon>
-              <ListItemText primary="Panel Özet" />
-            </ListItemButton>
-          </ListItem>
+        <nav className="db-nav">
+          {navGroups.map((group) => (
+            <div key={group.title} className="db-nav-group">
+              <div className="db-nav-group-title">{group.title}</div>
+              {group.items.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`db-nav-item ${isActive(item) ? "active" : ""}`}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
+        </nav>
 
-          <ListItem disablePadding>
-            {/* App.js'deki alt rota ile tam uyumlu path: /dashboard/cari-yonetimi */}
-            <ListItemButton component={Link} to="/dashboard/cari-yonetimi">
-              <ListItemIcon sx={{ color: "white" }}><PeopleIcon /></ListItemIcon>
-              <ListItemText primary="Cari Kartlar" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton component={Link} to="/dashboard/siparis-yonetimi">
-              <ListItemIcon sx={{ color: "white" }}><ShoppingCartIcon /></ListItemIcon>
-              <ListItemText primary="Sipariş Girişi" />
-            </ListItemButton>
-          </ListItem>
-
-          <ListItem disablePadding>
-            <ListItemButton>
-              <ListItemIcon sx={{ color: "white" }}><AssessmentIcon /></ListItemIcon>
-              <ListItemText primary="Raporlar" />
-            </ListItemButton>
-          </ListItem>
-        </List>
-
-        <Button
-          variant="contained"
-          color="error"
-          onClick={handleLogout}
-          sx={{ mb: 2, borderRadius: 2 }}
-          fullWidth
-        >
+        <button className="db-logout" onClick={handleLogout}>
+          <LogoutIcon fontSize="small" />
           Çıkış Yap
-        </Button>
-      </Box>
+        </button>
+      </aside>
 
-      {/* Ana İçerik Alanı - Sidebar sabit olduğu için sol marjin ekledik */}
-      <Box sx={{ flexGrow: 1, p: 4, ml: "260px", width: "calc(100% - 260px)" }}>
-        
-        {isMainDashboard ? (
-          <>
-            <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold", color: "#333" }}>
-              Hoşgeldiniz ERP Dashboard 🚀
-            </Typography>
+      {/* MAIN */}
+      <div className="db-main">
+        <header className="db-topbar">
+          <div className="db-breadcrumb">
+            ERP Sistemi <span>/</span> <strong>{pageTitle}</strong>
+          </div>
+          <div className="db-topbar-right">
+            <button className="db-icon-btn"><NotificationsNoneIcon fontSize="small" /></button>
+            <div className="db-avatar">{(user?.name || "K").charAt(0)}</div>
+          </div>
+        </header>
 
-            <Grid container spacing={3} sx={{ mt: 2 }}>
-              <Grid item xs={12} sm={6} md={4}>
-                <Paper elevation={3} sx={{ p: 3, textAlign: "center", borderTop: "5px solid #1976d2" }}>
-                  <Typography variant="h6" color="textSecondary">Toplam Kullanıcı</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", mt: 1 }}>120</Typography>
-                </Paper>
-              </Grid>
+        <div className="db-content">
+          {isMainDashboard ? (
+            <DashboardHome user={user} navigate={navigate} />
+          ) : (
+            <Outlet />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-              <Grid item xs={12} sm={6} md={4}>
-                <Paper elevation={3} sx={{ p: 3, textAlign: "center", borderTop: "5px solid #2e7d32" }}>
-                  <Typography variant="h6" color="textSecondary">Satışlar</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", mt: 1 }}>45.000₺</Typography>
-                </Paper>
-              </Grid>
+function DashboardHome({ user, navigate }) {
+  const today = new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const [stats, setStats] = useState({ cariler: null, urunler: null, siparisler: null });
 
-              <Grid item xs={12} sm={6} md={4}>
-                <Paper elevation={3} sx={{ p: 3, textAlign: "center", borderTop: "5px solid #ed6c02" }}>
-                  <Typography variant="h6" color="textSecondary">Stok Durumu</Typography>
-                  <Typography variant="h4" sx={{ fontWeight: "bold", mt: 1 }}>320 Ürün</Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-          </>
-        ) : (
-          /* Menüden bir şeye basıldığında (Cari/Sipariş) burası çalışır */
-          <Outlet />
-        )}
+  useEffect(() => {
+    const API_URL = "http://localhost:5000/api";
+    Promise.all([
+      axios.get(`${API_URL}/cariler`).then(r => r.data.length).catch(() => 0),
+      axios.get(`${API_URL}/urunler`).then(r => r.data.length).catch(() => 0),
+      axios.get(`${API_URL}/siparisler`).then(r => r.data.filter(s => s.Durum === "YENİ").length).catch(() => 0),
+    ]).then(([cariler, urunler, siparisler]) => setStats({ cariler, urunler, siparisler }));
+  }, []);
 
-      </Box>
-    </Box>
+  return (
+    <div>
+      <div className="db-greeting">
+        <div className="db-greeting-date">{today.toUpperCase()}</div>
+        <h1>Hoş geldin, {(user?.name || "Kullanıcı").split(" ")[0]}</h1>
+        <p>İşletmenin bugününü tek ekrandan yönet.</p>
+      </div>
+
+      <div className="erp-stat-grid">
+        <div className="erp-stat-card">
+          <div className="erp-stat-icon"><PeopleIcon fontSize="small" style={{ color: "#2563eb" }} /></div>
+          <div>
+            <div className="erp-stat-label">Kayıtlı Cariler</div>
+            <div className="erp-stat-value">{stats.cariler ?? "—"}</div>
+          </div>
+        </div>
+        <div className="erp-stat-card">
+          <div className="erp-stat-icon success"><Inventory2Icon fontSize="small" style={{ color: "#16a34a" }} /></div>
+          <div>
+            <div className="erp-stat-label">Ürün Çeşidi</div>
+            <div className="erp-stat-value">{stats.urunler ?? "—"}</div>
+          </div>
+        </div>
+        <div className="erp-stat-card">
+          <div className="erp-stat-icon warn"><ShoppingCartIcon fontSize="small" style={{ color: "#d97706" }} /></div>
+          <div>
+            <div className="erp-stat-label">Açık Siparişler</div>
+            <div className="erp-stat-value">{stats.siparisler ?? "—"}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="db-section-title">Hızlı Erişim</div>
+      <div className="db-quick-grid">
+        <QuickCard icon={<PeopleIcon />} title="Cari Kartlar" desc="Müşteri / tedarikçi yönetimi" onClick={() => navigate("/dashboard/cari-yonetimi")} />
+        <QuickCard icon={<ShoppingCartIcon />} title="Sipariş Girişi" desc="Yeni sipariş oluştur" onClick={() => navigate("/dashboard/siparis-yonetimi")} />
+        <QuickCard icon={<Inventory2Icon />} title="Ürün ve Hizmetler" desc="Stok ve hizmet kartlarını yönet" onClick={() => navigate("/dashboard/urun-stoklar")} />
+        <QuickCard icon={<ScienceIcon />} title="Üretim Reçeteleri" desc="BOM / reçete tanımla, üretim yap" onClick={() => navigate("/dashboard/receteler")} />
+        <QuickCard icon={<FactoryIcon />} title="Fason Takip" desc="Dışarıya gönderilen malları izle" onClick={() => navigate("/dashboard/fason")} />
+        <QuickCard icon={<ListAltIcon />} title="Tüm Kayıtlar" desc="Her şeyi tek ekranda gör" onClick={() => navigate("/dashboard/kayitlar")} />
+      </div>
+    </div>
+  );
+}
+
+function QuickCard({ icon, title, desc, onClick }) {
+  return (
+    <div className="db-quick-card" onClick={onClick}>
+      <div className="db-quick-icon">{icon}</div>
+      <div className="db-quick-title">{title}</div>
+      <div className="db-quick-desc">{desc}</div>
+    </div>
   );
 }
 

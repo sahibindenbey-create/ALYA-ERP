@@ -1,0 +1,198 @@
+.hizmet-container {
+  background: var(--bg-page);
+  min-height: 100vh;
+  padding: 20px;
+  font-family: var(--font);
+  color: #333;
+}
+
+/* Özet kartları */
+.hizmet-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto 24px;
+}
+
+.hizmet-summary-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  border-bottom: 4px solid var(--accent);
+}
+
+.hizmet-summary-card.warn {
+  border-bottom-color: #e65100;
+  background: #fff3e0;
+}
+
+.hizmet-summary-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.hizmet-summary-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-top: 5px;
+}
+
+/* Form kartı */
+.hizmet-form-card {
+  max-width: 1100px;
+  margin: 0 auto 24px;
+  background: white;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
+.hizmet-form-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #eef0f5;
+}
+
+.hizmet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.hizmet-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.hizmet-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.hizmet-field input,
+.hizmet-field select,
+.hizmet-field textarea {
+  padding: 10px 12px;
+  border: 1px solid #dcdfe3;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.hizmet-field input:focus,
+.hizmet-field select:focus,
+.hizmet-field textarea:focus {
+  border-color: var(--accent);
+}
+
+.hizmet-form-footer {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.hizmet-btn-save {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.hizmet-btn-cancel {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 12px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Liste kartı */
+.hizmet-list-card {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: white;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+}
+
+.hizmet-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hizmet-list-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.hizmet-search {
+  padding: 8px 14px;
+  border: 1px solid #dcdfe3;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  min-width: 220px;
+}
+
+.hizmet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.hizmet-table th {
+  text-align: left;
+  padding: 10px 8px;
+  color: #666;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  border-bottom: 2px solid #eef0f5;
+}
+
+.hizmet-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #f1f1f1;
+}
+
+.hizmet-row-critical {
+  background: #fff8f0;
+}
+
+.hizmet-btn-edit {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.hizmet-btn-del {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}

@@ -1,0 +1,90 @@
+.kul-container {
+  font-family: var(--font);
+  color: var(--text-primary);
+}
+
+.kul-form-card, .kul-list-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.kul-form-header {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.kul-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.kul-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.kul-field input, .kul-field select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  box-sizing: border-box;
+  font-family: var(--font);
+}
+
+.kul-form-footer { margin-top: 18px; }
+
+.kul-btn-save {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 11px 28px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.kul-btn-save:hover { background: var(--accent-dark); }
+
+.kul-list-card h3 { margin: 0 0 14px; }
+
+.kul-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.kul-table th {
+  text-align: left; padding: 10px 8px; color: var(--text-secondary);
+  font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border);
+}
+.kul-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
+.kul-table input, .kul-table select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; }
+
+.kul-badge {
+  padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+}
+.kul-badge.green { background: var(--success-bg); color: var(--success); }
+.kul-badge.red { background: var(--danger-bg); color: var(--danger); }
+
+.kul-btn-edit {
+  background: var(--accent-light); color: var(--accent); border: none;
+  padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-right: 5px;
+}
+.kul-btn-del {
+  background: var(--danger-bg); color: var(--danger); border: none;
+  padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+}
+.kul-btn-cancel {
+  background: #f1f5f9; color: var(--text-secondary); border: none;
+  padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-right: 5px;
+}
