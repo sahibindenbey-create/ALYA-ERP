@@ -25,6 +25,7 @@ const CariForm = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [ayniAdres, setAyniAdres] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [ekstreCari, setEkstreCari] = useState(null);
   const dropdownRef = useRef(null);
 
   const emptyForm = {
@@ -467,6 +468,7 @@ const CariForm = () => {
                   <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
                   <td>
                     <button className="btn-edit" onClick={() => handleEdit(item)} style={{ marginRight: 6 }}>Düzenle</button>
+                    <button className="btn-edit" onClick={() => setEkstreCari(item)} style={{ marginRight: 6 }}>Ekstre</button>
                     <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>
                   </td>
                 </tr>
@@ -475,8 +477,65 @@ const CariForm = () => {
           </table>
         </div>
       )}
+
+      {ekstreCari && (
+        <CariEkstreModal cari={ekstreCari} onClose={() => setEkstreCari(null)} />
+      )}
     </div>
   );
 };
 
 export default CariForm;
+
+const CariEkstreModal = ({ cari, onClose }) => {
+  const [ekstre, setEkstre] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`http://localhost:5000/api/cari-ekstre/${cari.CariKodu}`)
+      .then(res => setEkstre(res.data))
+      .catch(() => setEkstre({ hareketler: [], toplamBorc: 0, toplamAlacak: 0, bakiye: 0 }))
+      .finally(() => setLoading(false));
+  }, [cari.CariKodu]);
+
+  return (
+    <div className="cari-ekstre-backdrop" onClick={onClose}>
+      <div className="cari-ekstre-modal" onClick={e => e.stopPropagation()}>
+        <div className="cari-ekstre-header">
+          <div>
+            <h2>{cari.CariAdi}</h2>
+            <span>{cari.CariKodu} — Cari Ekstre</span>
+          </div>
+          <button onClick={onClose}>✕</button>
+        </div>
+
+        {loading ? <p style={{ padding: 20 }}>Yükleniyor...</p> : (
+          <>
+            <div className="cari-ekstre-summary">
+              <div><label>Toplam Borç (Cari'nin bize borcu)</label><div className="green">{ekstre.toplamBorc.toLocaleString()} ₺</div></div>
+              <div><label>Toplam Alacak (Bizim cariye borcumuz)</label><div className="red">{ekstre.toplamAlacak.toLocaleString()} ₺</div></div>
+              <div><label>Bakiye</label><div className={ekstre.bakiye >= 0 ? "green" : "red"}>{ekstre.bakiye.toLocaleString()} ₺ {ekstre.bakiye >= 0 ? "(Cari bize borçlu)" : "(Biz cariye borçluyuz)"}</div></div>
+            </div>
+            <table className="cari-ekstre-table">
+              <thead><tr><th>Tarih</th><th>Tip</th><th>Açıklama</th><th>Kaynak</th><th>Tutar</th></tr></thead>
+              <tbody>
+                {ekstre.hareketler.map(h => (
+                  <tr key={h.HareketId}>
+                    <td>{new Date(h.Tarih).toLocaleDateString("tr-TR")}</td>
+                    <td><span className={`erp-badge ${h.Tip === "Borç" ? "green" : "orange"}`}>{h.Tip}</span></td>
+                    <td>{h.Aciklama}</td>
+                    <td>{h.Kaynak}</td>
+                    <td style={{ fontWeight: 700 }}>{Number(h.Tutar).toLocaleString()} ₺</td>
+                  </tr>
+                ))}
+                {ekstre.hareketler.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: "center", color: "#999", padding: 16 }}>Henüz hareket yok</td></tr>
+                )}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};

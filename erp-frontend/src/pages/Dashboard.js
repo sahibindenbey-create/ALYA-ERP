@@ -10,6 +10,10 @@ import FactoryIcon from '@mui/icons-material/Factory';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import AppsIcon from '@mui/icons-material/Apps';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import BadgeIcon from '@mui/icons-material/Badge';
+import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import LogoutIcon from '@mui/icons-material/Logout';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import { logoutUser, getCurrentUser } from "../auth";
@@ -21,13 +25,22 @@ const NAV_GROUPS = [
     items: [{ to: "/dashboard", label: "Panel Özet", icon: <DashboardIcon fontSize="small" />, exact: true }],
   },
   {
-    title: "OPERASYON",
+    title: "SATIŞ / SATINALMA",
     items: [
       { to: "/dashboard/cari-yonetimi", label: "Cari Kartlar", icon: <PeopleIcon fontSize="small" /> },
       { to: "/dashboard/siparis-yonetimi", label: "Sipariş Girişi", icon: <ShoppingCartIcon fontSize="small" /> },
+      { to: "/dashboard/irsaliye", label: "İrsaliye", icon: <LocalShippingIcon fontSize="small" /> },
+      { to: "/dashboard/faturalar", label: "Faturalar", icon: <ReceiptLongIcon fontSize="small" /> },
+      { to: "/dashboard/platform-import", label: "Platform Siparişleri", icon: <SyncAltIcon fontSize="small" /> },
+    ],
+  },
+  {
+    title: "OPERASYON",
+    items: [
       { to: "/dashboard/urun-stoklar", label: "Ürün ve Hizmetler", icon: <Inventory2Icon fontSize="small" /> },
       { to: "/dashboard/receteler", label: "Üretim Reçeteleri", icon: <ScienceIcon fontSize="small" /> },
       { to: "/dashboard/fason", label: "Fason Takip", icon: <FactoryIcon fontSize="small" /> },
+      { to: "/dashboard/personel", label: "Personel", icon: <BadgeIcon fontSize="small" /> },
     ],
   },
   {
@@ -50,6 +63,10 @@ const PAGE_TITLES = {
   "/dashboard": "Panel Özet",
   "/dashboard/cari-yonetimi": "Cari Kartlar",
   "/dashboard/siparis-yonetimi": "Sipariş Girişi",
+  "/dashboard/irsaliye": "İrsaliye",
+  "/dashboard/faturalar": "Faturalar",
+  "/dashboard/personel": "Personel",
+  "/dashboard/platform-import": "Platform Siparişleri",
   "/dashboard/urun-stoklar": "Ürün ve Hizmetler",
   "/dashboard/receteler": "Üretim Reçeteleri",
   "/dashboard/fason": "Fason Takip",
@@ -182,7 +199,11 @@ function DashboardHome({ user, navigate }) {
       <div className="db-section-title">Hızlı Erişim</div>
       <div className="db-quick-grid">
         <QuickCard icon={<PeopleIcon />} title="Cari Kartlar" desc="Müşteri / tedarikçi yönetimi" onClick={() => navigate("/dashboard/cari-yonetimi")} />
-        <QuickCard icon={<ShoppingCartIcon />} title="Sipariş Girişi" desc="Yeni sipariş oluştur" onClick={() => navigate("/dashboard/siparis-yonetimi")} />
+        <QuickCard icon={<ShoppingCartIcon />} title="Sipariş Girişi" desc="Alış / satış siparişi oluştur" onClick={() => navigate("/dashboard/siparis-yonetimi")} />
+        <QuickCard icon={<LocalShippingIcon />} title="İrsaliye" desc="Alış / satış irsaliyesi düzenle" onClick={() => navigate("/dashboard/irsaliye")} />
+        <QuickCard icon={<ReceiptLongIcon />} title="Faturalar" desc="Alış / satış faturası düzenle" onClick={() => navigate("/dashboard/faturalar")} />
+        <QuickCard icon={<BadgeIcon />} title="Personel" desc="Özlük, izin, puantaj, maaş/prim" onClick={() => navigate("/dashboard/personel")} />
+        <QuickCard icon={<SyncAltIcon />} title="Platform Siparişleri" desc="Excel ile toplu içe aktar" onClick={() => navigate("/dashboard/platform-import")} />
         <QuickCard icon={<Inventory2Icon />} title="Ürün ve Hizmetler" desc="Stok ve hizmet kartlarını yönet" onClick={() => navigate("/dashboard/urun-stoklar")} />
         <QuickCard icon={<ScienceIcon />} title="Üretim Reçeteleri" desc="BOM / reçete tanımla, üretim yap" onClick={() => navigate("/dashboard/receteler")} />
         <QuickCard icon={<FactoryIcon />} title="Fason Takip" desc="Dışarıya gönderilen malları izle" onClick={() => navigate("/dashboard/fason")} />

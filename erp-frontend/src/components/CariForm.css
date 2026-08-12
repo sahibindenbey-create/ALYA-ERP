@@ -182,3 +182,27 @@ input:focus { border-color: #3f51b5; outline: none; }
 .mt-5 { margin-top: 5px; }
 .mt-10 { margin-top: 10px; }
 .mt-20 { margin-top: 20px; }
+.cari-ekstre-backdrop {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+}
+.cari-ekstre-modal {
+  background: white; border-radius: 14px; width: 100%; max-width: 800px;
+  max-height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.cari-ekstre-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 20px 24px; border-bottom: 1px solid #e2e8f0;
+}
+.cari-ekstre-header h2 { margin: 0 0 4px; font-size: 1.1rem; }
+.cari-ekstre-header span { color: #64748b; font-size: 0.85rem; }
+.cari-ekstre-header button { background: #f8fafc; border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; }
+.cari-ekstre-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 20px 24px;
+}
+.cari-ekstre-summary label { display: block; font-size: 0.72rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+.cari-ekstre-summary .green { color: #16a34a; font-weight: 700; font-size: 1.1rem; }
+.cari-ekstre-summary .red { color: #dc2626; font-weight: 700; font-size: 1.1rem; }
+.cari-ekstre-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; padding: 0 24px; }
+.cari-ekstre-table { padding: 0 24px 20px; } .cari-ekstre-table th { text-align: left; padding: 9px 4px; color: #64748b; font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+.cari-ekstre-table td { padding: 9px 4px; border-bottom: 1px solid #f1f5f9; }

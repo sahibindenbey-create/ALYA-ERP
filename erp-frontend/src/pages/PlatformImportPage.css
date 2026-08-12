@@ -1,0 +1,105 @@
+.pim-container {
+  font-family: var(--font);
+  color: var(--text-primary);
+}
+
+.pim-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 24px;
+  max-width: 900px;
+}
+
+.pim-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.pim-desc {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.pim-upload-box {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.pim-upload-btn {
+  background: var(--accent);
+  color: white;
+  padding: 10px 22px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: inline-block;
+}
+.pim-upload-btn:hover { background: var(--accent-dark); }
+
+.pim-filename {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.pim-subheader {
+  font-weight: 700;
+  margin: 18px 0 10px;
+  font-size: 0.92rem;
+}
+
+.pim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+.pim-table th {
+  text-align: left; padding: 9px 8px; color: var(--text-secondary);
+  font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border);
+}
+.pim-table td { padding: 9px 8px; border-bottom: 1px solid #f1f5f9; }
+
+.pim-form-footer { margin-top: 8px; }
+
+.pim-btn-import {
+  background: var(--success);
+  color: white;
+  border: none;
+  padding: 12px 26px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.pim-btn-import:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.pim-result {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--success-bg);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.pim-note {
+  margin-top: 20px;
+  padding: 12px 16px;
+  background: #fafbfc;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

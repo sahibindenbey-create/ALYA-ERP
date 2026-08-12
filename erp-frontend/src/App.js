@@ -9,6 +9,10 @@ import Dashboard from "./pages/Dashboard";
 import KayitlarPage from "./pages/KayitlarPage";
 import FasonPage from "./pages/FasonPage";
 import KullaniciYonetimi from "./pages/KullaniciYonetimi";
+import IrsaliyeForm from "./pages/IrsaliyeForm";
+import FaturaForm from "./pages/FaturaForm";
+import PersonelForm from "./pages/PersonelForm";
+import PlatformImportPage from "./pages/PlatformImportPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import PrivateRoute from "./components/PrivateRoute";
 import { isAuthenticated } from "./auth";
@@ -47,6 +51,10 @@ function App() {
           >
             <Route path="cari-yonetimi" element={<CariForm />} />
             <Route path="siparis-yonetimi" element={<SiparisForm />} />
+            <Route path="irsaliye" element={<IrsaliyeForm />} />
+            <Route path="faturalar" element={<FaturaForm />} />
+            <Route path="personel" element={<PersonelForm />} />
+            <Route path="platform-import" element={<PlatformImportPage />} />
             <Route path="urun-stoklar" element={<UrunForm />} />
             <Route path="hizmetler" element={<UrunForm />} />
             <Route path="receteler" element={<ReceteForm />} />

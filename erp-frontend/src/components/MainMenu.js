@@ -4,7 +4,10 @@ import menuItems from "../data/menuItems";
 import { getCurrentUser, logoutUser } from "../auth";
 import "./MainMenu.css";
 
-const ACTIVE_MODULES = ["cari-yonetimi", "siparis-yonetimi", "urun-stoklar", "receteler", "fason", "kayitlar"];
+const ACTIVE_MODULES = [
+  "cari-yonetimi", "siparis-yonetimi", "irsaliye", "faturalar", "personel",
+  "platform-import", "urun-stoklar", "receteler", "fason", "kayitlar"
+];
 
 const MainMenu = () => {
   const [activeGroup, setActiveGroup] = useState(null);

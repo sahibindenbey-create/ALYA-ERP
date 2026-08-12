@@ -24,6 +24,7 @@ const SiparisForm = () => {
 
   const [form, setForm] = useState({
     siparisKodu: "SIP-" + Date.now(),
+    siparisYonu: "Satış",
     siparisTarihi: new Date().toISOString().split('T')[0],
     teslimatTarihi: "", tahsilatTarihi: "",
     siparisTipi: "YENİ SİPARİŞ", siparisVeren: "BAYİ", musteriTemsilcisi: "ERKAN DALGIN",
@@ -175,8 +176,9 @@ const SiparisForm = () => {
   };
 
   const resetForm = () => {
-    setForm({
+    setForm(f => ({
       siparisKodu: "SIP-" + Date.now(),
+      siparisYonu: f.siparisYonu,
       siparisTarihi: new Date().toISOString().split('T')[0],
       teslimatTarihi: "", tahsilatTarihi: "",
       siparisTipi: "YENİ SİPARİŞ", siparisVeren: "BAYİ", musteriTemsilcisi: "ERKAN DALGIN",
@@ -184,7 +186,7 @@ const SiparisForm = () => {
       faturaUlke: "TÜRKİYE", faturaIl: "", faturaIlce: "", faturaAdres: "",
       sevkiyatUlke: "TÜRKİYE", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdres: "",
       odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE"
-    });
+    }));
     setItems([]);
     setAdresAyni(false);
   };
@@ -213,8 +215,27 @@ const SiparisForm = () => {
 
   return (
     <div className="vba-container">
-      <div className="vba-header">SİPARİŞ KAYIT FORMU (VBA REVİZE)</div>
-      
+      <div className="vba-header">SİPARİŞ KAYIT FORMU</div>
+
+      {/* SİPARİŞ YÖNÜ SEÇİCİ - EN BAŞTA */}
+      <div className="vba-body">
+        <div className="vba-panel siparis-yon-panel">
+          <label className="vba-label-sm" style={{ marginBottom: 10, display: "block" }}>SİPARİŞ YÖNÜ *</label>
+          <div className="siparis-yon-toggle">
+            <button
+              type="button"
+              className={form.siparisYonu === "Satış" ? "active" : ""}
+              onClick={() => setForm({ ...form, siparisYonu: "Satış", cariKodu: "", cariAdi: "" })}
+            >🛒 Satış Siparişi<small>Müşteriye satış</small></button>
+            <button
+              type="button"
+              className={form.siparisYonu === "Alış" ? "active" : ""}
+              onClick={() => setForm({ ...form, siparisYonu: "Alış", cariKodu: "", cariAdi: "" })}
+            >📥 Alış Siparişi<small>Tedarikçiden alış</small></button>
+          </div>
+        </div>
+      </div>
+
       <div className="vba-body">
         {/* BÖLÜM 1: GENEL BİLGİLER */}
         <div className="vba-panel">
@@ -243,12 +264,14 @@ const SiparisForm = () => {
         <div className="vba-panel">
           <div className="vba-row">
             <div className="vba-f" style={{flex:0.9}}>
-              <label>CARİ KODU / ADI</label>
+              <label>{form.siparisYonu === "Alış" ? "TEDARİKÇİ" : "MÜŞTERİ"} KODU / ADI</label>
               <SearchableSelect
-                options={carilerListesi.map(c => ({ value: c.CariKodu, label: c.CariAdi, sublabel: c.CariKodu }))}
+                options={carilerListesi
+                  .filter(c => form.siparisYonu === "Alış" ? c.CariTipi !== 1 : c.CariTipi !== 2)
+                  .map(c => ({ value: c.CariKodu, label: c.CariAdi, sublabel: c.CariKodu }))}
                 value={form.cariKodu}
                 onChange={(val) => handleCariSecim(val)}
-                placeholder="Cari seçin..."
+                placeholder={form.siparisYonu === "Alış" ? "Tedarikçi seçin..." : "Müşteri seçin..."}
               />
             </div>
             <div className="vba-f"><label>CARİ ADI</label><input value={form.cariAdi} onChange={e=>setForm({...form, cariAdi:e.target.value})} /></div>
@@ -363,17 +386,32 @@ const SiparisForm = () => {
             <span>{gecmisAcik ? "▲ Gizle" : "▼ Göster"}</span>
           </div>
           {gecmisAcik && (
+            <>
+            <ExportToolbar
+              data={siparisGecmisi}
+              columns={[
+                { key: "SiparisKodu", label: "Sipariş No" }, { key: "SiparisYonu", label: "Yön" },
+                { key: "CariAdi", label: "Cari" }, { key: "SiparisTipi", label: "Tip" },
+                { key: "Durum", label: "Durum" }, { key: "ToplamTutar", label: "Toplam" }
+              ]}
+              filename="siparis-gecmisi"
+            />
             <div className="vba-grid" style={{ marginTop: 12 }}>
               <table>
                 <thead>
                   <tr>
-                    <th>SİPARİŞ NO</th><th>TARİH</th><th>CARİ</th><th>TİP</th><th>DURUM</th><th>TOPLAM</th>
+                    <th>SİPARİŞ NO</th><th>YÖN</th><th>TARİH</th><th>CARİ</th><th>TİP</th><th>DURUM</th><th>TOPLAM</th>
                   </tr>
                 </thead>
                 <tbody>
                   {siparisGecmisi.map((s) => (
                     <tr key={s.SiparisId}>
                       <td>{s.SiparisKodu}</td>
+                      <td>
+                        <span className={`erp-badge ${s.SiparisYonu === "Alış" ? "orange" : "blue"}`}>
+                          {s.SiparisYonu === "Alış" ? "📥 Alış" : "🛒 Satış"}
+                        </span>
+                      </td>
                       <td>{s.SiparisTarihi ? new Date(s.SiparisTarihi).toLocaleDateString('tr-TR') : ''}</td>
                       <td>{s.CariAdi}</td>
                       <td>{s.SiparisTipi}</td>
@@ -382,11 +420,12 @@ const SiparisForm = () => {
                     </tr>
                   ))}
                   {siparisGecmisi.length === 0 && (
-                    <tr><td colSpan={6} style={{textAlign:'center', color:'#999', padding:'12px'}}>Henüz kayıtlı sipariş yok</td></tr>
+                    <tr><td colSpan={7} style={{textAlign:'center', color:'#999', padding:'12px'}}>Henüz kayıtlı sipariş yok</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>

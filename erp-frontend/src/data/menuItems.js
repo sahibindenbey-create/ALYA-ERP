@@ -4,6 +4,10 @@ const menuItems = [
     items: [
       { name: "Cariler", path: "cari-yonetimi", icon: "👥" },
       { name: "Sipariş Girişi", path: "siparis-yonetimi", icon: "🧾" },
+      { name: "İrsaliye", path: "irsaliye", icon: "🚚" },
+      { name: "Faturalar", path: "faturalar", icon: "💵" },
+      { name: "Personel", path: "personel", icon: "🧑‍💼" },
+      { name: "Platform Siparişleri", path: "platform-import", icon: "🔗" },
       { name: "Ürün ve Hizmetler", path: "urun-stoklar", icon: "📦" },
       { name: "Üretim Reçeteleri", path: "receteler", icon: "🧪" },
       { name: "Fason Takip", path: "fason", icon: "🏭" },

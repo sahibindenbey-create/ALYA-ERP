@@ -243,6 +243,7 @@ app.post('/api/siparisler', async (req, res) => {
     const headerRequest = new sql.Request(transaction);
     const headerResult = await headerRequest
       .input('SiparisKodu', sql.NVarChar, form.siparisKodu)
+      .input('SiparisYonu', sql.NVarChar, form.siparisYonu || 'Satış')
       .input('SiparisTarihi', sql.Date, form.siparisTarihi)
       .input('TeslimatTarihi', sql.Date, form.teslimatTarihi || null)
       .input('TahsilatTarihi', sql.Date, form.tahsilatTarihi || null)
@@ -264,7 +265,7 @@ app.post('/api/siparisler', async (req, res) => {
       .input('ToplamTutar', sql.Decimal(18, 2), toplamTutar)
       .query(`
         INSERT INTO Siparisler (
-          SiparisKodu, SiparisTarihi, TeslimatTarihi, TahsilatTarihi,
+          SiparisKodu, SiparisYonu, SiparisTarihi, TeslimatTarihi, TahsilatTarihi,
           SiparisTipi, SiparisVeren, MusteriTemsilcisi, CariKodu, CariAdi,
           FaturaUlke, FaturaIl, FaturaIlce, FaturaAdres,
           SevkiyatUlke, SevkiyatIl, SevkiyatIlce, SevkiyatAdres,
@@ -272,7 +273,7 @@ app.post('/api/siparisler', async (req, res) => {
         )
         OUTPUT INSERTED.SiparisId
         VALUES (
-          @SiparisKodu, @SiparisTarihi, @TeslimatTarihi, @TahsilatTarihi,
+          @SiparisKodu, @SiparisYonu, @SiparisTarihi, @TeslimatTarihi, @TahsilatTarihi,
           @SiparisTipi, @SiparisVeren, @MusteriTemsilcisi, @CariKodu, @CariAdi,
           @FaturaUlke, @FaturaIl, @FaturaIlce, @FaturaAdres,
           @SevkiyatUlke, @SevkiyatIl, @SevkiyatIlce, @SevkiyatAdres,
@@ -892,6 +893,587 @@ app.delete('/api/auth/kullanicilar/:id', async (req, res) => {
   } catch (err) {
     console.error('Hata:', err);
     res.status(500).json({ error: 'Kullanıcı pasifleştirilirken hata oluştu' });
+  }
+});
+
+/* =========================================================
+   TOPLU SİPARİŞ İÇE AKTARMA (Platform siparişleri - Excel/CSV)
+   ========================================================= */
+app.post('/api/siparisler/toplu-import', async (req, res) => {
+  const pool = await poolPromise;
+  let basarili = 0, hatali = 0;
+  const hatalar = [];
+
+  try {
+    const { siparisler } = req.body; // [{ form, items }]
+    if (!siparisler || siparisler.length === 0) {
+      return res.status(400).json({ error: 'İçe aktarılacak sipariş bulunamadı.' });
+    }
+
+    for (const s of siparisler) {
+      const transaction = new sql.Transaction(pool);
+      try {
+        await transaction.begin();
+        const toplamTutar = (s.items || []).reduce((acc, it) => acc + Number(it.satirToplam || 0), 0);
+
+        const headerRequest = new sql.Request(transaction);
+        const headerResult = await headerRequest
+          .input('SiparisKodu', sql.NVarChar, s.form.siparisKodu)
+          .input('SiparisYonu', sql.NVarChar, 'Satış')
+          .input('SiparisTarihi', sql.Date, s.form.siparisTarihi)
+          .input('SiparisTipi', sql.NVarChar, s.form.siparisTipi || 'YENİ SİPARİŞ')
+          .input('SiparisVeren', sql.NVarChar, s.form.siparisVeren)
+          .input('CariKodu', sql.NVarChar, s.form.cariKodu || null)
+          .input('CariAdi', sql.NVarChar, s.form.cariAdi)
+          .input('ToplamTutar', sql.Decimal(18, 2), toplamTutar)
+          .query(`
+            INSERT INTO Siparisler (SiparisKodu, SiparisYonu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar)
+            OUTPUT INSERTED.SiparisId
+            VALUES (@SiparisKodu, @SiparisYonu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar)
+          `);
+
+        const siparisId = headerResult.recordset[0].SiparisId;
+
+        for (const it of (s.items || [])) {
+          const itemRequest = new sql.Request(transaction);
+          await itemRequest
+            .input('SiparisId', sql.Int, siparisId)
+            .input('UrunKodu', sql.NVarChar, it.urunKodu || null)
+            .input('UrunAdi', sql.NVarChar, it.urunAdi)
+            .input('Miktar', sql.Decimal(18, 2), it.miktar || 0)
+            .input('Birim', sql.NVarChar, it.birim || 'ADET')
+            .input('BirimFiyatKdvDahil', sql.Decimal(18, 2), it.birimFiyat || 0)
+            .input('SatirToplam', sql.Decimal(18, 2), it.satirToplam || 0)
+            .query(`
+              INSERT INTO SiparisDetay (SiparisId, UrunKodu, UrunAdi, Miktar, Birim, BirimFiyatKdvDahil, SatirToplam)
+              VALUES (@SiparisId, @UrunKodu, @UrunAdi, @Miktar, @Birim, @BirimFiyatKdvDahil, @SatirToplam)
+            `);
+        }
+
+        await transaction.commit();
+        basarili++;
+      } catch (err) {
+        try { await transaction.rollback(); } catch (e) {}
+        hatali++;
+        hatalar.push({ siparisKodu: s.form?.siparisKodu, hata: err.message });
+      }
+    }
+
+    res.json({ success: true, basarili, hatali, hatalar });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Toplu içe aktarma sırasında hata oluştu', detail: err.message });
+  }
+});
+
+/* =========================================================
+   İRSALİYE MODÜLÜ (Alış / Satış)
+   ========================================================= */
+
+app.get('/api/irsaliyeler', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query('SELECT * FROM Irsaliyeler WHERE IsActive = 1 ORDER BY IrsaliyeId DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'İrsaliye listesi alınamadı', detail: err.message });
+  }
+});
+
+app.get('/api/irsaliyeler/:id', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { id } = req.params;
+    const header = await pool.request().input('IrsaliyeId', sql.Int, id)
+      .query('SELECT * FROM Irsaliyeler WHERE IrsaliyeId = @IrsaliyeId');
+    const items = await pool.request().input('IrsaliyeId', sql.Int, id)
+      .query('SELECT * FROM IrsaliyeDetay WHERE IrsaliyeId = @IrsaliyeId');
+    if (header.recordset.length === 0) return res.status(404).json({ error: 'İrsaliye bulunamadı' });
+    res.json({ ...header.recordset[0], items: items.recordset });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'İrsaliye detayı alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/irsaliyeler', async (req, res) => {
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+  try {
+    const { form, items } = req.body;
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'En az bir ürün satırı eklemelisiniz.' });
+    }
+    const toplamTutar = items.reduce((acc, it) => acc + Number(it.satirToplam || 0), 0);
+
+    await transaction.begin();
+    const headerRequest = new sql.Request(transaction);
+    const headerResult = await headerRequest
+      .input('IrsaliyeKodu', sql.NVarChar, form.irsaliyeKodu)
+      .input('Yon', sql.NVarChar, form.yon || 'Satış')
+      .input('IrsaliyeTarihi', sql.Date, form.irsaliyeTarihi)
+      .input('CariKodu', sql.NVarChar, form.cariKodu)
+      .input('CariAdi', sql.NVarChar, form.cariAdi)
+      .input('SiparisId', sql.Int, form.siparisId || null)
+      .input('TeslimatAdresi', sql.NVarChar, form.teslimatAdresi || null)
+      .input('Notlar', sql.NVarChar, form.notlar || null)
+      .input('ToplamTutar', sql.Decimal(18, 2), toplamTutar)
+      .query(`
+        INSERT INTO Irsaliyeler (IrsaliyeKodu, Yon, IrsaliyeTarihi, CariKodu, CariAdi, SiparisId, TeslimatAdresi, Notlar, ToplamTutar)
+        OUTPUT INSERTED.IrsaliyeId
+        VALUES (@IrsaliyeKodu, @Yon, @IrsaliyeTarihi, @CariKodu, @CariAdi, @SiparisId, @TeslimatAdresi, @Notlar, @ToplamTutar)
+      `);
+
+    const irsaliyeId = headerResult.recordset[0].IrsaliyeId;
+
+    for (const it of items) {
+      const itemRequest = new sql.Request(transaction);
+      await itemRequest
+        .input('IrsaliyeId', sql.Int, irsaliyeId)
+        .input('UrunKodu', sql.NVarChar, it.urunKodu)
+        .input('UrunAdi', sql.NVarChar, it.urunAdi)
+        .input('Miktar', sql.Decimal(18, 2), it.miktar || 0)
+        .input('Birim', sql.NVarChar, it.birim)
+        .input('BirimFiyat', sql.Decimal(18, 2), it.birimFiyat || 0)
+        .input('SatirToplam', sql.Decimal(18, 2), it.satirToplam || 0)
+        .query(`
+          INSERT INTO IrsaliyeDetay (IrsaliyeId, UrunKodu, UrunAdi, Miktar, Birim, BirimFiyat, SatirToplam)
+          VALUES (@IrsaliyeId, @UrunKodu, @UrunAdi, @Miktar, @Birim, @BirimFiyat, @SatirToplam)
+        `);
+    }
+
+    await transaction.commit();
+    res.json({ success: true, message: 'İrsaliye kaydedildi', irsaliyeId });
+  } catch (err) {
+    console.error('Hata:', err);
+    try { await transaction.rollback(); } catch (e) {}
+    res.status(500).json({ error: 'İrsaliye kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/irsaliyeler/:id', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { id } = req.params;
+    await pool.request().input('IrsaliyeId', sql.Int, id)
+      .query('UPDATE Irsaliyeler SET IsActive = 0 WHERE IrsaliyeId = @IrsaliyeId');
+    res.json({ success: true, message: 'İrsaliye silindi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'İrsaliye silinirken hata oluştu' });
+  }
+});
+
+/* =========================================================
+   FATURA MODÜLÜ (Alış / Satış)
+   ========================================================= */
+
+app.get('/api/faturalar', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query('SELECT * FROM Faturalar WHERE IsActive = 1 ORDER BY FaturaId DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Fatura listesi alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/faturalar', async (req, res) => {
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+  try {
+    const { form, items } = req.body;
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'En az bir ürün satırı eklemelisiniz.' });
+    }
+    const araToplam = items.reduce((acc, it) => acc + Number(it.miktar || 0) * Number(it.birimFiyat || 0), 0);
+    const kdvToplam = items.reduce((acc, it) => acc + Number(it.kdvTutari || 0), 0);
+    const genelToplam = araToplam + kdvToplam;
+
+    await transaction.begin();
+    const headerRequest = new sql.Request(transaction);
+    const headerResult = await headerRequest
+      .input('FaturaKodu', sql.NVarChar, form.faturaKodu)
+      .input('Yon', sql.NVarChar, form.yon || 'Satış')
+      .input('FaturaTarihi', sql.Date, form.faturaTarihi)
+      .input('VadeTarihi', sql.Date, form.vadeTarihi || null)
+      .input('CariKodu', sql.NVarChar, form.cariKodu)
+      .input('CariAdi', sql.NVarChar, form.cariAdi)
+      .input('SiparisId', sql.Int, form.siparisId || null)
+      .input('IrsaliyeId', sql.Int, form.irsaliyeId || null)
+      .input('OdemeSekli', sql.NVarChar, form.odemeSekli)
+      .input('AraToplam', sql.Decimal(18, 2), araToplam)
+      .input('KdvToplam', sql.Decimal(18, 2), kdvToplam)
+      .input('GenelToplam', sql.Decimal(18, 2), genelToplam)
+      .query(`
+        INSERT INTO Faturalar (FaturaKodu, Yon, FaturaTarihi, VadeTarihi, CariKodu, CariAdi, SiparisId, IrsaliyeId, OdemeSekli, AraToplam, KdvToplam, GenelToplam)
+        OUTPUT INSERTED.FaturaId
+        VALUES (@FaturaKodu, @Yon, @FaturaTarihi, @VadeTarihi, @CariKodu, @CariAdi, @SiparisId, @IrsaliyeId, @OdemeSekli, @AraToplam, @KdvToplam, @GenelToplam)
+      `);
+
+    const faturaId = headerResult.recordset[0].FaturaId;
+
+    for (const it of items) {
+      const itemRequest = new sql.Request(transaction);
+      await itemRequest
+        .input('FaturaId', sql.Int, faturaId)
+        .input('UrunKodu', sql.NVarChar, it.urunKodu)
+        .input('UrunAdi', sql.NVarChar, it.urunAdi)
+        .input('Miktar', sql.Decimal(18, 2), it.miktar || 0)
+        .input('Birim', sql.NVarChar, it.birim)
+        .input('BirimFiyat', sql.Decimal(18, 2), it.birimFiyat || 0)
+        .input('KdvOrani', sql.Int, it.kdvOrani || 20)
+        .input('KdvTutari', sql.Decimal(18, 2), it.kdvTutari || 0)
+        .input('SatirToplam', sql.Decimal(18, 2), Number(it.miktar || 0) * Number(it.birimFiyat || 0))
+        .query(`
+          INSERT INTO FaturaDetay (FaturaId, UrunKodu, UrunAdi, Miktar, Birim, BirimFiyat, KdvOrani, KdvTutari, SatirToplam)
+          VALUES (@FaturaId, @UrunKodu, @UrunAdi, @Miktar, @Birim, @BirimFiyat, @KdvOrani, @KdvTutari, @SatirToplam)
+        `);
+    }
+
+    // --- OTOMATİK CARİ HAREKET: Satış faturası -> cari bize borçlanır (Borç); Alış faturası -> biz cariye borçlanırız (Alacak) ---
+    const hareketTipi = (form.yon || 'Satış') === 'Satış' ? 'Borç' : 'Alacak';
+    const hareketRequest = new sql.Request(transaction);
+    await hareketRequest
+      .input('CariKodu', sql.NVarChar, form.cariKodu)
+      .input('CariAdi', sql.NVarChar, form.cariAdi)
+      .input('Tarih', sql.Date, form.faturaTarihi)
+      .input('Tip', sql.NVarChar, hareketTipi)
+      .input('Tutar', sql.Decimal(18, 2), genelToplam)
+      .input('Aciklama', sql.NVarChar, `${form.faturaKodu} nolu ${form.yon} faturası`)
+      .input('KaynakId', sql.Int, faturaId)
+      .query(`
+        INSERT INTO CariHareket (CariKodu, CariAdi, Tarih, Tip, Tutar, Aciklama, Kaynak, KaynakId)
+        VALUES (@CariKodu, @CariAdi, @Tarih, @Tip, @Tutar, @Aciklama, 'Fatura', @KaynakId)
+      `);
+
+    await transaction.commit();
+    res.json({ success: true, message: 'Fatura kaydedildi, cari hareket otomatik oluşturuldu', faturaId });
+  } catch (err) {
+    console.error('Hata:', err);
+    try { await transaction.rollback(); } catch (e) {}
+    res.status(500).json({ error: 'Fatura kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+/* =========================================================
+   CARİ HAREKET / EKSTRE
+   ========================================================= */
+app.get('/api/cari-ekstre/:cariKodu', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { cariKodu } = req.params;
+    const result = await pool.request().input('CariKodu', sql.NVarChar, cariKodu)
+      .query('SELECT * FROM CariHareket WHERE CariKodu = @CariKodu ORDER BY Tarih DESC, HareketId DESC');
+
+    const rows = result.recordset;
+    const toplamBorc = rows.filter(r => r.Tip === 'Borç').reduce((a, r) => a + Number(r.Tutar), 0);
+    const toplamAlacak = rows.filter(r => r.Tip === 'Alacak').reduce((a, r) => a + Number(r.Tutar), 0);
+    const bakiye = toplamBorc - toplamAlacak; // pozitif: cari bize borçlu, negatif: biz cariye borçluyuz
+
+    res.json({ hareketler: rows, toplamBorc, toplamAlacak, bakiye });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Cari ekstre alınamadı', detail: err.message });
+  }
+});
+
+// Manuel tahsilat / ödeme kaydı (cari hareket olarak)
+app.post('/api/cari-hareket', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { CariKodu, CariAdi, Tarih, Tip, Tutar, Aciklama, Kaynak } = req.body;
+    await pool.request()
+      .input('CariKodu', sql.NVarChar, CariKodu)
+      .input('CariAdi', sql.NVarChar, CariAdi)
+      .input('Tarih', sql.Date, Tarih)
+      .input('Tip', sql.NVarChar, Tip)
+      .input('Tutar', sql.Decimal(18, 2), Tutar)
+      .input('Aciklama', sql.NVarChar, Aciklama || null)
+      .input('Kaynak', sql.NVarChar, Kaynak || 'Manuel')
+      .query(`
+        INSERT INTO CariHareket (CariKodu, CariAdi, Tarih, Tip, Tutar, Aciklama, Kaynak)
+        VALUES (@CariKodu, @CariAdi, @Tarih, @Tip, @Tutar, @Aciklama, @Kaynak)
+      `);
+    res.json({ success: true, message: 'Cari hareket kaydedildi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Cari hareket kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+app.put('/api/faturalar/:id/durum', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { id } = req.params;
+    const { Durum } = req.body;
+    await pool.request().input('FaturaId', sql.Int, id).input('Durum', sql.NVarChar, Durum)
+      .query('UPDATE Faturalar SET Durum = @Durum WHERE FaturaId = @FaturaId');
+    res.json({ success: true, message: 'Fatura durumu güncellendi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Fatura güncellenirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/faturalar/:id', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { id } = req.params;
+    await pool.request().input('FaturaId', sql.Int, id)
+      .query('UPDATE Faturalar SET IsActive = 0 WHERE FaturaId = @FaturaId');
+    res.json({ success: true, message: 'Fatura silindi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Fatura silinirken hata oluştu' });
+  }
+});
+
+/* =========================================================
+   PERSONEL MODÜLÜ (özlük + izin + puantaj + maaş/prim)
+   ========================================================= */
+
+app.get('/api/personel', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query('SELECT * FROM Personeller WHERE IsActive = 1 ORDER BY PersonelId DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Personel listesi alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/personel', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const b = req.body;
+    const result = await pool.request()
+      .input('PersonelKodu', sql.NVarChar, b.PersonelKodu)
+      .input('AdSoyad', sql.NVarChar, b.AdSoyad)
+      .input('TCNo', sql.NVarChar, b.TCNo || null)
+      .input('DogumTarihi', sql.Date, b.DogumTarihi || null)
+      .input('Cinsiyet', sql.NVarChar, b.Cinsiyet || null)
+      .input('MedeniHal', sql.NVarChar, b.MedeniHal || null)
+      .input('IseGirisTarihi', sql.Date, b.IseGirisTarihi || null)
+      .input('IstenCikisTarihi', sql.Date, b.IstenCikisTarihi || null)
+      .input('Departman', sql.NVarChar, b.Departman || null)
+      .input('Pozisyon', sql.NVarChar, b.Pozisyon || null)
+      .input('Telefon', sql.NVarChar, b.Telefon || null)
+      .input('Email', sql.NVarChar, b.Email || null)
+      .input('Adres', sql.NVarChar, b.Adres || null)
+      .input('IBAN', sql.NVarChar, b.IBAN || null)
+      .input('AcilDurumKisi', sql.NVarChar, b.AcilDurumKisi || null)
+      .input('AcilDurumTel', sql.NVarChar, b.AcilDurumTel || null)
+      .query(`
+        INSERT INTO Personeller (
+          PersonelKodu, AdSoyad, TCNo, DogumTarihi, Cinsiyet, MedeniHal,
+          IseGirisTarihi, IstenCikisTarihi, Departman, Pozisyon, Telefon, Email, Adres, IBAN,
+          AcilDurumKisi, AcilDurumTel
+        )
+        OUTPUT INSERTED.*
+        VALUES (
+          @PersonelKodu, @AdSoyad, @TCNo, @DogumTarihi, @Cinsiyet, @MedeniHal,
+          @IseGirisTarihi, @IstenCikisTarihi, @Departman, @Pozisyon, @Telefon, @Email, @Adres, @IBAN,
+          @AcilDurumKisi, @AcilDurumTel
+        )
+      `);
+    res.json({ success: true, data: result.recordset[0] });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Personel eklenirken hata oluştu', detail: err.message });
+  }
+});
+
+app.put('/api/personel/:id', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { id } = req.params;
+    const b = req.body;
+    await pool.request()
+      .input('PersonelId', sql.Int, id)
+      .input('AdSoyad', sql.NVarChar, b.AdSoyad)
+      .input('TCNo', sql.NVarChar, b.TCNo || null)
+      .input('DogumTarihi', sql.Date, b.DogumTarihi || null)
+      .input('Cinsiyet', sql.NVarChar, b.Cinsiyet || null)
+      .input('MedeniHal', sql.NVarChar, b.MedeniHal || null)
+      .input('IseGirisTarihi', sql.Date, b.IseGirisTarihi || null)
+      .input('IstenCikisTarihi', sql.Date, b.IstenCikisTarihi || null)
+      .input('Departman', sql.NVarChar, b.Departman || null)
+      .input('Pozisyon', sql.NVarChar, b.Pozisyon || null)
+      .input('Telefon', sql.NVarChar, b.Telefon || null)
+      .input('Email', sql.NVarChar, b.Email || null)
+      .input('Adres', sql.NVarChar, b.Adres || null)
+      .input('IBAN', sql.NVarChar, b.IBAN || null)
+      .input('AcilDurumKisi', sql.NVarChar, b.AcilDurumKisi || null)
+      .input('AcilDurumTel', sql.NVarChar, b.AcilDurumTel || null)
+      .query(`
+        UPDATE Personeller SET
+          AdSoyad=@AdSoyad, TCNo=@TCNo, DogumTarihi=@DogumTarihi, Cinsiyet=@Cinsiyet, MedeniHal=@MedeniHal,
+          IseGirisTarihi=@IseGirisTarihi, IstenCikisTarihi=@IstenCikisTarihi, Departman=@Departman, Pozisyon=@Pozisyon,
+          Telefon=@Telefon, Email=@Email, Adres=@Adres, IBAN=@IBAN,
+          AcilDurumKisi=@AcilDurumKisi, AcilDurumTel=@AcilDurumTel
+        WHERE PersonelId=@PersonelId
+      `);
+    res.json({ success: true, message: 'Personel güncellendi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Personel güncellenirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/personel/:id', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { id } = req.params;
+    await pool.request().input('PersonelId', sql.Int, id)
+      .query('UPDATE Personeller SET IsActive = 0 WHERE PersonelId = @PersonelId');
+    res.json({ success: true, message: 'Personel pasifleştirildi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Personel silinirken hata oluştu' });
+  }
+});
+
+// --- İzinler ---
+app.get('/api/personel/:id/izinler', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().input('PersonelId', sql.Int, req.params.id)
+      .query('SELECT * FROM PersonelIzin WHERE PersonelId = @PersonelId ORDER BY BaslangicTarihi DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: 'İzinler alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/personel/:id/izinler', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { IzinTipi, BaslangicTarihi, BitisTarihi, GunSayisi, Aciklama, Durum } = req.body;
+    await pool.request()
+      .input('PersonelId', sql.Int, req.params.id)
+      .input('IzinTipi', sql.NVarChar, IzinTipi)
+      .input('BaslangicTarihi', sql.Date, BaslangicTarihi)
+      .input('BitisTarihi', sql.Date, BitisTarihi)
+      .input('GunSayisi', sql.Int, GunSayisi || 0)
+      .input('Aciklama', sql.NVarChar, Aciklama || null)
+      .input('Durum', sql.NVarChar, Durum || 'Onaylandı')
+      .query(`
+        INSERT INTO PersonelIzin (PersonelId, IzinTipi, BaslangicTarihi, BitisTarihi, GunSayisi, Aciklama, Durum)
+        VALUES (@PersonelId, @IzinTipi, @BaslangicTarihi, @BitisTarihi, @GunSayisi, @Aciklama, @Durum)
+      `);
+    res.json({ success: true, message: 'İzin kaydedildi' });
+  } catch (err) {
+    res.status(500).json({ error: 'İzin kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/personel/izinler/:izinId', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await pool.request().input('IzinId', sql.Int, req.params.izinId)
+      .query('DELETE FROM PersonelIzin WHERE IzinId = @IzinId');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'İzin silinirken hata oluştu' });
+  }
+});
+
+// --- Puantaj ---
+app.get('/api/personel/:id/puantaj', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().input('PersonelId', sql.Int, req.params.id)
+      .query('SELECT * FROM PersonelPuantaj WHERE PersonelId = @PersonelId ORDER BY Tarih DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: 'Puantaj alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/personel/:id/puantaj', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { Tarih, GirisSaati, CikisSaati, CalismaSuresiSaat, Durum, Aciklama } = req.body;
+    await pool.request()
+      .input('PersonelId', sql.Int, req.params.id)
+      .input('Tarih', sql.Date, Tarih)
+      .input('GirisSaati', sql.NVarChar, GirisSaati || null)
+      .input('CikisSaati', sql.NVarChar, CikisSaati || null)
+      .input('CalismaSuresiSaat', sql.Decimal(5, 2), CalismaSuresiSaat || 0)
+      .input('Durum', sql.NVarChar, Durum || 'Tam Gün')
+      .input('Aciklama', sql.NVarChar, Aciklama || null)
+      .query(`
+        INSERT INTO PersonelPuantaj (PersonelId, Tarih, GirisSaati, CikisSaati, CalismaSuresiSaat, Durum, Aciklama)
+        VALUES (@PersonelId, @Tarih, @GirisSaati, @CikisSaati, @CalismaSuresiSaat, @Durum, @Aciklama)
+      `);
+    res.json({ success: true, message: 'Puantaj kaydedildi' });
+  } catch (err) {
+    res.status(500).json({ error: 'Puantaj kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/personel/puantaj/:puantajId', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await pool.request().input('PuantajId', sql.Int, req.params.puantajId)
+      .query('DELETE FROM PersonelPuantaj WHERE PuantajId = @PuantajId');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Puantaj silinirken hata oluştu' });
+  }
+});
+
+// --- Maaş & Prim ---
+app.get('/api/personel/:id/maas', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().input('PersonelId', sql.Int, req.params.id)
+      .query('SELECT * FROM PersonelMaas WHERE PersonelId = @PersonelId ORDER BY DonemYil DESC, DonemAy DESC');
+    res.json(result.recordset);
+  } catch (err) {
+    res.status(500).json({ error: 'Maaş kayıtları alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/personel/:id/maas', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { DonemYil, DonemAy, BrutMaas, NetMaas, Prim, Kesinti, OdemeTarihi, Aciklama } = req.body;
+    await pool.request()
+      .input('PersonelId', sql.Int, req.params.id)
+      .input('DonemYil', sql.Int, DonemYil)
+      .input('DonemAy', sql.Int, DonemAy)
+      .input('BrutMaas', sql.Decimal(18, 2), BrutMaas || 0)
+      .input('NetMaas', sql.Decimal(18, 2), NetMaas || 0)
+      .input('Prim', sql.Decimal(18, 2), Prim || 0)
+      .input('Kesinti', sql.Decimal(18, 2), Kesinti || 0)
+      .input('OdemeTarihi', sql.Date, OdemeTarihi || null)
+      .input('Aciklama', sql.NVarChar, Aciklama || null)
+      .query(`
+        INSERT INTO PersonelMaas (PersonelId, DonemYil, DonemAy, BrutMaas, NetMaas, Prim, Kesinti, OdemeTarihi, Aciklama)
+        VALUES (@PersonelId, @DonemYil, @DonemAy, @BrutMaas, @NetMaas, @Prim, @Kesinti, @OdemeTarihi, @Aciklama)
+      `);
+    res.json({ success: true, message: 'Maaş kaydı eklendi' });
+  } catch (err) {
+    res.status(500).json({ error: 'Maaş kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/personel/maas/:maasId', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await pool.request().input('MaasId', sql.Int, req.params.maasId)
+      .query('DELETE FROM PersonelMaas WHERE MaasId = @MaasId');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Maaş kaydı silinirken hata oluştu' });
   }
 });
 
