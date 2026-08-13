@@ -6,6 +6,7 @@ const menuItems = [
       { name: "Sipariş Girişi", path: "siparis-yonetimi", icon: "🧾" },
       { name: "İrsaliye", path: "irsaliye", icon: "🚚" },
       { name: "Faturalar", path: "faturalar", icon: "💵" },
+      { name: "Finans (Kasa/Banka)", path: "finans", icon: "🏦" },
       { name: "Personel", path: "personel", icon: "🧑‍💼" },
       { name: "Platform Siparişleri", path: "platform-import", icon: "🔗" },
       { name: "Ürün ve Hizmetler", path: "urun-stoklar", icon: "📦" },

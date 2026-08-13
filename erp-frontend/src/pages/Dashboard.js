@@ -12,6 +12,7 @@ import AppsIcon from '@mui/icons-material/Apps';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import BadgeIcon from '@mui/icons-material/Badge';
 import SyncAltIcon from '@mui/icons-material/SyncAlt';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -31,6 +32,7 @@ const NAV_GROUPS = [
       { to: "/dashboard/siparis-yonetimi", label: "Sipariş Girişi", icon: <ShoppingCartIcon fontSize="small" /> },
       { to: "/dashboard/irsaliye", label: "İrsaliye", icon: <LocalShippingIcon fontSize="small" /> },
       { to: "/dashboard/faturalar", label: "Faturalar", icon: <ReceiptLongIcon fontSize="small" /> },
+      { to: "/dashboard/finans", label: "Finans (Kasa/Banka)", icon: <AccountBalanceIcon fontSize="small" /> },
       { to: "/dashboard/platform-import", label: "Platform Siparişleri", icon: <SyncAltIcon fontSize="small" /> },
     ],
   },
@@ -65,6 +67,7 @@ const PAGE_TITLES = {
   "/dashboard/siparis-yonetimi": "Sipariş Girişi",
   "/dashboard/irsaliye": "İrsaliye",
   "/dashboard/faturalar": "Faturalar",
+  "/dashboard/finans": "Finans (Kasa/Banka)",
   "/dashboard/personel": "Personel",
   "/dashboard/platform-import": "Platform Siparişleri",
   "/dashboard/urun-stoklar": "Ürün ve Hizmetler",
@@ -202,6 +205,7 @@ function DashboardHome({ user, navigate }) {
         <QuickCard icon={<ShoppingCartIcon />} title="Sipariş Girişi" desc="Alış / satış siparişi oluştur" onClick={() => navigate("/dashboard/siparis-yonetimi")} />
         <QuickCard icon={<LocalShippingIcon />} title="İrsaliye" desc="Alış / satış irsaliyesi düzenle" onClick={() => navigate("/dashboard/irsaliye")} />
         <QuickCard icon={<ReceiptLongIcon />} title="Faturalar" desc="Alış / satış faturası düzenle" onClick={() => navigate("/dashboard/faturalar")} />
+        <QuickCard icon={<AccountBalanceIcon />} title="Finans (Kasa/Banka)" desc="Tahsilat, ödeme, bakiye takibi" onClick={() => navigate("/dashboard/finans")} />
         <QuickCard icon={<BadgeIcon />} title="Personel" desc="Özlük, izin, puantaj, maaş/prim" onClick={() => navigate("/dashboard/personel")} />
         <QuickCard icon={<SyncAltIcon />} title="Platform Siparişleri" desc="Excel ile toplu içe aktar" onClick={() => navigate("/dashboard/platform-import")} />
         <QuickCard icon={<Inventory2Icon />} title="Ürün ve Hizmetler" desc="Stok ve hizmet kartlarını yönet" onClick={() => navigate("/dashboard/urun-stoklar")} />

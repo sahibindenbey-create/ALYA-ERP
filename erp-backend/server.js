@@ -1477,6 +1477,190 @@ app.delete('/api/personel/maas/:maasId', async (req, res) => {
   }
 });
 
+/* =========================================================
+   FİNANS MODÜLÜ (Kasa / Banka + Tahsilat / Ödeme)
+   ========================================================= */
+
+// Kasa/Banka hesapları (bakiye hesaplı)
+app.get('/api/kasa-banka', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const hesaplar = await pool.request()
+      .query('SELECT * FROM KasaBanka WHERE IsActive = 1 ORDER BY KasaBankaId');
+
+    const sonuc = [];
+    for (const h of hesaplar.recordset) {
+      const hareket = await pool.request().input('KasaBankaId', sql.Int, h.KasaBankaId)
+        .query(`
+          SELECT
+            ISNULL(SUM(CASE WHEN Tip = 'Giriş' THEN Tutar ELSE 0 END), 0) AS ToplamGiris,
+            ISNULL(SUM(CASE WHEN Tip = 'Çıkış' THEN Tutar ELSE 0 END), 0) AS ToplamCikis
+          FROM FinansHareket WHERE KasaBankaId = @KasaBankaId
+        `);
+      const { ToplamGiris, ToplamCikis } = hareket.recordset[0];
+      sonuc.push({ ...h, Bakiye: Number(h.AcilisBakiyesi) + Number(ToplamGiris) - Number(ToplamCikis) });
+    }
+    res.json(sonuc);
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Kasa/Banka listesi alınamadı', detail: err.message });
+  }
+});
+
+app.post('/api/kasa-banka', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { Ad, Tip, BankaAdi, SubeAdi, HesapNoIBAN, ParaBirimi, AcilisBakiyesi } = req.body;
+    const result = await pool.request()
+      .input('Ad', sql.NVarChar, Ad)
+      .input('Tip', sql.NVarChar, Tip || 'Kasa')
+      .input('BankaAdi', sql.NVarChar, BankaAdi || null)
+      .input('SubeAdi', sql.NVarChar, SubeAdi || null)
+      .input('HesapNoIBAN', sql.NVarChar, HesapNoIBAN || null)
+      .input('ParaBirimi', sql.NVarChar, ParaBirimi || 'TL')
+      .input('AcilisBakiyesi', sql.Decimal(18, 2), AcilisBakiyesi || 0)
+      .query(`
+        INSERT INTO KasaBanka (Ad, Tip, BankaAdi, SubeAdi, HesapNoIBAN, ParaBirimi, AcilisBakiyesi)
+        OUTPUT INSERTED.*
+        VALUES (@Ad, @Tip, @BankaAdi, @SubeAdi, @HesapNoIBAN, @ParaBirimi, @AcilisBakiyesi)
+      `);
+    res.json({ success: true, data: result.recordset[0] });
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Hesap eklenirken hata oluştu', detail: err.message });
+  }
+});
+
+app.delete('/api/kasa-banka/:id', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    await pool.request().input('KasaBankaId', sql.Int, req.params.id)
+      .query('UPDATE KasaBanka SET IsActive = 0 WHERE KasaBankaId = @KasaBankaId');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Hesap pasifleştirilirken hata oluştu' });
+  }
+});
+
+// Finans hareket listesi (tüm hesaplar veya tek hesap)
+app.get('/api/finans-hareket', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const { kasaBankaId } = req.query;
+    let query = `
+      SELECT fh.*, kb.Ad AS KasaBankaAdi FROM FinansHareket fh
+      JOIN KasaBanka kb ON kb.KasaBankaId = fh.KasaBankaId
+    `;
+    const request = pool.request();
+    if (kasaBankaId) {
+      query += ' WHERE fh.KasaBankaId = @KasaBankaId';
+      request.input('KasaBankaId', sql.Int, kasaBankaId);
+    }
+    query += ' ORDER BY fh.Tarih DESC, fh.HareketId DESC';
+    const result = await request.query(query);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Finans hareketleri alınamadı', detail: err.message });
+  }
+});
+
+// TAHSİLAT: müşteriden para al -> kasa/banka Giriş + cari borcu azalır (Alacak kaydı)
+app.post('/api/tahsilat', async (req, res) => {
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+  try {
+    const { KasaBankaId, CariKodu, CariAdi, Tarih, Tutar, Aciklama } = req.body;
+    if (!KasaBankaId || !Tutar || Tutar <= 0) {
+      return res.status(400).json({ error: 'Kasa/Banka hesabı ve geçerli bir tutar gereklidir.' });
+    }
+
+    await transaction.begin();
+
+    const finansReq = new sql.Request(transaction);
+    await finansReq
+      .input('KasaBankaId', sql.Int, KasaBankaId)
+      .input('Tarih', sql.Date, Tarih)
+      .input('Tutar', sql.Decimal(18, 2), Tutar)
+      .input('Aciklama', sql.NVarChar, Aciklama || `${CariAdi || ''} tahsilat`.trim())
+      .input('CariKodu', sql.NVarChar, CariKodu || null)
+      .input('CariAdi', sql.NVarChar, CariAdi || null)
+      .query(`
+        INSERT INTO FinansHareket (KasaBankaId, Tarih, Tip, Tutar, Aciklama, Kaynak, CariKodu, CariAdi)
+        VALUES (@KasaBankaId, @Tarih, 'Giriş', @Tutar, @Aciklama, 'Tahsilat', @CariKodu, @CariAdi)
+      `);
+
+    if (CariKodu) {
+      const cariReq = new sql.Request(transaction);
+      await cariReq
+        .input('CariKodu', sql.NVarChar, CariKodu)
+        .input('CariAdi', sql.NVarChar, CariAdi || null)
+        .input('Tarih', sql.Date, Tarih)
+        .input('Tutar', sql.Decimal(18, 2), Tutar)
+        .input('Aciklama', sql.NVarChar, Aciklama || 'Tahsilat')
+        .query(`
+          INSERT INTO CariHareket (CariKodu, CariAdi, Tarih, Tip, Tutar, Aciklama, Kaynak)
+          VALUES (@CariKodu, @CariAdi, @Tarih, 'Alacak', @Tutar, @Aciklama, 'Tahsilat')
+        `);
+    }
+
+    await transaction.commit();
+    res.json({ success: true, message: 'Tahsilat kaydedildi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    try { await transaction.rollback(); } catch (e) {}
+    res.status(500).json({ error: 'Tahsilat kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
+// ÖDEME: tedarikçiye/gidere para öde -> kasa/banka Çıkış + cari alacağımız azalır (Borç kaydı)
+app.post('/api/odeme', async (req, res) => {
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+  try {
+    const { KasaBankaId, CariKodu, CariAdi, Tarih, Tutar, Aciklama } = req.body;
+    if (!KasaBankaId || !Tutar || Tutar <= 0) {
+      return res.status(400).json({ error: 'Kasa/Banka hesabı ve geçerli bir tutar gereklidir.' });
+    }
+
+    await transaction.begin();
+
+    const finansReq = new sql.Request(transaction);
+    await finansReq
+      .input('KasaBankaId', sql.Int, KasaBankaId)
+      .input('Tarih', sql.Date, Tarih)
+      .input('Tutar', sql.Decimal(18, 2), Tutar)
+      .input('Aciklama', sql.NVarChar, Aciklama || `${CariAdi || ''} ödeme`.trim())
+      .input('CariKodu', sql.NVarChar, CariKodu || null)
+      .input('CariAdi', sql.NVarChar, CariAdi || null)
+      .query(`
+        INSERT INTO FinansHareket (KasaBankaId, Tarih, Tip, Tutar, Aciklama, Kaynak, CariKodu, CariAdi)
+        VALUES (@KasaBankaId, @Tarih, 'Çıkış', @Tutar, @Aciklama, 'Ödeme', @CariKodu, @CariAdi)
+      `);
+
+    if (CariKodu) {
+      const cariReq = new sql.Request(transaction);
+      await cariReq
+        .input('CariKodu', sql.NVarChar, CariKodu)
+        .input('CariAdi', sql.NVarChar, CariAdi || null)
+        .input('Tarih', sql.Date, Tarih)
+        .input('Tutar', sql.Decimal(18, 2), Tutar)
+        .input('Aciklama', sql.NVarChar, Aciklama || 'Ödeme')
+        .query(`
+          INSERT INTO CariHareket (CariKodu, CariAdi, Tarih, Tip, Tutar, Aciklama, Kaynak)
+          VALUES (@CariKodu, @CariAdi, @Tarih, 'Borç', @Tutar, @Aciklama, 'Ödeme')
+        `);
+    }
+
+    await transaction.commit();
+    res.json({ success: true, message: 'Ödeme kaydedildi' });
+  } catch (err) {
+    console.error('Hata:', err);
+    try { await transaction.rollback(); } catch (e) {}
+    res.status(500).json({ error: 'Ödeme kaydedilirken hata oluştu', detail: err.message });
+  }
+});
+
 // Server başlat
 app.listen(PORT, () => {
   console.log(`Server ${PORT} portunda calisiyor`);

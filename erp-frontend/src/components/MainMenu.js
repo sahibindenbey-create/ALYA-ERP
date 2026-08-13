@@ -5,7 +5,7 @@ import { getCurrentUser, logoutUser } from "../auth";
 import "./MainMenu.css";
 
 const ACTIVE_MODULES = [
-  "cari-yonetimi", "siparis-yonetimi", "irsaliye", "faturalar", "personel",
+  "cari-yonetimi", "siparis-yonetimi", "irsaliye", "faturalar", "finans", "personel",
   "platform-import", "urun-stoklar", "receteler", "fason", "kayitlar"
 ];
 

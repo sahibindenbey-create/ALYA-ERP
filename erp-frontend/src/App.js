@@ -13,6 +13,7 @@ import IrsaliyeForm from "./pages/IrsaliyeForm";
 import FaturaForm from "./pages/FaturaForm";
 import PersonelForm from "./pages/PersonelForm";
 import PlatformImportPage from "./pages/PlatformImportPage";
+import FinansPage from "./pages/FinansPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import PrivateRoute from "./components/PrivateRoute";
 import { isAuthenticated } from "./auth";
@@ -55,6 +56,7 @@ function App() {
             <Route path="faturalar" element={<FaturaForm />} />
             <Route path="personel" element={<PersonelForm />} />
             <Route path="platform-import" element={<PlatformImportPage />} />
+            <Route path="finans" element={<FinansPage />} />
             <Route path="urun-stoklar" element={<UrunForm />} />
             <Route path="hizmetler" element={<UrunForm />} />
             <Route path="receteler" element={<ReceteForm />} />
