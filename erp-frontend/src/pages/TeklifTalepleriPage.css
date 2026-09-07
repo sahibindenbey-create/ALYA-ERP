@@ -1,0 +1,21 @@
+.tt-container { font-family: var(--font); color: var(--text-primary); }
+
+.tt-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px;
+}
+
+.tt-header { margin-bottom: 6px; }
+.tt-header h3 { margin: 0; }
+.tt-desc { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.5; }
+
+.tt-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tt-table th { text-align: left; padding: 10px 8px; color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.tt-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
+.tt-table input, .tt-table select { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.82rem; }
+
+.tt-btn-edit { background: var(--accent-light); color: var(--accent); border: none; padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-right: 5px; }
+.tt-btn-del { background: var(--danger-bg); color: var(--danger); border: none; padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+.tt-btn-cancel { background: #f1f5f9; color: var(--text-secondary); border: none; padding: 5px 9px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; margin-right: 5px; }

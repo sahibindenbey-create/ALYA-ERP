@@ -1,0 +1,19 @@
+.numune-toggle-mini {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.numune-durum-select {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e0;
+  font-size: 0.78rem;
+  font-weight: 600;
+}

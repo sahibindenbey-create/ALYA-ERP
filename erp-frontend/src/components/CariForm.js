@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { useParams, useNavigate } from "react-router-dom";
 import { TAX_OFFICES } from "../data/taxOffices";
 import * as LocationSource from "../data/turkiyeIlIlce"; 
 import ExportToolbar from "./ExportToolbar";
+import CariEvrakYonetimi from "./CariEvrakYonetimi";
 import "./CariForm.css";
 
-const CariForm = () => {
+const CariForm = ({ mode = "giris" }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const source = LocationSource.ilIlceData || [];
   const illerListesi = Array.isArray(source) ? source : (source.cities || source.iller || []);
 
@@ -16,7 +20,8 @@ const CariForm = () => {
     faturaAdresDetay: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "",
     yetkili1Ad: "", yetkili1Gorev: "", yetkili1Cep: "", yetkili1Mail: "",
     yetkili2Ad: "", yetkili2Gorev: "", yetkili2Cep: "", yetkili2Mail: "",
-    dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL"
+    dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL",
+    iletisim: "", notlar: ""
   });
 
   const [savedData, setSavedData] = useState([]);
@@ -35,7 +40,8 @@ const CariForm = () => {
     faturaAdresDetay: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "",
     yetkili1Ad: "", yetkili1Gorev: "", yetkili1Cep: "", yetkili1Mail: "",
     yetkili2Ad: "", yetkili2Gorev: "", yetkili2Cep: "", yetkili2Mail: "",
-    dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL"
+    dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL",
+    iletisim: "", notlar: ""
   };
 
   const cariTipiToLabel = (val) => (val === 1 ? "Müşteri" : val === 2 ? "Tedarikçi" : "Her İkisi");
@@ -69,7 +75,9 @@ const CariForm = () => {
       dosyalar: [],
       riskLimiti: String(item.RiskLimiti ?? "0"),
       vadeGunu: String(item.VadeGunu ?? "0"),
-      paraBirimi: item.ParaBirimi || "TL"
+      paraBirimi: item.ParaBirimi || "TL",
+      iletisim: item.Iletisim || "",
+      notlar: item.Notlar || ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -91,6 +99,25 @@ const CariForm = () => {
   useEffect(() => {
     fetchCariler();
   }, []);
+
+  // Liste sayfasindan bir kaydi duzenlemek icin /cari-giris/:id ile gelindiyse
+  // ilgili kaydi bulup forma yukle
+  useEffect(() => {
+    if (mode === "giris" && id && savedData.length > 0) {
+      const found = savedData.find(x => String(x.CariId) === String(id));
+      if (found) handleEdit(found);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, id, savedData]);
+
+  // Liste modunda Duzenle'ye basinca Giris sayfasina yonlendir
+  const handleEditClick = (item) => {
+    if (mode === "liste") {
+      navigate(`/dashboard/cari-giris/${item.CariId}`);
+    } else {
+      handleEdit(item);
+    }
+  };
 
   // Gerçek Kişi seçilince vergi alanlarını temizle; tüzel kişide TC'yi temizle
   useEffect(() => {
@@ -130,12 +157,6 @@ const CariForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files);
-    const fileNames = files.map(f => f.name);
-    setFormData(prev => ({ ...prev, dosyalar: [...prev.dosyalar, ...fileNames] }));
-  };
-
   useEffect(() => {
     if (ayniAdres) {
       setFormData(prev => ({
@@ -173,7 +194,9 @@ const CariForm = () => {
     Yetkili2Mail: formData.yetkili2Mail,
     RiskLimiti: formData.riskLimiti,
     VadeGunu: formData.vadeGunu,
-    ParaBirimi: formData.paraBirimi
+    ParaBirimi: formData.paraBirimi,
+    Iletisim: formData.iletisim,
+    Notlar: formData.notlar
   });
 
   const handleSave = async () => {
@@ -246,6 +269,7 @@ const CariForm = () => {
         </div>
       </div>
 
+      {mode === "liste" && (
       <div className="top-search-section">
         <div className="search-wrapper">
           <input 
@@ -257,7 +281,9 @@ const CariForm = () => {
           <span className="search-count">Filtrelenen: {filteredList.length}</span>
         </div>
       </div>
+      )}
 
+      {mode === "giris" && (
       <div className="cari-card">
         <div className="cari-header">
           <div className="header-left">
@@ -404,23 +430,20 @@ const CariForm = () => {
           </section>
 
           <section className="form-section">
-            <h3 className="section-title">Evrak Arşivi</h3>
-            <div className="file-upload-container">
-              <div className="file-drop-zone">
-                <input type="file" multiple onChange={handleFileChange} id="fileInput" className="hidden-file-input" />
-                <label htmlFor="fileInput" className="file-label"><strong>Dosya Seçin</strong></label>
+            <h3 className="section-title">İletişim ve Notlar</h3>
+            <div className="grid-2">
+              <div className="field">
+                <label>İletişim (genel)</label>
+                <input name="iletisim" value={formData.iletisim} onChange={handleChange} placeholder="Telefon, web sitesi vb." />
               </div>
-              {formData.dosyalar.length > 0 && (
-                <div className="file-list">
-                  {formData.dosyalar.map((name, index) => (
-                    <div key={index} className="file-item">
-                      📄 {name} <button type="button" onClick={() => setFormData(prev => ({...prev, dosyalar: prev.dosyalar.filter((_, i) => i !== index)}))}>x</button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            </div>
+            <div className="field full">
+              <label>Notlar</label>
+              <textarea name="notlar" value={formData.notlar} onChange={handleChange} rows={3} placeholder="Bu cari ile ilgili serbest notlar..." />
             </div>
           </section>
+
+          <CariEvrakYonetimi cariId={editingId} />
         </div>
 
         <div className="cari-footer">
@@ -432,19 +455,18 @@ const CariForm = () => {
           <button className="btn-save" onClick={handleSave}>
             {editingId ? "Değişiklikleri Kaydet" : "Cariyi Kaydet"}
           </button>
-          {editingId && (
-            <button
-              type="button"
-              onClick={handleCancelEdit}
-              style={{ marginLeft: 10, padding: "8px 16px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
-            >
-              İptal / Yeni Kayıt
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleCancelEdit}
+            style={{ marginLeft: 10, padding: "8px 16px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
+          >
+            🧹 Temizle
+          </button>
         </div>
       </div>
+      )}
 
-      {savedData.length > 0 && (
+      {mode === "liste" && savedData.length > 0 && (
         <div className="cari-list-section mt-20">
           <ExportToolbar
             data={filteredList}
@@ -467,7 +489,7 @@ const CariForm = () => {
                   <td>{item.VergiNo || item.TCNo}</td>
                   <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
                   <td>
-                    <button className="btn-edit" onClick={() => handleEdit(item)} style={{ marginRight: 6 }}>Düzenle</button>
+                    <button className="btn-edit" onClick={() => handleEditClick(item)} style={{ marginRight: 6 }}>Düzenle</button>
                     <button className="btn-edit" onClick={() => setEkstreCari(item)} style={{ marginRight: 6 }}>Ekstre</button>
                     <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>
                   </td>

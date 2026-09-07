@@ -79,3 +79,51 @@
 .prs-detay-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .prs-detay-table th { text-align: left; padding: 9px 8px; color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 .prs-detay-table td { padding: 9px 8px; border-bottom: 1px solid #f1f5f9; }
+
+/* --- İzin Bakiye --- */
+.prs-izin-bakiye {
+  display: flex; gap: 20px; padding: 12px 16px; background: var(--bg-page);
+  border-radius: 10px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.prs-izin-bakiye > div { display: flex; flex-direction: column; gap: 2px; }
+.prs-izin-bakiye span { font-size: 0.68rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+.prs-izin-bakiye strong { font-size: 1.05rem; }
+.prs-izin-negatif strong { color: var(--danger, #dc2626); }
+
+/* --- Puantaj hesaplanan saat --- */
+.prs-hesaplanan-saat {
+  padding: 8px 12px; background: var(--bg-page); border-radius: 7px;
+  font-size: 0.85rem; font-weight: 600; white-space: nowrap;
+}
+
+/* --- Bordro Hesaplayıcı --- */
+.prs-bordro-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+.prs-bordro-toggle button {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+  background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);
+}
+.prs-bordro-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+.prs-bordro-panel { background: var(--bg-page); border-radius: 12px; padding: 16px; }
+.prs-bordro-inputs { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.prs-bordro-inputs > div { display: flex; flex-direction: column; gap: 4px; }
+.prs-bordro-inputs label { font-size: 0.7rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+.prs-bordro-inputs input, .prs-bordro-inputs select { padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 0.85rem; }
+.prs-bordro-inputs button { height: 37px; padding: 0 16px; border-radius: 7px; border: none; background: var(--accent); color: white; font-weight: 600; cursor: pointer; }
+.prs-bordro-inputs button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.prs-bordro-sonuc { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border); }
+.prs-bordro-sonuc-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 14px;
+}
+.prs-bordro-sonuc-grid > div {
+  background: white; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px;
+}
+.prs-bordro-sonuc-grid span { font-size: 0.68rem; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+.prs-bordro-sonuc-grid strong { font-size: 1rem; }
+.prs-bordro-net { background: #dcfce7 !important; }
+.prs-bordro-net strong { color: #16a34a; font-size: 1.2rem; }
+.prs-bordro-maliyet { background: #fef3c7 !important; }
+.prs-bordro-maliyet strong { color: #b45309; }
+
+.prs-bordro-uyari { font-size: 0.75rem; color: var(--text-secondary); margin-top: 10px; line-height: 1.5; }

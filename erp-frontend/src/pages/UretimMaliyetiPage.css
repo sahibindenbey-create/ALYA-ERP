@@ -1,0 +1,58 @@
+.ump-container { display: flex; flex-direction: column; gap: 16px; }
+
+.ump-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ump-tabs button {
+  padding: 10px 18px; border-radius: 9px; border: 1px solid #e2e8f0;
+  background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #64748b;
+}
+.ump-tabs button.active { background: #2563eb; color: white; border-color: #2563eb; }
+
+.ump-card { background: white; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.ump-card-header h3 { margin: 0 0 10px; font-size: 1rem; }
+.ump-not { font-size: 0.8rem; color: #64748b; background: #f8fafc; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
+.ump-ozet-satir { font-size: 0.9rem; margin-bottom: 14px; }
+.ump-ozet-satir strong { color: #2563eb; }
+
+.ump-personel-oneri {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem;
+}
+.ump-personel-oneri button {
+  background: #2563eb; color: white; border: none; border-radius: 7px; padding: 7px 14px;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+
+.ump-entry-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.ump-entry-row input, .ump-entry-row select {
+  padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 7px; font-size: 0.85rem;
+}
+.ump-entry-row input[placeholder="Gider Adı (örn: Kira)"] { flex: 1.5; min-width: 160px; }
+.ump-entry-row input[placeholder="Açıklama (opsiyonel)"] { flex: 2; min-width: 160px; }
+.ump-entry-row button { background: #2563eb; color: white; border: none; border-radius: 7px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
+
+.ump-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ump-table th { text-align: left; padding: 9px 8px; color: #64748b; font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
+.ump-table td { padding: 9px 8px; border-bottom: 1px solid #f1f5f9; }
+.ump-mini-not { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+.ump-kategori-badge { background: #f1f5f9; color: #475569; font-size: 0.7rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+.ump-toggle-btn { background: #f1f5f9; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+.ump-sil-btn { background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+
+.ump-param-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.ump-param-grid label { display: block; font-size: 0.78rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+.ump-param-grid input { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e0; border-radius: 7px; font-size: 0.9rem; box-sizing: border-box; }
+.ump-hint { display: block; font-size: 0.7rem; color: #94a3b8; margin-top: 4px; }
+
+.ump-hesaplanan-kutu { background: #fef3c7; border-radius: 10px; padding: 12px 16px; font-size: 0.85rem; margin-bottom: 16px; }
+.ump-hesaplanan-kutu strong { color: #b45309; font-size: 1.05rem; }
+.ump-hesaplanan-kutu span { display: block; font-size: 0.72rem; color: #92400e; margin-top: 4px; }
+
+.ump-save-btn { background: #16a34a; color: white; border: none; border-radius: 8px; padding: 10px 22px; font-weight: 700; cursor: pointer; }
+
+.ump-basabas-hata { margin-top: 16px; background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 12px 16px; font-weight: 600; }
+.ump-basabas-sonuc { margin-top: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.ump-basabas-sonuc > div { background: #f8fafc; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.ump-basabas-sonuc span { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; color: #64748b; }
+.ump-basabas-sonuc strong { font-size: 1.05rem; }
+.ump-basabas-vurgu { background: #dcfce7 !important; }
+.ump-basabas-vurgu strong { color: #166534; font-size: 1.2rem; }

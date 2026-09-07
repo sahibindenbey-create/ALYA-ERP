@@ -277,3 +277,21 @@ td {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.siparis-cevrim-note {
+  background: var(--accent-light);
+  color: var(--accent);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.vba-total-breakdown {
+  display: flex;
+  gap: 20px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}

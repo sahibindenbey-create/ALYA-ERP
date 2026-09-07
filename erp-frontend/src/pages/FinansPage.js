@@ -9,7 +9,7 @@ const API_URL = "http://localhost:5000/api";
 const emptyHesap = { Ad: "", Tip: "Kasa", BankaAdi: "", SubeAdi: "", HesapNoIBAN: "", ParaBirimi: "TL", AcilisBakiyesi: "0" };
 const emptyIslem = { KasaBankaId: "", CariKodu: "", CariAdi: "", Tarih: new Date().toISOString().split("T")[0], Tutar: "", Aciklama: "" };
 
-const FinansPage = () => {
+const FinansPage = ({ section = "hareketler" }) => {
   const [hesaplar, setHesaplar] = useState([]);
   const [hareketler, setHareketler] = useState([]);
   const [cariler, setCariler] = useState([]);
@@ -104,6 +104,8 @@ const FinansPage = () => {
       </div>
 
       <div className="fin-card">
+      {section === "hesaplar" && (
+      <>
         <div className="fin-card-header">
           <h3>Kasa / Banka Hesapları</h3>
           <button className="fin-btn-add-hesap" onClick={() => setHesapFormAcik(!hesapFormAcik)}>
@@ -139,8 +141,30 @@ const FinansPage = () => {
           ))}
           {hesaplar.length === 0 && <p style={{ color: "#999" }}>Henüz hesap yok.</p>}
         </div>
+      </>
+      )}
+      {section === "hareketler" && (
+      <>
+        <div className="fin-card-header">
+          <h3>Kayıtlı Hesaplar (özet)</h3>
+        </div>
+        <div className="fin-hesap-grid">
+          {hesaplar.map(h => (
+            <div key={h.KasaBankaId} className="fin-hesap-card">
+              <div className="fin-hesap-tip">{h.Tip === "Kasa" ? "💵" : "🏦"} {h.Tip}</div>
+              <div className="fin-hesap-ad">{h.Ad}</div>
+              {h.BankaAdi && <div className="fin-hesap-detay">{h.BankaAdi} {h.HesapNoIBAN && `— ${h.HesapNoIBAN}`}</div>}
+              <div className={`fin-hesap-bakiye ${h.Bakiye < 0 ? "neg" : ""}`}>{Number(h.Bakiye).toLocaleString()} {h.ParaBirimi}</div>
+            </div>
+          ))}
+          {hesaplar.length === 0 && <p style={{ color: "#999" }}>Henüz hesap yok. "Banka Hesapları" sayfasından ekleyebilirsiniz.</p>}
+        </div>
+      </>
+      )}
       </div>
 
+      {section === "hareketler" && (
+      <>
       <div className="fin-card">
         <div className="fin-yon-toggle">
           <button className={islemTipi === "Tahsilat" ? "active" : ""} onClick={() => setIslemTipi("Tahsilat")}>💰 Tahsilat (Para Girişi)</button>
@@ -206,6 +230,8 @@ const FinansPage = () => {
           </table>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };

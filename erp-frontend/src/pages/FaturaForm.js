@@ -13,24 +13,28 @@ const emptyForm = {
 };
 const emptyEntry = { urunKodu: "", urunAdi: "", miktar: "", birim: "Adet", birimFiyat: "", kdvOrani: "20" };
 
-const FaturaForm = () => {
-  const [form, setForm] = useState(emptyForm);
+const FaturaForm = ({ defaultYon, mode = "tam" }) => {
+  const [form, setForm] = useState({ ...emptyForm, yon: defaultYon || emptyForm.yon });
   const [entry, setEntry] = useState(emptyEntry);
   const [items, setItems] = useState([]);
   const [cariler, setCariler] = useState([]);
+  const [listeYonFiltre, setListeYonFiltre] = useState("Hepsi");
+  const [listeSearch, setListeSearch] = useState("");
   const [urunler, setUrunler] = useState([]);
   const [faturalar, setFaturalar] = useState([]);
+  const [irsaliyeler, setIrsaliyeler] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [c, u, f] = await Promise.all([
+      const [c, u, f, i] = await Promise.all([
         axios.get(`${API_URL}/cariler`).then(r => r.data).catch(() => []),
         axios.get(`${API_URL}/urunler`).then(r => r.data).catch(() => []),
         axios.get(`${API_URL}/faturalar`).then(r => r.data).catch(() => []),
+        axios.get(`${API_URL}/irsaliyeler`).then(r => r.data).catch(() => []),
       ]);
-      setCariler(c); setUrunler(u); setFaturalar(f);
+      setCariler(c); setUrunler(u); setFaturalar(f); setIrsaliyeler(i);
     } catch (err) {
       console.error("Fatura verileri alınamadı:", err);
     } finally {
@@ -51,6 +55,25 @@ const FaturaForm = () => {
     setForm(f => ({ ...f, cariKodu: kod, cariAdi: c ? c.CariAdi : "" }));
   };
 
+  const handleIrsaliyedenGetir = async (irsaliyeId) => {
+    if (!irsaliyeId) return;
+    try {
+      const res = await axios.get(`${API_URL}/irsaliyeler/${irsaliyeId}/fatura-taslak`);
+      const { form: taslakForm, items: taslakItems } = res.data;
+      setForm(f => ({
+        ...f,
+        yon: taslakForm.yon,
+        cariKodu: taslakForm.cariKodu,
+        cariAdi: taslakForm.cariAdi,
+        irsaliyeId: taslakForm.irsaliyeId
+      }));
+      setItems(taslakItems.map(it => ({ ...it, id: Date.now() + Math.random() })));
+      alert("İrsaliye bilgileri ve ürün satırları faturaya aktarıldı. Kontrol edip kaydedebilirsin.");
+    } catch (err) {
+      alert("İrsaliye taslağı alınırken hata oluştu: " + (err.response?.data?.error || err.message));
+    }
+  };
+
   const handleUrunSecim = (id) => {
     const u = urunler.find(x => String(x.UrunId) === String(id));
     if (u) setEntry(e => ({ ...e, urunKodu: u.UrunKodu, urunAdi: u.UrunAdi, birim: u.Birim || "Adet", birimFiyat: u.ListeFiyati || "", kdvOrani: String(u.KdvOrani ?? "20") }));
@@ -67,7 +90,7 @@ const FaturaForm = () => {
   const satirSil = (id) => setItems(prev => prev.filter(it => it.id !== id));
 
   const resetForm = () => {
-    setForm(f => ({ ...emptyForm, yon: f.yon, faturaKodu: `FAT-${Date.now().toString().slice(-6)}` }));
+    setForm(f => ({ ...emptyForm, yon: defaultYon || f.yon, faturaKodu: `FAT-${Date.now().toString().slice(-6)}` }));
     setItems([]);
   };
 
@@ -112,12 +135,40 @@ const FaturaForm = () => {
     { key: "FaturaTarihi", label: "Tarih" }, { key: "GenelToplam", label: "Genel Toplam" }, { key: "Durum", label: "Durum" }
   ];
 
+  const gorunenFaturalar = mode === "liste"
+    ? faturalar
+        .filter(f => listeYonFiltre === "Hepsi" || f.Yon === listeYonFiltre)
+        .filter(f => (f.CariAdi || "").toLowerCase().includes(listeSearch.toLowerCase()) || (f.FaturaKodu || "").toLowerCase().includes(listeSearch.toLowerCase()))
+    : (defaultYon ? faturalar.filter(f => f.Yon === defaultYon) : faturalar);
+
   return (
     <div className="fat-container">
+      {mode === "tam" && (
       <div className="fat-form-card">
+        {!defaultYon && (
         <div className="fat-yon-toggle">
           <button type="button" className={form.yon === "Satış" ? "active" : ""} onClick={() => setForm({ ...form, yon: "Satış", cariKodu: "", cariAdi: "" })}>💰 Satış Faturası</button>
           <button type="button" className={form.yon === "Alış" ? "active" : ""} onClick={() => setForm({ ...form, yon: "Alış", cariKodu: "", cariAdi: "" })}>🧾 Alış Faturası</button>
+        </div>
+        )}
+        {defaultYon && (
+          <div className="fat-yon-toggle">
+            <button type="button" className="active">
+              {defaultYon === "Alış" ? "🧾 Alış Faturası" : "💰 Satış Faturası"}
+            </button>
+          </div>
+        )}
+
+        <div className="fat-field" style={{ marginBottom: 16 }}>
+          <label>🔗 Bir İrsaliyeden Oluştur (opsiyonel)</label>
+          <SearchableSelect
+            options={irsaliyeler
+              .filter(i => !defaultYon || i.Yon === defaultYon)
+              .map(i => ({ value: i.IrsaliyeId, label: `${i.CariAdi} — ${Number(i.ToplamTutar || 0).toLocaleString()} ₺`, sublabel: i.IrsaliyeKodu }))}
+            value=""
+            onChange={handleIrsaliyedenGetir}
+            placeholder="İrsaliyeyi seçince cari ve ürünler otomatik dolar..."
+          />
         </div>
 
         <div className="fat-grid">
@@ -184,15 +235,32 @@ const FaturaForm = () => {
           <button className="fat-btn-save" onClick={handleKaydet}>Faturayı Kaydet</button>
         </div>
       </div>
+      )}
 
       <div className="fat-list-card">
-        <h3>Fatura Geçmişi ({faturalar.length})</h3>
-        <ExportToolbar data={faturalar} columns={excelCols} filename="fatura-listesi" />
+        <h3>{mode === "liste" ? "Tüm Faturalar" : defaultYon ? (defaultYon === "Alış" ? "Alış Faturaları" : "Satış Faturaları") : "Fatura Geçmişi"} ({gorunenFaturalar.length})</h3>
+        {mode === "liste" && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <input
+              type="text"
+              placeholder="Cari adı veya fatura no ara..."
+              value={listeSearch}
+              onChange={e => setListeSearch(e.target.value)}
+              style={{ flex: 2, minWidth: 220, padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }}
+            />
+            <select value={listeYonFiltre} onChange={e => setListeYonFiltre(e.target.value)} style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }}>
+              <option value="Hepsi">Tüm Yönler</option>
+              <option value="Satış">💰 Satış</option>
+              <option value="Alış">🧾 Alış</option>
+            </select>
+          </div>
+        )}
+        <ExportToolbar data={gorunenFaturalar} columns={excelCols} filename={mode === "liste" ? "tum-faturalar" : defaultYon === "Alış" ? "alis-faturalari" : defaultYon === "Satış" ? "satis-faturalari" : "fatura-listesi"} />
         {loading ? <p style={{ color: "#888" }}>Yükleniyor...</p> : (
           <table className="fat-table">
             <thead><tr><th>Kod</th><th>Yön</th><th>Cari</th><th>Tarih</th><th>Genel Toplam</th><th>Durum</th><th>İşlem</th></tr></thead>
             <tbody>
-              {faturalar.map(f => (
+              {gorunenFaturalar.map(f => (
                 <tr key={f.FaturaId}>
                   <td><strong>{f.FaturaKodu}</strong></td>
                   <td><span className={`erp-badge ${f.Yon === "Alış" ? "orange" : "blue"}`}>{f.Yon === "Alış" ? "🧾 Alış" : "💰 Satış"}</span></td>
@@ -209,7 +277,7 @@ const FaturaForm = () => {
                   <td><button className="fat-btn-del-sm" onClick={() => handleSil(f.FaturaId)}>Sil</button></td>
                 </tr>
               ))}
-              {faturalar.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#999", padding: 16 }}>Kayıt yok</td></tr>}
+              {gorunenFaturalar.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#999", padding: 16 }}>Kayıt yok</td></tr>}
             </tbody>
           </table>
         )}

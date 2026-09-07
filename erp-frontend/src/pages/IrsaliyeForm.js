@@ -19,17 +19,19 @@ const IrsaliyeForm = () => {
   const [cariler, setCariler] = useState([]);
   const [urunler, setUrunler] = useState([]);
   const [irsaliyeler, setIrsaliyeler] = useState([]);
+  const [siparisler, setSiparisler] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [c, u, i] = await Promise.all([
+      const [c, u, i, s] = await Promise.all([
         axios.get(`${API_URL}/cariler`).then(r => r.data).catch(() => []),
         axios.get(`${API_URL}/urunler`).then(r => r.data).catch(() => []),
         axios.get(`${API_URL}/irsaliyeler`).then(r => r.data).catch(() => []),
+        axios.get(`${API_URL}/siparisler`).then(r => r.data).catch(() => []),
       ]);
-      setCariler(c); setUrunler(u); setIrsaliyeler(i);
+      setCariler(c); setUrunler(u); setIrsaliyeler(i); setSiparisler(s);
     } catch (err) {
       console.error("İrsaliye verileri alınamadı:", err);
     } finally {
@@ -51,6 +53,26 @@ const IrsaliyeForm = () => {
       ...f, cariKodu: kod, cariAdi: c ? c.CariAdi : "",
       teslimatAdresi: c ? [c.FaturaAdresDetay, c.FaturaIlce, c.FaturaIl].filter(Boolean).join(", ") : f.teslimatAdresi
     }));
+  };
+
+  const handleSiparistenGetir = async (siparisId) => {
+    if (!siparisId) return;
+    try {
+      const res = await axios.get(`${API_URL}/siparisler/${siparisId}/irsaliye-taslak`);
+      const { form: taslakForm, items: taslakItems } = res.data;
+      setForm(f => ({
+        ...f,
+        yon: taslakForm.yon,
+        cariKodu: taslakForm.cariKodu,
+        cariAdi: taslakForm.cariAdi,
+        teslimatAdresi: taslakForm.teslimatAdresi || f.teslimatAdresi,
+        siparisId: taslakForm.siparisId
+      }));
+      setItems(taslakItems.map(it => ({ ...it, id: Date.now() + Math.random() })));
+      alert("Sipariş bilgileri ve ürün satırları irsaliyeye aktarıldı. Kontrol edip kaydedebilirsin.");
+    } catch (err) {
+      alert("Sipariş taslağı alınırken hata oluştu: " + (err.response?.data?.error || err.message));
+    }
   };
 
   const handleUrunSecim = (id) => {
@@ -106,6 +128,16 @@ const IrsaliyeForm = () => {
         <div className="irs-yon-toggle">
           <button type="button" className={form.yon === "Satış" ? "active" : ""} onClick={() => setForm({ ...form, yon: "Satış", cariKodu: "", cariAdi: "" })}>🚚 Satış İrsaliyesi</button>
           <button type="button" className={form.yon === "Alış" ? "active" : ""} onClick={() => setForm({ ...form, yon: "Alış", cariKodu: "", cariAdi: "" })}>📥 Alış İrsaliyesi</button>
+        </div>
+
+        <div className="irs-field" style={{ marginBottom: 16 }}>
+          <label>🔗 Bir Siparişten Oluştur (opsiyonel)</label>
+          <SearchableSelect
+            options={siparisler.map(s => ({ value: s.SiparisId, label: `${s.CariAdi} — ${Number(s.ToplamTutar || 0).toLocaleString()} ₺`, sublabel: s.SiparisKodu }))}
+            value=""
+            onChange={handleSiparistenGetir}
+            placeholder="Siparişi seçince cari ve ürünler otomatik dolar..."
+          />
         </div>
 
         <div className="irs-grid">

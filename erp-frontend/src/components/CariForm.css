@@ -206,3 +206,43 @@ input:focus { border-color: #3f51b5; outline: none; }
 .cari-ekstre-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; padding: 0 24px; }
 .cari-ekstre-table { padding: 0 24px 20px; } .cari-ekstre-table th { text-align: left; padding: 9px 4px; color: #64748b; font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; }
 .cari-ekstre-table td { padding: 9px 4px; border-bottom: 1px solid #f1f5f9; }
+
+/* --- Cari Evrak Yönetimi --- */
+.evrak-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px;
+}
+.evrak-slot {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.evrak-slot-header { font-size: 0.85rem; font-weight: 600; color: #334155; }
+.evrak-slot-dosya { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.evrak-slot-dosya a { font-size: 0.8rem; color: #2563eb; text-decoration: none; word-break: break-all; }
+.evrak-slot-dosya a:hover { text-decoration: underline; }
+
+.evrak-upload-label {
+  display: inline-block; padding: 8px 14px; background: #2563eb; color: white;
+  border-radius: 7px; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center;
+}
+.evrak-upload-label:hover { background: #1d4ed8; }
+
+.evrak-sil-btn {
+  background: #fee2e2; color: #dc2626; border: none; border-radius: 6px;
+  padding: 5px 10px; font-size: 0.72rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+.evrak-sil-btn:hover { background: #fecaca; }
+
+.evrak-serbest { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+.evrak-serbest h4 { margin: 0 0 12px; font-size: 0.85rem; color: #334155; }
+.evrak-serbest-ekle { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.evrak-serbest-ekle input[type="text"] {
+  flex: 1; min-width: 220px; padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 7px; font-size: 0.85rem;
+}
+.evrak-serbest-liste { display: flex; flex-direction: column; gap: 8px; }
+.evrak-serbest-item {
+  display: flex; align-items: center; gap: 12px; background: white; border-radius: 7px;
+  padding: 8px 12px; border: 1px solid #e2e8f0;
+}
+.evrak-serbest-item a { flex: 1; font-size: 0.82rem; color: #2563eb; text-decoration: none; word-break: break-all; }
+.evrak-serbest-item a:hover { text-decoration: underline; }
+.evrak-tarih { font-size: 0.72rem; color: #94a3b8; white-space: nowrap; }

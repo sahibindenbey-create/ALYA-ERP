@@ -1,0 +1,57 @@
+.ty-container { font-family: var(--font); color: var(--text-primary); }
+
+.ty-card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+.ty-card.ty-warn {
+  border-left: 4px solid var(--warning);
+}
+.ty-card.ty-warn h3 { margin: 0 0 8px; }
+.ty-card.ty-warn code { background: var(--bg-page); padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
+
+.ty-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px;
+}
+.ty-summary-card {
+  background: var(--card-bg); border-radius: var(--card-radius); box-shadow: var(--card-shadow); padding: 16px;
+}
+.ty-summary-label { font-size: 0.75rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
+.ty-summary-value { font-size: 1.4rem; font-weight: 800; margin-top: 4px; }
+.ty-summary-value.green { color: var(--success); }
+
+.ty-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.ty-toolbar select {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem;
+}
+
+.ty-btn-primary {
+  background: var(--accent); color: white; border: none; padding: 9px 18px;
+  border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.85rem;
+}
+.ty-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.ty-btn-secondary {
+  background: var(--bg-page); border: 1px solid var(--border); padding: 9px 16px;
+  border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);
+}
+
+.ty-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ty-table th { text-align: left; padding: 10px 8px; color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.ty-table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
+
+.ty-kargo-select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; }
+
+.ty-pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 16px; }
+.ty-pagination button {
+  background: var(--bg-page); border: 1px solid var(--border); padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: 0.82rem;
+}
+.ty-pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ty-pagination span { font-size: 0.82rem; color: var(--text-secondary); }
+
+.ty-note {
+  background: #fafbfc; border-radius: 10px; padding: 14px 16px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;
+}

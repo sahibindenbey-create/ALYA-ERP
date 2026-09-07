@@ -12,7 +12,7 @@ const emptyPersonel = {
   personelKodu: "", adSoyad: "", tcNo: "", dogumTarihi: "", cinsiyet: "", medeniHal: "",
   iseGirisTarihi: new Date().toISOString().split("T")[0], istenCikisTarihi: "",
   departman: "", pozisyon: "", telefon: "", email: "", adres: "", iban: "",
-  acilDurumKisi: "", acilDurumTel: ""
+  acilDurumKisi: "", acilDurumTel: "", sabitBrutMaas: ""
 };
 
 const PersonelForm = () => {
@@ -53,7 +53,8 @@ const PersonelForm = () => {
       DogumTarihi: form.dogumTarihi || null, Cinsiyet: form.cinsiyet, MedeniHal: form.medeniHal,
       IseGirisTarihi: form.iseGirisTarihi || null, IstenCikisTarihi: form.istenCikisTarihi || null,
       Departman: form.departman, Pozisyon: form.pozisyon, Telefon: form.telefon, Email: form.email,
-      Adres: form.adres, IBAN: form.iban, AcilDurumKisi: form.acilDurumKisi, AcilDurumTel: form.acilDurumTel
+      Adres: form.adres, IBAN: form.iban, AcilDurumKisi: form.acilDurumKisi, AcilDurumTel: form.acilDurumTel,
+      SabitBrutMaas: form.sabitBrutMaas || null
     };
     try {
       if (editingId) {
@@ -79,7 +80,8 @@ const PersonelForm = () => {
       iseGirisTarihi: p.IseGirisTarihi ? p.IseGirisTarihi.split("T")[0] : "",
       istenCikisTarihi: p.IstenCikisTarihi ? p.IstenCikisTarihi.split("T")[0] : "",
       departman: p.Departman || "", pozisyon: p.Pozisyon || "", telefon: p.Telefon || "", email: p.Email || "",
-      adres: p.Adres || "", iban: p.IBAN || "", acilDurumKisi: p.AcilDurumKisi || "", acilDurumTel: p.AcilDurumTel || ""
+      adres: p.Adres || "", iban: p.IBAN || "", acilDurumKisi: p.AcilDurumKisi || "", acilDurumTel: p.AcilDurumTel || "",
+      sabitBrutMaas: p.SabitBrutMaas || ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -147,6 +149,7 @@ const PersonelForm = () => {
           <div className="prs-field"><label>Telefon</label><input value={form.telefon} onChange={e => handleChange("telefon", e.target.value)} /></div>
           <div className="prs-field"><label>E-posta</label><input value={form.email} onChange={e => handleChange("email", e.target.value)} /></div>
           <div className="prs-field"><label>IBAN</label><input value={form.iban} onChange={e => handleChange("iban", e.target.value)} placeholder="TR..." /></div>
+          <div className="prs-field"><label>Sabit Brüt Maaş (₺)</label><input type="number" value={form.sabitBrutMaas} onChange={e => handleChange("sabitBrutMaas", e.target.value)} placeholder="Bordro hesaplarken varsayılan olarak kullanılır" /></div>
           <div className="prs-field" style={{ gridColumn: "1 / -1" }}><label>Adres</label><textarea rows={2} value={form.adres} onChange={e => handleChange("adres", e.target.value)} /></div>
           <div className="prs-field"><label>Acil Durum Kişisi</label><input value={form.acilDurumKisi} onChange={e => handleChange("acilDurumKisi", e.target.value)} /></div>
           <div className="prs-field"><label>Acil Durum Telefon</label><input value={form.acilDurumTel} onChange={e => handleChange("acilDurumTel", e.target.value)} /></div>
@@ -204,10 +207,22 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
   const [izinler, setIzinler] = useState([]);
   const [puantaj, setPuantaj] = useState([]);
   const [maaslar, setMaaslar] = useState([]);
+  const [izinBakiye, setIzinBakiye] = useState(null);
 
   const [izinForm, setIzinForm] = useState({ IzinTipi: "Yıllık", BaslangicTarihi: "", BitisTarihi: "", GunSayisi: "", Aciklama: "" });
   const [puantajForm, setPuantajForm] = useState({ Tarih: new Date().toISOString().split("T")[0], GirisSaati: "09:00", CikisSaati: "18:00", CalismaSuresiSaat: "9", Durum: "Tam Gün", Aciklama: "" });
-  const [maasForm, setMaasForm] = useState({ DonemYil: new Date().getFullYear(), DonemAy: new Date().getMonth() + 1, BrutMaas: "", NetMaas: "", Prim: "0", Kesinti: "0", OdemeTarihi: "", Aciklama: "" });
+
+  const bugunYil = new Date().getFullYear();
+  const bugunAy = new Date().getMonth() + 1;
+  const [bordroForm, setBordroForm] = useState({
+    DonemYil: bugunYil, DonemAy: bugunAy,
+    BrutMaas: personel.SabitBrutMaas || "", GunSayisi: 30, Prim: "0",
+    OdemeTarihi: "", Aciklama: ""
+  });
+  const [bordroHesap, setBordroHesap] = useState(null);
+  const [bordroHesaplaniyor, setBordroHesaplaniyor] = useState(false);
+  const [manuelMod, setManuelMod] = useState(false);
+  const [manuelForm, setManuelForm] = useState({ BrutMaas: "", NetMaas: "", Prim: "0", Kesinti: "0" });
 
   const fetchIzinler = async () => {
     const res = await axios.get(`${API_URL}/personel/${personel.PersonelId}/izinler`);
@@ -221,8 +236,41 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
     const res = await axios.get(`${API_URL}/personel/${personel.PersonelId}/maas`);
     setMaaslar(res.data);
   };
+  const fetchIzinBakiye = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/personel/${personel.PersonelId}/izin-bakiye`);
+      setIzinBakiye(res.data);
+    } catch (err) { /* sessiz geç */ }
+  };
 
-  useEffect(() => { fetchIzinler(); fetchPuantaj(); fetchMaaslar(); }, [personel.PersonelId]); // eslint-disable-line
+  useEffect(() => { fetchIzinler(); fetchPuantaj(); fetchMaaslar(); fetchIzinBakiye(); }, [personel.PersonelId]); // eslint-disable-line
+
+  // Başlangıç/bitiş tarihinden gün sayısını otomatik hesapla
+  useEffect(() => {
+    if (izinForm.BaslangicTarihi && izinForm.BitisTarihi) {
+      const b = new Date(izinForm.BaslangicTarihi);
+      const s = new Date(izinForm.BitisTarihi);
+      const fark = Math.round((s - b) / (1000 * 60 * 60 * 24)) + 1;
+      if (fark > 0) setIzinForm(f => ({ ...f, GunSayisi: String(fark) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [izinForm.BaslangicTarihi, izinForm.BitisTarihi]);
+
+  // Giriş/çıkış saatinden çalışma süresini otomatik hesapla
+  useEffect(() => {
+    const { GirisSaati, CikisSaati } = puantajForm;
+    if (GirisSaati && CikisSaati) {
+      const [gh, gm] = GirisSaati.split(":").map(Number);
+      const [ch, cm] = CikisSaati.split(":").map(Number);
+      if (!isNaN(gh) && !isNaN(ch)) {
+        let dk = (ch * 60 + cm) - (gh * 60 + gm);
+        if (dk < 0) dk += 24 * 60; // gece vardiyası
+        const saat = Math.round((dk / 60) * 100) / 100;
+        setPuantajForm(f => ({ ...f, CalismaSuresiSaat: String(saat) }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puantajForm.GirisSaati, puantajForm.CikisSaati]);
 
   const izinEkle = async () => {
     if (!izinForm.BaslangicTarihi || !izinForm.BitisTarihi) return alert("Başlangıç ve bitiş tarihi girin.");
@@ -230,11 +278,13 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
       await axios.post(`${API_URL}/personel/${personel.PersonelId}/izinler`, izinForm);
       setIzinForm({ IzinTipi: "Yıllık", BaslangicTarihi: "", BitisTarihi: "", GunSayisi: "", Aciklama: "" });
       fetchIzinler();
+      fetchIzinBakiye();
     } catch (err) { alert("İzin eklenirken hata oluştu."); }
   };
   const izinSil = async (id) => {
     await axios.delete(`${API_URL}/personel/izinler/${id}`);
     fetchIzinler();
+    fetchIzinBakiye();
   };
 
   const puantajEkle = async () => {
@@ -249,13 +299,44 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
     fetchPuantaj();
   };
 
-  const maasEkle = async () => {
-    if (!maasForm.BrutMaas) return alert("Brüt maaş girin.");
+  const bordroOnizle = async () => {
+    if (!bordroForm.BrutMaas) return alert("Brüt maaş girin.");
+    setBordroHesaplaniyor(true);
     try {
-      await axios.post(`${API_URL}/personel/${personel.PersonelId}/maas`, maasForm);
+      const res = await axios.post(`${API_URL}/personel/${personel.PersonelId}/bordro-hesapla`, bordroForm);
+      setBordroHesap(res.data.hesap);
+    } catch (err) {
+      alert("Hesaplama sırasında hata oluştu: " + (err.response?.data?.error || err.message));
+    } finally {
+      setBordroHesaplaniyor(false);
+    }
+  };
+
+  const bordroKaydet = async () => {
+    if (!bordroHesap) return alert("Önce 'Hesapla' butonuna basın.");
+    try {
+      await axios.post(`${API_URL}/personel/${personel.PersonelId}/maas`, {
+        ...bordroForm, HesaplamaTipi: "Otomatik"
+      });
+      setBordroHesap(null);
+      setBordroForm(f => ({ ...f, Prim: "0", Aciklama: "" }));
+      fetchMaaslar();
+      alert("Bordro kaydedildi.");
+    } catch (err) { alert("Kaydedilirken hata oluştu: " + (err.response?.data?.error || err.message)); }
+  };
+
+  const manuelKaydet = async () => {
+    if (!manuelForm.BrutMaas) return alert("Brüt maaş girin.");
+    try {
+      await axios.post(`${API_URL}/personel/${personel.PersonelId}/maas`, {
+        DonemYil: bordroForm.DonemYil, DonemAy: bordroForm.DonemAy,
+        ...manuelForm, HesaplamaTipi: "Manuel"
+      });
+      setManuelForm({ BrutMaas: "", NetMaas: "", Prim: "0", Kesinti: "0" });
       fetchMaaslar();
     } catch (err) { alert("Maaş kaydı eklenirken hata oluştu."); }
   };
+
   const maasSil = async (id) => {
     await axios.delete(`${API_URL}/personel/maas/${id}`);
     fetchMaaslar();
@@ -298,6 +379,14 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
 
           {aktifTab === "izin" && (
             <>
+              {izinBakiye && (
+                <div className="prs-izin-bakiye">
+                  <div><span>Kıdem</span><strong>{izinBakiye.kidemYili} yıl</strong></div>
+                  <div><span>Yıllık Hak</span><strong>{izinBakiye.hakEdilenGun} gün</strong></div>
+                  <div><span>Kullanılan</span><strong>{izinBakiye.kullanilanGun} gün</strong></div>
+                  <div className={izinBakiye.kalanGun <= 0 ? "prs-izin-negatif" : ""}><span>Kalan</span><strong>{izinBakiye.kalanGun} gün</strong></div>
+                </div>
+              )}
               <div className="prs-entry-row">
                 <select value={izinForm.IzinTipi} onChange={e => setIzinForm({ ...izinForm, IzinTipi: e.target.value })}>
                   {IZIN_TIPLERI.map(t => <option key={t}>{t}</option>)}
@@ -331,25 +420,27 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
             <>
               <div className="prs-entry-row">
                 <input type="date" value={puantajForm.Tarih} onChange={e => setPuantajForm({ ...puantajForm, Tarih: e.target.value })} />
-                <input placeholder="Giriş" style={{ width: 70 }} value={puantajForm.GirisSaati} onChange={e => setPuantajForm({ ...puantajForm, GirisSaati: e.target.value })} />
-                <input placeholder="Çıkış" style={{ width: 70 }} value={puantajForm.CikisSaati} onChange={e => setPuantajForm({ ...puantajForm, CikisSaati: e.target.value })} />
+                <input type="time" placeholder="Giriş" style={{ width: 90 }} value={puantajForm.GirisSaati} onChange={e => setPuantajForm({ ...puantajForm, GirisSaati: e.target.value })} />
+                <input type="time" placeholder="Çıkış" style={{ width: 90 }} value={puantajForm.CikisSaati} onChange={e => setPuantajForm({ ...puantajForm, CikisSaati: e.target.value })} />
+                <span className="prs-hesaplanan-saat">{puantajForm.CalismaSuresiSaat} saat</span>
                 <select value={puantajForm.Durum} onChange={e => setPuantajForm({ ...puantajForm, Durum: e.target.value })}>
                   {PUANTAJ_DURUMLARI.map(d => <option key={d}>{d}</option>)}
                 </select>
                 <button className="prs-btn-add" onClick={puantajEkle}>+ Ekle</button>
               </div>
               <table className="prs-detay-table">
-                <thead><tr><th>Tarih</th><th>Giriş</th><th>Çıkış</th><th>Durum</th><th></th></tr></thead>
+                <thead><tr><th>Tarih</th><th>Giriş</th><th>Çıkış</th><th>Süre</th><th>Durum</th><th></th></tr></thead>
                 <tbody>
                   {puantaj.slice(0, 30).map(p => (
                     <tr key={p.PuantajId}>
                       <td>{new Date(p.Tarih).toLocaleDateString("tr-TR")}</td>
                       <td>{p.GirisSaati}</td><td>{p.CikisSaati}</td>
+                      <td>{p.CalismaSuresiSaat ? `${p.CalismaSuresiSaat} sa` : "—"}</td>
                       <td><span className={`erp-badge ${p.Durum === "Tam Gün" ? "green" : p.Durum === "Devamsız" ? "red" : "orange"}`}>{p.Durum}</span></td>
                       <td><button className="prs-btn-del-sm" onClick={() => puantajSil(p.PuantajId)}>Sil</button></td>
                     </tr>
                   ))}
-                  {puantaj.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#999", padding: 10 }}>Kayıt yok</td></tr>}
+                  {puantaj.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#999", padding: 10 }}>Kayıt yok</td></tr>}
                 </tbody>
               </table>
             </>
@@ -357,30 +448,79 @@ const PersonelDetayModal = ({ personel, aktifTab, setAktifTab, onClose }) => {
 
           {aktifTab === "maas" && (
             <>
-              <div className="prs-entry-row">
-                <input type="number" placeholder="Yıl" style={{ width: 70 }} value={maasForm.DonemYil} onChange={e => setMaasForm({ ...maasForm, DonemYil: e.target.value })} />
-                <select value={maasForm.DonemAy} onChange={e => setMaasForm({ ...maasForm, DonemAy: e.target.value })}>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(ay => <option key={ay} value={ay}>{ay}. Ay</option>)}
-                </select>
-                <input type="number" placeholder="Brüt Maaş" value={maasForm.BrutMaas} onChange={e => setMaasForm({ ...maasForm, BrutMaas: e.target.value })} />
-                <input type="number" placeholder="Net Maaş" value={maasForm.NetMaas} onChange={e => setMaasForm({ ...maasForm, NetMaas: e.target.value })} />
-                <input type="number" placeholder="Prim" style={{ width: 90 }} value={maasForm.Prim} onChange={e => setMaasForm({ ...maasForm, Prim: e.target.value })} />
-                <button className="prs-btn-add" onClick={maasEkle}>+ Ekle</button>
+              <div className="prs-bordro-toggle">
+                <button className={!manuelMod ? "active" : ""} onClick={() => setManuelMod(false)}>🧮 Otomatik Bordro Hesapla</button>
+                <button className={manuelMod ? "active" : ""} onClick={() => setManuelMod(true)}>✍️ Manuel Giriş</button>
               </div>
-              <table className="prs-detay-table">
-                <thead><tr><th>Dönem</th><th>Brüt</th><th>Net</th><th>Prim</th><th>Kesinti</th><th></th></tr></thead>
+
+              {!manuelMod && (
+                <div className="prs-bordro-panel">
+                  <div className="prs-bordro-inputs">
+                    <div><label>Yıl</label><input type="number" style={{ width: 80 }} value={bordroForm.DonemYil} onChange={e => setBordroForm({ ...bordroForm, DonemYil: e.target.value })} /></div>
+                    <div>
+                      <label>Ay</label>
+                      <select value={bordroForm.DonemAy} onChange={e => setBordroForm({ ...bordroForm, DonemAy: e.target.value })}>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(ay => <option key={ay} value={ay}>{ay}. Ay</option>)}
+                      </select>
+                    </div>
+                    <div><label>Brüt Maaş (₺)</label><input type="number" value={bordroForm.BrutMaas} onChange={e => setBordroForm({ ...bordroForm, BrutMaas: e.target.value })} /></div>
+                    <div><label>Çalışılan Gün</label><input type="number" style={{ width: 80 }} value={bordroForm.GunSayisi} onChange={e => setBordroForm({ ...bordroForm, GunSayisi: e.target.value })} /></div>
+                    <div><label>Prim / İkramiye (₺)</label><input type="number" value={bordroForm.Prim} onChange={e => setBordroForm({ ...bordroForm, Prim: e.target.value })} /></div>
+                    <div><label>Ödeme Tarihi</label><input type="date" value={bordroForm.OdemeTarihi} onChange={e => setBordroForm({ ...bordroForm, OdemeTarihi: e.target.value })} /></div>
+                    <button className="prs-btn-add" onClick={bordroOnizle} disabled={bordroHesaplaniyor}>
+                      {bordroHesaplaniyor ? "Hesaplanıyor..." : "🧮 Hesapla"}
+                    </button>
+                  </div>
+
+                  {bordroHesap && (
+                    <div className="prs-bordro-sonuc">
+                      <div className="prs-bordro-sonuc-grid">
+                        <div><span>Brüt Maaş</span><strong>{bordroHesap.brutMaas.toLocaleString()} ₺</strong></div>
+                        <div><span>SGK İşçi Primi (%14)</span><strong>- {bordroHesap.sgkIsciPrimi.toLocaleString()} ₺</strong></div>
+                        <div><span>İşsizlik İşçi (%1)</span><strong>- {bordroHesap.issizlikIsciPrimi.toLocaleString()} ₺</strong></div>
+                        <div><span>Gelir Vergisi Matrahı</span><strong>{bordroHesap.gelirVergisiMatrahi.toLocaleString()} ₺</strong></div>
+                        <div><span>Gelir Vergisi</span><strong>- {bordroHesap.gelirVergisi.toLocaleString()} ₺</strong></div>
+                        <div><span>Damga Vergisi</span><strong>- {bordroHesap.damgaVergisi.toLocaleString()} ₺</strong></div>
+                        <div className="prs-bordro-net"><span>NET MAAŞ</span><strong>{bordroHesap.netMaas.toLocaleString()} ₺</strong></div>
+                        <div><span>İşveren SGK Primi</span><strong>{bordroHesap.isverenSgkPrimi.toLocaleString()} ₺</strong></div>
+                        <div><span>İşveren İşsizlik</span><strong>{bordroHesap.isverenIssizlikPrimi.toLocaleString()} ₺</strong></div>
+                        <div className="prs-bordro-maliyet"><span>TOPLAM İŞVEREN MALİYETİ</span><strong>{bordroHesap.isverenMaliyeti.toLocaleString()} ₺</strong></div>
+                      </div>
+                      <button className="prs-btn-save" onClick={bordroKaydet}>💾 Bu Bordroyu Kaydet</button>
+                      <p className="prs-bordro-uyari">
+                        ⚠️ Bu hesaplama sistemde tanımlı 2026 bordro parametrelerine göredir. Kesin/resmi bordro
+                        üretmeden önce mali müşavirinizle doğrulayın.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {manuelMod && (
+                <div className="prs-entry-row">
+                  <input type="number" placeholder="Brüt Maaş" value={manuelForm.BrutMaas} onChange={e => setManuelForm({ ...manuelForm, BrutMaas: e.target.value })} />
+                  <input type="number" placeholder="Net Maaş" value={manuelForm.NetMaas} onChange={e => setManuelForm({ ...manuelForm, NetMaas: e.target.value })} />
+                  <input type="number" placeholder="Prim" style={{ width: 90 }} value={manuelForm.Prim} onChange={e => setManuelForm({ ...manuelForm, Prim: e.target.value })} />
+                  <input type="number" placeholder="Kesinti" style={{ width: 90 }} value={manuelForm.Kesinti} onChange={e => setManuelForm({ ...manuelForm, Kesinti: e.target.value })} />
+                  <button className="prs-btn-add" onClick={manuelKaydet}>+ Ekle</button>
+                </div>
+              )}
+
+              <table className="prs-detay-table" style={{ marginTop: 16 }}>
+                <thead><tr><th>Dönem</th><th>Tip</th><th>Brüt</th><th>Kesinti</th><th>Net</th><th>İşveren Mal.</th><th></th></tr></thead>
                 <tbody>
                   {maaslar.map(m => (
                     <tr key={m.MaasId}>
                       <td>{m.DonemAy}/{m.DonemYil}</td>
+                      <td><span className={`erp-badge ${m.HesaplamaTipi === "Otomatik" ? "green" : "orange"}`}>{m.HesaplamaTipi || "Manuel"}</span></td>
                       <td>{Number(m.BrutMaas).toLocaleString()} ₺</td>
-                      <td style={{ fontWeight: 700 }}>{Number(m.NetMaas).toLocaleString()} ₺</td>
-                      <td>{Number(m.Prim || 0).toLocaleString()} ₺</td>
                       <td>{Number(m.Kesinti || 0).toLocaleString()} ₺</td>
+                      <td style={{ fontWeight: 700 }}>{Number(m.NetMaas).toLocaleString()} ₺</td>
+                      <td>{m.IsverenMaliyeti ? Number(m.IsverenMaliyeti).toLocaleString() + " ₺" : "—"}</td>
                       <td><button className="prs-btn-del-sm" onClick={() => maasSil(m.MaasId)}>Sil</button></td>
                     </tr>
                   ))}
-                  {maaslar.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#999", padding: 10 }}>Kayıt yok</td></tr>}
+                  {maaslar.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#999", padding: 10 }}>Kayıt yok</td></tr>}
                 </tbody>
               </table>
             </>

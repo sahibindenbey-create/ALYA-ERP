@@ -6,7 +6,7 @@ import "./SiparisForm.css";
 
 const API_URL = "http://localhost:5000/api";
 
-const SiparisForm = () => {
+const SiparisForm = ({ mode = "giris" }) => {
   // --- VBA'DAN GELEN SABİT LİSTELER ---
   const siparisTipleri = ["YENİ SİPARİŞ", "İADE", "DEĞİŞİM", "NUMUNE"];
   const siparisVerenler = ["BAYİ", "ŞAHIS", "HEPSİBURADA", "TRENDYOL", "PAZARAMA", "N11", "AMAZON", "PTTAVM", "ÇİÇEK SEPETİ"];
@@ -20,7 +20,9 @@ const SiparisForm = () => {
   const [urunlerListesi, setUrunlerListesi] = useState([]);
   const [siparisGecmisi, setSiparisGecmisi] = useState([]);
   const [kaydediliyor, setKaydediliyor] = useState(false);
-  const [gecmisAcik, setGecmisAcik] = useState(false);
+  const [gecmisSearch, setGecmisSearch] = useState("");
+  const [gecmisYonFiltre, setGecmisYonFiltre] = useState("Hepsi");
+  const [gecmisDurumFiltre, setGecmisDurumFiltre] = useState("Hepsi");
 
   const [form, setForm] = useState({
     siparisKodu: "SIP-" + Date.now(),
@@ -31,7 +33,9 @@ const SiparisForm = () => {
     cariKodu: "", cariAdi: "",
     faturaUlke: "TÜRKİYE", faturaIl: "", faturaIlce: "", faturaAdres: "",
     sevkiyatUlke: "TÜRKİYE", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdres: "",
-    odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE"
+    odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE",
+    // Alış siparişine özel alanlar (VBA "Verilen Sipariş" formundan)
+    teslimatSekli: "", paketlemeSekli: "", lojistikDetay: "", siparisVerenDepartman: ""
   });
 
   const [entry, setEntry] = useState({
@@ -154,9 +158,11 @@ const SiparisForm = () => {
     const lFiyat = parseFloat(entry.listeFiyati || 0);
     const miktar = parseFloat(entry.miktar || 0);
     const iskonto = parseFloat(entry.iskonto || 0);
-    
+    const secilenUrun = urunlerListesi.find(u => u.UrunKodu === entry.urunKodu);
+    const kdvOrani = secilenUrun ? Number(secilenUrun.KdvOrani ?? 20) : 20;
+
     const iskBirimFiyat = lFiyat * (1 - iskonto / 100);
-    const kdvTutari = iskBirimFiyat * 0.20;
+    const kdvTutari = iskBirimFiyat * (kdvOrani / 100);
     const birimFiyatKdvDahil = iskBirimFiyat + kdvTutari;
     const satirToplam = birimFiyatKdvDahil * miktar;
     const koliAdedi = Math.ceil(miktar / entry.koliIci);
@@ -164,8 +170,9 @@ const SiparisForm = () => {
     const yeniSatir = {
       ...entry,
       koliAdedi,
+      kdvOrani,
       iskBirimFiyat,
-      kdvTutari,
+      kdvTutari: kdvTutari * miktar,
       birimFiyatKdvDahil,
       satirToplam,
       id: Date.now()
@@ -185,7 +192,8 @@ const SiparisForm = () => {
       cariKodu: "", cariAdi: "",
       faturaUlke: "TÜRKİYE", faturaIl: "", faturaIlce: "", faturaAdres: "",
       sevkiyatUlke: "TÜRKİYE", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdres: "",
-      odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE"
+      odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE",
+      teslimatSekli: "", paketlemeSekli: "", lojistikDetay: "", siparisVerenDepartman: ""
     }));
     setItems([]);
     setAdresAyni(false);
@@ -213,8 +221,18 @@ const SiparisForm = () => {
     }
   };
 
+  const filteredGecmis = siparisGecmisi
+    .filter(s => gecmisYonFiltre === "Hepsi" || s.SiparisYonu === gecmisYonFiltre)
+    .filter(s => gecmisDurumFiltre === "Hepsi" || s.Durum === gecmisDurumFiltre)
+    .filter(s =>
+      (s.CariAdi || "").toLowerCase().includes(gecmisSearch.toLowerCase()) ||
+      (s.SiparisKodu || "").toLowerCase().includes(gecmisSearch.toLowerCase())
+    );
+
   return (
     <div className="vba-container">
+      {mode === "giris" && (
+      <>
       <div className="vba-header">SİPARİŞ KAYIT FORMU</div>
 
       {/* SİPARİŞ YÖNÜ SEÇİCİ - EN BAŞTA */}
@@ -258,6 +276,23 @@ const SiparisForm = () => {
               </select>
             </div>
           </div>
+
+          {form.siparisYonu === "Alış" && (
+            <div className="vba-row" style={{ marginTop: 14 }}>
+              <div className="vba-f"><label>TESLİMAT ŞEKLİ</label>
+                <input value={form.teslimatSekli} onChange={e => setForm({...form, teslimatSekli: e.target.value})} placeholder="Örn: Kendi Aracımız, Kargo, TIR" />
+              </div>
+              <div className="vba-f"><label>PAKETLEME ŞEKLİ</label>
+                <input value={form.paketlemeSekli} onChange={e => setForm({...form, paketlemeSekli: e.target.value})} placeholder="Örn: Paletli, Kolili" />
+              </div>
+              <div className="vba-f"><label>LOJİSTİK DETAY</label>
+                <input value={form.lojistikDetay} onChange={e => setForm({...form, lojistikDetay: e.target.value})} />
+              </div>
+              <div className="vba-f"><label>SİPARİŞ VEREN DEPARTMAN</label>
+                <input value={form.siparisVerenDepartman} onChange={e => setForm({...form, siparisVerenDepartman: e.target.value})} placeholder="Örn: Üretim, Satınalma" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* BÖLÜM 2: CARİ VE ADRES (VBA Sütun 8-15) */}
@@ -324,6 +359,14 @@ const SiparisForm = () => {
             <input value={entry.iskonto} onChange={e=>setEntry({...entry, iskonto:e.target.value})} />
             <button className="vba-add-btn" onClick={urunEkle}>EKLE</button>
           </div>
+          {form.siparisYonu === "Alış" && urunlerListesi.find(u => u.UrunKodu === entry.urunKodu)?.AlisBirimi && (
+            <div className="siparis-cevrim-note">
+              ℹ️ Bu malzeme tedarikçiden <strong>{urunlerListesi.find(u => u.UrunKodu === entry.urunKodu).AlisBirimi}</strong> olarak
+              alınıyor, stokta <strong>{urunlerListesi.find(u => u.UrunKodu === entry.urunKodu).Birim}</strong> olarak takip ediliyor
+              (1 {urunlerListesi.find(u => u.UrunKodu === entry.urunKodu).AlisBirimi} = {urunlerListesi.find(u => u.UrunKodu === entry.urunKodu).CevrimOrani} {urunlerListesi.find(u => u.UrunKodu === entry.urunKodu).Birim}).
+              Miktarı <strong>{urunlerListesi.find(u => u.UrunKodu === entry.urunKodu).AlisBirimi}</strong> cinsinden gir.
+            </div>
+          )}
         </div>
 
         {/* BÖLÜM 4: TABLO */}
@@ -368,67 +411,87 @@ const SiparisForm = () => {
             <div className="vba-f"><label>TESLİMAT TARİHİ</label><input type="date" value={form.teslimatTarihi} onChange={e=>setForm({...form, teslimatTarihi:e.target.value})} /></div>
             
             <div className="vba-totals">
-               <div className="vba-total-row">TOPLAM: <span>{items.reduce((a,b)=>a+b.satirToplam,0).toLocaleString()} ₺</span></div>
+               <div className="vba-total-breakdown">
+                 <div>Ara Toplam: <strong>{items.reduce((a,b)=>a+(b.satirToplam - b.kdvTutari),0).toLocaleString()} ₺</strong></div>
+                 <div>KDV: <strong>{items.reduce((a,b)=>a+b.kdvTutari,0).toLocaleString()} ₺</strong></div>
+               </div>
+               <div className="vba-total-row">GENEL TOPLAM: <span>{items.reduce((a,b)=>a+b.satirToplam,0).toLocaleString()} ₺</span></div>
                <button className="vba-save-btn" onClick={handleKaydet} disabled={kaydediliyor}>
                  {kaydediliyor ? "KAYDEDİLİYOR..." : "SİPARİŞİ KAYDET (YENİ DURUM)"}
                </button>
             </div>
           </div>
         </div>
-
-        {/* BÖLÜM 6: SİPARİŞ GEÇMİŞİ */}
-        <div className="vba-panel" style={{ marginTop: 20 }}>
-          <div
-            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-            onClick={() => setGecmisAcik(!gecmisAcik)}
-          >
-            <h3 style={{ margin: 0 }}>Sipariş Geçmişi ({siparisGecmisi.length})</h3>
-            <span>{gecmisAcik ? "▲ Gizle" : "▼ Göster"}</span>
-          </div>
-          {gecmisAcik && (
-            <>
-            <ExportToolbar
-              data={siparisGecmisi}
-              columns={[
-                { key: "SiparisKodu", label: "Sipariş No" }, { key: "SiparisYonu", label: "Yön" },
-                { key: "CariAdi", label: "Cari" }, { key: "SiparisTipi", label: "Tip" },
-                { key: "Durum", label: "Durum" }, { key: "ToplamTutar", label: "Toplam" }
-              ]}
-              filename="siparis-gecmisi"
-            />
-            <div className="vba-grid" style={{ marginTop: 12 }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>SİPARİŞ NO</th><th>YÖN</th><th>TARİH</th><th>CARİ</th><th>TİP</th><th>DURUM</th><th>TOPLAM</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {siparisGecmisi.map((s) => (
-                    <tr key={s.SiparisId}>
-                      <td>{s.SiparisKodu}</td>
-                      <td>
-                        <span className={`erp-badge ${s.SiparisYonu === "Alış" ? "orange" : "blue"}`}>
-                          {s.SiparisYonu === "Alış" ? "📥 Alış" : "🛒 Satış"}
-                        </span>
-                      </td>
-                      <td>{s.SiparisTarihi ? new Date(s.SiparisTarihi).toLocaleDateString('tr-TR') : ''}</td>
-                      <td>{s.CariAdi}</td>
-                      <td>{s.SiparisTipi}</td>
-                      <td>{s.Durum}</td>
-                      <td style={{fontWeight:'bold'}}>{Number(s.ToplamTutar || 0).toLocaleString()} ₺</td>
-                    </tr>
-                  ))}
-                  {siparisGecmisi.length === 0 && (
-                    <tr><td colSpan={7} style={{textAlign:'center', color:'#999', padding:'12px'}}>Henüz kayıtlı sipariş yok</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            </>
-          )}
-        </div>
       </div>
+      </>
+      )}
+
+      {mode === "liste" && (
+        <div className="vba-panel" style={{ marginTop: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <h3 style={{ margin: 0 }}>Sipariş Listesi ({filteredGecmis.length})</h3>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, marginBottom: 12 }}>
+            <input
+              type="text"
+              placeholder="Cari adı veya sipariş no ara..."
+              value={gecmisSearch}
+              onChange={e => setGecmisSearch(e.target.value)}
+              style={{ flex: 2, minWidth: 220, padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }}
+            />
+            <select value={gecmisYonFiltre} onChange={e => setGecmisYonFiltre(e.target.value)} style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }}>
+              <option value="Hepsi">Tüm Yönler</option>
+              <option value="Satış">🛒 Satış</option>
+              <option value="Alış">📥 Alış</option>
+            </select>
+            <select value={gecmisDurumFiltre} onChange={e => setGecmisDurumFiltre(e.target.value)} style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }}>
+              <option value="Hepsi">Tüm Durumlar</option>
+              <option value="YENİ">YENİ</option>
+              <option value="ONAYLANDI">ONAYLANDI</option>
+              <option value="TAMAMLANDI">TAMAMLANDI</option>
+              <option value="İPTAL">İPTAL</option>
+            </select>
+          </div>
+          <ExportToolbar
+            data={filteredGecmis}
+            columns={[
+              { key: "SiparisKodu", label: "Sipariş No" }, { key: "SiparisYonu", label: "Yön" },
+              { key: "CariAdi", label: "Cari" }, { key: "SiparisTipi", label: "Tip" },
+              { key: "Durum", label: "Durum" }, { key: "ToplamTutar", label: "Toplam" }
+            ]}
+            filename="siparis-listesi"
+          />
+          <div className="vba-grid" style={{ marginTop: 12 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>SİPARİŞ NO</th><th>YÖN</th><th>TARİH</th><th>CARİ</th><th>TİP</th><th>DURUM</th><th>TOPLAM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGecmis.map((s) => (
+                  <tr key={s.SiparisId}>
+                    <td>{s.SiparisKodu}</td>
+                    <td>
+                      <span className={`erp-badge ${s.SiparisYonu === "Alış" ? "orange" : "blue"}`}>
+                        {s.SiparisYonu === "Alış" ? "📥 Alış" : "🛒 Satış"}
+                      </span>
+                    </td>
+                    <td>{s.SiparisTarihi ? new Date(s.SiparisTarihi).toLocaleDateString('tr-TR') : ''}</td>
+                    <td>{s.CariAdi}</td>
+                    <td>{s.SiparisTipi}</td>
+                    <td>{s.Durum}</td>
+                    <td style={{fontWeight:'bold'}}>{Number(s.ToplamTutar || 0).toLocaleString()} ₺</td>
+                  </tr>
+                ))}
+                {filteredGecmis.length === 0 && (
+                  <tr><td colSpan={7} style={{textAlign:'center', color:'#999', padding:'12px'}}>Kayıt bulunamadı</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

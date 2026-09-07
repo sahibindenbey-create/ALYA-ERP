@@ -93,6 +93,32 @@
   color: white;
 }
 
+.db-nav-parent-toggle {
+  cursor: pointer;
+  justify-content: space-between;
+}
+
+.db-nav-parent-toggle > span {
+  flex: 1;
+}
+
+.db-nav-caret {
+  transition: transform 0.15s;
+  opacity: 0.7;
+}
+
+.db-nav-children {
+  margin-left: 14px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255,255,255,0.12);
+}
+
+.db-nav-child {
+  font-size: 0.82rem;
+  opacity: 0.92;
+  padding: 7px 10px;
+}
+
 .db-logout {
   display: flex;
   align-items: center;
@@ -149,6 +175,85 @@
   justify-content: center;
   cursor: pointer;
   color: var(--text-secondary);
+  position: relative;
+}
+
+.db-bildirim-wrapper { position: relative; }
+
+.db-bildirim-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #dc2626;
+  color: white;
+  font-size: 0.62rem;
+  font-weight: 700;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.db-bildirim-panel {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  width: 360px;
+  max-height: 480px;
+  overflow-y: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  z-index: 50;
+}
+
+.db-bildirim-panel-header {
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: white;
+}
+
+.db-bildirim-bos {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.db-bildirim-grup { border-bottom: 1px solid #f1f5f9; }
+
+.db-bildirim-grup-baslik {
+  padding: 10px 16px 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.db-bildirim-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.db-bildirim-item:hover { background: var(--bg-page); }
+.db-bildirim-item strong { font-size: 0.82rem; }
+.db-bildirim-item span { font-size: 0.72rem; color: var(--text-secondary); }
+
+.db-bildirim-daha {
+  padding: 6px 16px 10px;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .db-avatar {
@@ -250,4 +355,75 @@
   .db-logo-title, .db-logo-sub, .db-nav-item span, .db-nav-group-title, .db-logout span { display: none; }
   .db-nav-item { justify-content: center; }
   .db-logout { display: none; }
+}
+
+/* --- Panel Özet: Aylık Trend Grafiği --- */
+.db-trend-card {
+  background: white;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.db-trend-legend {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 16px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.db-trend-legend span { display: flex; align-items: center; gap: 6px; }
+.db-trend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.db-trend-dot.satis { background: #3b82f6; }
+.db-trend-dot.alis { background: #f97316; }
+.db-trend-dot.net { background: #16a34a; }
+
+.db-trend-chart {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  height: 160px;
+}
+
+.db-trend-ay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.db-trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 110px;
+  width: 100%;
+  justify-content: center;
+}
+
+.db-trend-bar {
+  width: 14px;
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.3s;
+}
+.db-trend-bar.satis { background: #3b82f6; }
+.db-trend-bar.alis { background: #f97316; }
+
+.db-trend-net {
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-top: 6px;
+}
+.db-trend-net.pozitif { color: #16a34a; }
+.db-trend-net.negatif { color: #dc2626; }
+
+.db-trend-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 3px;
 }

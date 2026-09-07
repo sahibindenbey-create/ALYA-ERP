@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useParams, useNavigate } from "react-router-dom";
 import ExportToolbar from "./ExportToolbar";
+import UrunDosyaYonetimi from "./UrunDosyaYonetimi";
 import "./UrunForm.css";
 
 const API_URL = "http://localhost:5000/api";
@@ -8,14 +10,19 @@ const API_URL = "http://localhost:5000/api";
 const emptyForm = {
   urunKodu: "", urunAdi: "", tur: "Ürün", kategori: "", birim: "Adet",
   stokMiktari: "0", kritikStokSeviyesi: "0", desi: "0",
-  alisFiyati: "0", listeFiyati: "0", kdvOrani: "20", aciklama: ""
+  alisFiyati: "0", listeFiyati: "0", kdvOrani: "20", aciklama: "",
+  paraBirimi: "TL", alisBirimi: "", cevrimOrani: "1",
+  barkod: "", gtipNo: "", mensei: ""
 };
 
 const KATEGORILER_URUN = ["Mobilya", "Hammadde", "Elektronik", "Kırtasiye", "Diğer"];
 const KATEGORILER_HIZMET = ["Danışmanlık", "Montaj", "Nakliye", "Bakım-Onarım", "Kurulum", "Diğer"];
-const BIRIMLER = ["Adet", "Kg", "Lt", "Metre", "Kutu", "Koli", "Saat", "Gün", "Proje"];
+const BIRIMLER = ["Adet", "Kg", "Gram", "Lt", "Metre", "Kutu", "Koli", "Saat", "Gün", "Proje"];
+const PARA_BIRIMLERI = ["TL", "USD", "EUR"];
 
-const UrunForm = () => {
+const UrunForm = ({ mode = "giris" }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState(emptyForm);
   const [kalemler, setKalemler] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -36,6 +43,23 @@ const UrunForm = () => {
   };
 
   useEffect(() => { fetchKalemler(); }, []);
+
+  // Liste sayfasindan bir kaydi duzenlemek icin /urun-giris/:id ile gelindiyse
+  useEffect(() => {
+    if (mode === "giris" && id && kalemler.length > 0) {
+      const found = kalemler.find(x => String(x.UrunId) === String(id));
+      if (found) handleEdit(found);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, id, kalemler]);
+
+  const handleEditClick = (item) => {
+    if (mode === "liste") {
+      navigate(`/dashboard/urun-giris/${item.UrunId}`);
+    } else {
+      handleEdit(item);
+    }
+  };
 
   useEffect(() => {
     if (editingId || formData.urunKodu) return;
@@ -65,7 +89,13 @@ const UrunForm = () => {
       alisFiyati: String(item.AlisFiyati ?? "0"),
       listeFiyati: String(item.ListeFiyati ?? "0"),
       kdvOrani: String(item.KdvOrani ?? "20"),
-      aciklama: item.Aciklama || ""
+      aciklama: item.Aciklama || "",
+      paraBirimi: item.ParaBirimi || "TL",
+      alisBirimi: item.AlisBirimi || "",
+      cevrimOrani: String(item.CevrimOrani ?? "1"),
+      barkod: item.Barkod || "",
+      gtipNo: item.GtipNo || "",
+      mensei: item.Mensei || ""
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -101,7 +131,13 @@ const UrunForm = () => {
       AlisFiyati: formData.alisFiyati,
       ListeFiyati: formData.listeFiyati,
       KdvOrani: formData.kdvOrani,
-      Aciklama: formData.aciklama
+      Aciklama: formData.aciklama,
+      ParaBirimi: formData.paraBirimi,
+      AlisBirimi: formData.alisBirimi || null,
+      CevrimOrani: formData.cevrimOrani || 1,
+      Barkod: formData.barkod || null,
+      GtipNo: formData.gtipNo || null,
+      Mensei: formData.mensei || null
     };
     try {
       if (editingId) {
@@ -134,7 +170,8 @@ const UrunForm = () => {
   const excelColumns = [
     { key: "UrunKodu", label: "Kod" }, { key: "UrunAdi", label: "Ad" }, { key: "Tur", label: "Tür" },
     { key: "Kategori", label: "Kategori" }, { key: "StokMiktari", label: "Stok" }, { key: "Birim", label: "Birim" },
-    { key: "Desi", label: "Desi" }, { key: "ListeFiyati", label: "Liste Fiyatı" }, { key: "KdvOrani", label: "KDV %" }
+    { key: "Desi", label: "Desi" }, { key: "ListeFiyati", label: "Liste Fiyatı" }, { key: "KdvOrani", label: "KDV %" },
+    { key: "Barkod", label: "Barkod" }, { key: "GtipNo", label: "GTİP No" }, { key: "Mensei", label: "Menşei" }
   ];
 
   return (
@@ -154,6 +191,8 @@ const UrunForm = () => {
         </div>
       </div>
 
+      {mode === "giris" && (
+      <>
       <div className="urun-form-card">
         <div className="urun-form-header">
           {editingId ? `✏️ Kayıt Düzenle (${formData.urunKodu})` : "➕ Yeni Ürün / Hizmet Ekle"}
@@ -215,8 +254,14 @@ const UrunForm = () => {
           )}
 
           <div className="urun-field">
-            <label>Alış Fiyatı (₺)</label>
+            <label>Alış Fiyatı</label>
             <input type="number" value={formData.alisFiyati} onChange={e => handleChange("alisFiyati", e.target.value)} />
+          </div>
+          <div className="urun-field">
+            <label>Fiyat Para Birimi</label>
+            <select value={formData.paraBirimi} onChange={e => handleChange("paraBirimi", e.target.value)}>
+              {PARA_BIRIMLERI.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
           </div>
           <div className="urun-field">
             <label>Liste (Satış) Fiyatı (₺)</label>
@@ -231,6 +276,42 @@ const UrunForm = () => {
               <option value="20">20</option>
             </select>
           </div>
+
+          {formData.tur === "Ürün" && (
+            <>
+              <div className="urun-field">
+                <label>Alış Birimi (stok biriminden farklıysa)</label>
+                <select value={formData.alisBirimi} onChange={e => handleChange("alisBirimi", e.target.value)}>
+                  <option value="">Aynı (fark yok)</option>
+                  {BIRIMLER.filter(b => b !== formData.birim).map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              {formData.alisBirimi && (
+                <div className="urun-field">
+                  <label>Çevrim Oranı (1 {formData.alisBirimi} = ? {formData.birim})</label>
+                  <input type="number" step="0.0001" value={formData.cevrimOrani} onChange={e => handleChange("cevrimOrani", e.target.value)} placeholder="Örn: 2.5" />
+                  <small className="urun-cevrim-hint">
+                    Örn: Alüminyumu "Adet" olarak sipariş ediyorsun ama "Kg" olarak faturalanıyor →
+                    Alış Birimi: Adet, Stok Birimi: Kg, Çevrim Oranı: 1 adet kaç kg geliyorsa (örn. 2.5)
+                  </small>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="urun-field">
+            <label>Barkod</label>
+            <input value={formData.barkod} onChange={e => handleChange("barkod", e.target.value)} placeholder="Örn: 8680468049418" />
+          </div>
+          <div className="urun-field">
+            <label>GTİP No</label>
+            <input value={formData.gtipNo} onChange={e => handleChange("gtipNo", e.target.value)} placeholder="Gümrük Tarife İstatistik Pozisyonu" />
+          </div>
+          <div className="urun-field">
+            <label>Menşei</label>
+            <input value={formData.mensei} onChange={e => handleChange("mensei", e.target.value)} placeholder="Örn: Türkiye, Çin" />
+          </div>
+
           <div className="urun-field" style={{ gridColumn: "1 / -1" }}>
             <label>Açıklama</label>
             <textarea value={formData.aciklama} onChange={e => handleChange("aciklama", e.target.value)} rows={2} />
@@ -246,6 +327,11 @@ const UrunForm = () => {
         </div>
       </div>
 
+      <UrunDosyaYonetimi urunId={editingId} />
+      </>
+      )}
+
+      {mode === "liste" && (
       <div className="urun-list-card">
         <div className="urun-list-header">
           <h3>Kayıt Listesi ({filtered.length})</h3>
@@ -271,7 +357,7 @@ const UrunForm = () => {
             <thead>
               <tr>
                 <th>Kod</th><th>Ad</th><th>Tür</th><th>Kategori</th><th>Stok</th><th>Birim</th>
-                <th>Liste Fiyatı</th><th>İşlem</th>
+                <th>Barkod</th><th>Alış Fiyatı</th><th>Liste Fiyatı</th><th>İşlem</th>
               </tr>
             </thead>
             <tbody>
@@ -282,21 +368,24 @@ const UrunForm = () => {
                   <td>{item.Tur === "Hizmet" ? "🔧 Hizmet" : "📦 Ürün"}</td>
                   <td>{item.Kategori}</td>
                   <td>{item.Tur === "Hizmet" ? "—" : item.StokMiktari}</td>
-                  <td>{item.Birim}</td>
+                  <td>{item.Birim}{item.AlisBirimi && <div className="urun-cevrim-badge">Alış: {item.AlisBirimi} (1={item.CevrimOrani}{item.Birim})</div>}</td>
+                  <td>{item.Barkod || "—"}</td>
+                  <td>{Number(item.AlisFiyati || 0).toLocaleString()} {item.ParaBirimi || "TL"}</td>
                   <td>{Number(item.ListeFiyati || 0).toLocaleString()} ₺</td>
                   <td>
-                    <button className="urun-btn-edit" onClick={() => handleEdit(item)}>Düzenle</button>
+                    <button className="urun-btn-edit" onClick={() => handleEditClick(item)}>Düzenle</button>
                     <button className="urun-btn-del" onClick={() => handleDelete(item.UrunId)}>Sil</button>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: "center", color: "#999", padding: 16 }}>Kayıt bulunamadı</td></tr>
+                <tr><td colSpan={10} style={{ textAlign: "center", color: "#999", padding: 16 }}>Kayıt bulunamadı</td></tr>
               )}
             </tbody>
           </table>
         )}
       </div>
+      )}
     </div>
   );
 };

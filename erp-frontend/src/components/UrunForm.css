@@ -225,3 +225,65 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
+.urun-cevrim-hint {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.urun-cevrim-badge {
+  font-size: 0.68rem;
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* --- Ürün Resim/Dosya Yönetimi --- */
+.udy-alt-baslik { font-size: 0.85rem; font-weight: 700; color: #334155; margin: 0 0 12px; }
+
+.udy-resim-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+.udy-resim-kart {
+  position: relative; width: 140px; height: 140px; border-radius: 10px; overflow: hidden;
+  border: 1px solid #e2e8f0; background: #f8fafc;
+}
+.udy-resim-kart img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.udy-kapak-badge {
+  position: absolute; top: 6px; left: 6px; background: #16a34a; color: white;
+  font-size: 0.62rem; font-weight: 700; padding: 3px 7px; border-radius: 5px;
+}
+.udy-kapak-btn {
+  position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.6); color: white;
+  border: none; font-size: 0.62rem; font-weight: 600; padding: 3px 7px; border-radius: 5px; cursor: pointer;
+}
+.udy-sil-btn {
+  position: absolute; top: 6px; right: 6px; background: rgba(220,38,38,0.9); color: white;
+  border: none; font-size: 0.62rem; font-weight: 600; padding: 3px 7px; border-radius: 5px; cursor: pointer;
+}
+.udy-resim-ekle {
+  width: 140px; height: 140px; border-radius: 10px; border: 2px dashed #cbd5e0;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer; padding: 10px;
+}
+.udy-resim-ekle:hover { border-color: #2563eb; color: #2563eb; }
+
+.udy-dosya-ekle-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.udy-dosya-ekle-row select, .udy-dosya-ekle-row input[type="text"] {
+  padding: 8px 12px; border: 1px solid #cbd5e0; border-radius: 7px; font-size: 0.85rem;
+}
+.udy-dosya-ekle-row input[type="text"] { flex: 1; min-width: 200px; }
+
+.udy-dosya-liste { display: flex; flex-direction: column; gap: 8px; }
+.udy-dosya-item {
+  display: flex; align-items: center; gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 7px; padding: 8px 12px;
+}
+.udy-dosya-tip {
+  font-size: 0.68rem; font-weight: 700; color: #2563eb; background: #dbeafe;
+  padding: 2px 8px; border-radius: 5px; white-space: nowrap;
+}
+.udy-dosya-item a { flex: 1; font-size: 0.82rem; color: #334155; text-decoration: none; }
+.udy-dosya-item a:hover { text-decoration: underline; }
