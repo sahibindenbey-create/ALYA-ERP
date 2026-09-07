@@ -1,9 +1,9 @@
 /*
  * ALYA ERP - Çoklu şirket request context.
  *
- * Bu dosya server.js değiştirilmeden yüklenebilmesi için Node -r ile preload edilir.
- * Express request'indeki X-Company-Id değerini AsyncLocalStorage'a taşır ve
- * aynı SQL batch'i içinde SESSION_CONTEXT('CompanyId') ayarlar.
+ * Node -r ile preload edilir. Express request'indeki X-Company-Id değerini
+ * AsyncLocalStorage'a taşır ve her SQL batch'inin aynı bağlantısında
+ * SESSION_CONTEXT('CompanyId') ayarlar.
  */
 const { AsyncLocalStorage } = require('node:async_hooks');
 const express = require('express');
@@ -17,13 +17,14 @@ function normalizeCompanyId(value) {
   return COMPANY_IDS.has(id) ? id : 1;
 }
 
-// Express'in ilk app.use() çağrısından önce şirket context middleware'ini otomatik ekle.
 const originalUse = express.application.use;
 if (!express.application.__alyaCompanyContextPatched) {
   express.application.use = function patchedUse(...args) {
     if (!this.__alyaCompanyContextInstalled) {
       const contextMiddleware = function alyaCompanyContext(req, res, next) {
-        const companyId = normalizeCompanyId(req.headers['x-company-id'] || req.query?.companyId || 1);
+        const companyId = normalizeCompanyId(
+          req.headers['x-company-id'] || req.query?.companyId || 1
+        );
         storage.run({ companyId }, next);
       };
       this.__alyaCompanyContextInstalled = true;
@@ -34,25 +35,28 @@ if (!express.application.__alyaCompanyContextPatched) {
   express.application.__alyaCompanyContextPatched = true;
 }
 
-// Her SQL Request'i, kendi bağlantısında SESSION_CONTEXT ayarlayan bir batch'e dönüştür.
-const originalRequest = sql.ConnectionPool.prototype.request;
-if (!sql.ConnectionPool.prototype.__alyaCompanyRequestPatched) {
-  sql.ConnectionPool.prototype.request = function patchedRequest(...args) {
-    const request = originalRequest.apply(this, args);
-    const originalQuery = request.query.bind(request);
+// Tüm mssql Request.query çağrılarını şirket context'i ile çalıştır.
+// Böylece pool request'leri ve Transaction içindeki Request'ler aynı şekilde
+// RLS/default constraint izolasyonundan yararlanır.
+const requestPrototype = sql.Request && sql.Request.prototype;
+if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
+  const originalQuery = requestPrototype.query;
 
-    request.query = function companyAwareQuery(command, callback) {
-      const context = storage.getStore();
-      const companyId = context?.companyId;
-      if (!companyId) return originalQuery(command, callback);
+  requestPrototype.query = function companyAwareQuery(command, callback) {
+    const context = storage.getStore();
+    const companyId = context?.companyId;
 
-      const prefix = `EXEC sys.sp_set_session_context @key=N'CompanyId', @value=${companyId};`;
-      return originalQuery(`${prefix}\n${command}`, callback);
-    };
+    if (!companyId || typeof command !== 'string') {
+      return originalQuery.call(this, command, callback);
+    }
 
-    return request;
+    const prefix =
+      `EXEC sys.sp_set_session_context @key=N'CompanyId', @value=${companyId};`;
+
+    return originalQuery.call(this, `${prefix}\n${command}`, callback);
   };
-  sql.ConnectionPool.prototype.__alyaCompanyRequestPatched = true;
+
+  requestPrototype.__alyaCompanyQueryPatched = true;
 }
 
 module.exports = { storage, normalizeCompanyId };
