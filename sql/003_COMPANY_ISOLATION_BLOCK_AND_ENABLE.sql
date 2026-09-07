@@ -7,7 +7,6 @@
 
   ÖNEMLİ:
     Bu script'i ERP backend güncel haliyle çalıştırdıktan sonra SSMS'te çalıştırın.
-    Script bilinmeyen CompanyId tabloları varsa DURUR; güvenli olmayan şekilde RLS açmaz.
 */
 
 SET NOCOUNT ON;
@@ -25,7 +24,6 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.fn_CompanyIsolationPredicate', N'IF') IS NULL
         THROW 51003, N'fn_CompanyIsolationPredicate bulunamadı.', 1;
 
-    /* 002 / Aşama 1-3 kapsamındaki 25 şirket izolasyon tablosu. */
     DECLARE @Expected TABLE (TableName sysname PRIMARY KEY);
     INSERT INTO @Expected(TableName) VALUES
       (N'BordroParametreleri'),
@@ -55,8 +53,7 @@ BEGIN TRY
       (N'MaliyetParametreleri');
 
     IF EXISTS (
-        SELECT 1
-        FROM @Expected e
+        SELECT 1 FROM @Expected e
         WHERE OBJECT_ID(N'dbo.' + e.TableName, N'U') IS NULL
     )
     BEGIN
@@ -67,7 +64,7 @@ BEGIN TRY
         THROW 51004, @Missing, 1;
     END;
 
-    /* Yeni bir CompanyId tablosu eklenmişse RLS sessizce eksik kalmasın. */
+    /* CompanyId taşıyan fakat RLS kapsamına alınmamış tablo varsa DUR. */
     DECLARE @Unexpected TABLE (TableName sysname);
     INSERT INTO @Unexpected(TableName)
     SELECT t.name
@@ -87,8 +84,12 @@ BEGIN TRY
         THROW 51005, @UnexpectedText, 1;
     END;
 
-    /* INSERT / UPDATE için BLOCK predicate ekle. */
+    /* INSERT / UPDATE BLOCK predicate ekle.
+       Dinamik SQL ayrı değişkende oluşturuluyor; böylece eski SQL Server parser sürümlerindeki
+       EXEC(...) + QUOTENAME ayrıştırma problemi oluşmuyor. */
     DECLARE @TableName sysname;
+    DECLARE @Sql nvarchar(max);
+
     DECLARE table_cursor CURSOR LOCAL FAST_FORWARD FOR
         SELECT TableName FROM @Expected ORDER BY TableName;
 
@@ -103,11 +104,13 @@ BEGIN TRY
             INNER JOIN sys.objects o ON o.object_id = sp.target_object_id
             WHERE sp.security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
               AND o.object_id = OBJECT_ID(N'dbo.' + @TableName)
-              AND sp.predicate_type = 1
+              AND sp.predicate_type_desc = N'BLOCK'
               AND sp.predicate_operation_desc = N'AFTER INSERT'
         )
         BEGIN
-            EXEC(N'ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.' + QUOTENAME(@TableName) + N' AFTER INSERT;');
+            SET @Sql = N'ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.'
+                     + QUOTENAME(@TableName) + N' AFTER INSERT;';
+            EXEC sys.sp_executesql @Sql;
         END;
 
         IF NOT EXISTS (
@@ -116,11 +119,13 @@ BEGIN TRY
             INNER JOIN sys.objects o ON o.object_id = sp.target_object_id
             WHERE sp.security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
               AND o.object_id = OBJECT_ID(N'dbo.' + @TableName)
-              AND sp.predicate_type = 1
+              AND sp.predicate_type_desc = N'BLOCK'
               AND sp.predicate_operation_desc = N'AFTER UPDATE'
         )
         BEGIN
-            EXEC(N'ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.' + QUOTENAME(@TableName) + N' AFTER UPDATE;');
+            SET @Sql = N'ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.'
+                     + QUOTENAME(@TableName) + N' AFTER UPDATE;';
+            EXEC sys.sp_executesql @Sql;
         END;
 
         FETCH NEXT FROM table_cursor INTO @TableName;
@@ -135,7 +140,7 @@ BEGIN TRY
         FROM sys.security_predicates sp
         INNER JOIN sys.objects o ON o.object_id = sp.target_object_id
         WHERE sp.security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
-          AND sp.predicate_type = 1
+          AND sp.predicate_type_desc = N'BLOCK'
           AND sp.predicate_operation_desc = N'AFTER INSERT'
           AND EXISTS (SELECT 1 FROM @Expected e WHERE e.TableName = o.name)
     );
@@ -144,7 +149,7 @@ BEGIN TRY
         FROM sys.security_predicates sp
         INNER JOIN sys.objects o ON o.object_id = sp.target_object_id
         WHERE sp.security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
-          AND sp.predicate_type = 1
+          AND sp.predicate_type_desc = N'BLOCK'
           AND sp.predicate_operation_desc = N'AFTER UPDATE'
           AND EXISTS (SELECT 1 FROM @Expected e WHERE e.TableName = o.name)
     );
