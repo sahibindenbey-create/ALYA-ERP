@@ -11,14 +11,12 @@ function resolveCompanyId(req) {
   return Number.isInteger(id) && id > 0 ? id : 1;
 }
 
-// Her HTTP isteğini CompanyId context'i ile çalıştır.
 const originalHandle = express.application.handle;
 express.application.handle = function patchedHandle(req, res, callback) {
   const companyId = resolveCompanyId(req);
   return companyContext.run({ companyId }, () => originalHandle.call(this, req, res, callback));
 };
 
-// Şirket listesini mevcut Express uygulamasına ekle.
 const originalListen = express.application.listen;
 express.application.listen = function patchedListen(...args) {
   if (!this.__alyaCompanyRouteRegistered) {
@@ -42,8 +40,7 @@ express.application.listen = function patchedListen(...args) {
   return originalListen.apply(this, args);
 };
 
-// RLS açıldığında tüm SQL sorguları aynı bağlantı/request batch'i içinde
-// SESSION_CONTEXT('CompanyId') ile çalışsın.
+// HTTP isteğindeki tüm SQL sorgularında CompanyId context'ini aynı bağlantıya taşı.
 const originalQuery = sql.Request.prototype.query;
 sql.Request.prototype.query = function patchedQuery(command, ...args) {
   const store = companyContext.getStore();
@@ -56,9 +53,19 @@ sql.Request.prototype.query = function patchedQuery(command, ...args) {
     ${command}
   `;
 
-  // Request'in mevcut input parametrelerine dokunmadan context parametresi ekle.
   this.input('CompanyContextId', sql.Int, store.companyId);
   return originalQuery.call(this, contextSql, ...args);
+};
+
+// Eski modüller body'den CompanyId=1 gönderse bile seçili şirketi zorunlu kıl.
+// Böylece RLS açılmadan önce dahi yeni kayıtlar yanlış şirkete yazılmaz.
+const originalInput = sql.Request.prototype.input;
+sql.Request.prototype.input = function patchedInput(name, type, value) {
+  const store = companyContext.getStore();
+  if (store && store.companyId && String(name).toLowerCase() === 'companyid') {
+    return originalInput.call(this, name, type, store.companyId);
+  }
+  return originalInput.call(this, name, type, value);
 };
 
 const config = {
