@@ -1,5 +1,7 @@
 // KolayBi entegrasyonu - çoklu şirket + sunucu tarafı otomatik senkronizasyon.
 // Resmi API modülleri: companies, associates, products, invoices, e-document ve finansal belgeler.
+const { storage } = require('./company-context-hook');
+
 const registerKolaybi = ({ app, poolPromise, sql }) => {
   const running = new Set();
   const DEFAULT_BASE_URL = 'https://ofis-api.kolaybi.com';
@@ -132,6 +134,7 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
 
       await pool.request()
         .input('CompanyId', sql.Int, companyId)
+        .input('StartedAt', sql.DateTime2, started)
         .input('FinishedAt', sql.DateTime2, new Date())
         .input('Status', sql.NVarChar, errors ? 'KISMI_HATA' : 'BAŞARILI')
         .input('CreatedCount', sql.Int, created)
@@ -141,7 +144,7 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
         .query(`
           INSERT INTO KolaybiSyncLog(CompanyId,StartedAt,FinishedAt,Status,CreatedCount,UpdatedCount,ErrorCount,Message)
           VALUES(@CompanyId,@StartedAt,@FinishedAt,@Status,@CreatedCount,@UpdatedCount,@ErrorCount,@Message)
-        `.replace('@StartedAt', `'${started.toISOString().slice(0,19).replace('T',' ')}'`));
+        `);
 
       await pool.request()
         .input('CompanyId', sql.Int, companyId)
@@ -155,7 +158,6 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     }
   }
 
-  // ERP şirketleri
   app.get('/api/sirketler', async (req, res) => {
     try {
       const pool = await poolPromise;
@@ -166,7 +168,6 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     }
   });
 
-  // Aktif şirket için KolayBi ayarları
   app.get('/api/kolaybi/ayarlar', async (req, res) => {
     try {
       const pool = await poolPromise;
@@ -214,7 +215,7 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     try {
       const pool = await poolPromise;
       const companyId = companyIdFromRequest(req);
-      const auth = await getValidToken(pool, companyId);
+      await getValidToken(pool, companyId);
       const companies = await kolaybiRequest(pool, companyId, '/kolaybi/v1/companies');
       res.json({ success: true, message: 'Bağlantı başarılı, access token alındı.', CompanyId: companyId, KolaybiSirketleri: companies?.data || [] });
     } catch (err) {
@@ -245,7 +246,8 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
 
   app.post('/api/kolaybi/senkronize-et', async (req, res) => {
     try {
-      const result = await syncCompany(companyIdFromRequest(req));
+      const companyId = companyIdFromRequest(req);
+      const result = await storage.run({ companyId }, () => syncCompany(companyId));
       res.json({ success: true, ...result });
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
@@ -264,20 +266,24 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     }
   });
 
-  // Sunucu tarafı 1 dakika. Tarayıcı açık olmasa da çalışır.
   const runAllCompanies = async () => {
     try {
       const pool = await poolPromise;
       const companies = await pool.request().query(`SELECT CompanyId FROM Sirketler WHERE IsActive=1 ORDER BY CompanyId`);
       for (const row of companies.recordset) {
-        syncCompany(row.CompanyId).catch(err => console.error(`KolayBi otomatik senkronizasyon Şirket ${row.CompanyId}:`, err.message));
+        const companyId = row.CompanyId;
+        storage.run({ companyId }, () => {
+          syncCompany(companyId).catch(err => console.error(`KolayBi otomatik senkronizasyon Şirket ${companyId}:`, err.message));
+        });
       }
     } catch (err) {
       console.error('KolayBi otomatik senkronizasyon başlatılamadı:', err.message);
     }
   };
 
+  // Sunucu tarafı 1 dakika. Tarayıcı açık olmasa da çalışır.
   setInterval(runAllCompanies, 60 * 1000);
+  setTimeout(runAllCompanies, 5000);
 };
 
 module.exports = registerKolaybi;
