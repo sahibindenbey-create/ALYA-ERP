@@ -1,20 +1,28 @@
 // kolaybi.js
-// KolayBi (https://developer.kolaybi.com) API entegrasyonu.
-// Ayarlar (API Key, Channel, Base URL) veritabanındaki KolaybiAyarlar
-// tablosunda tutulur; kod değiştirmeden / restart etmeden panelden güncellenebilir.
+// KolayBi API entegrasyonu. Ayarlar ve senkronizasyon seçili şirkete göre çalışır.
 
 const registerKolaybi = ({ app, poolPromise, sql }) => {
 
+  // db.js her HTTP isteğinde SESSION_CONTEXT('CompanyId') ayarladığı için
+  // KolayBi tarafındaki tüm DB işlemleri seçili şirkete göre izole edilir.
   async function getAyarlar(pool) {
-    const result = await pool.request().query('SELECT * FROM KolaybiAyarlar WHERE Id = 1');
+    const result = await pool.request().query(`
+      SELECT TOP 1 *
+      FROM KolaybiAyarlar
+      WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
+        AND IsActive = 1
+      ORDER BY Id
+    `);
     return result.recordset[0] || null;
   }
 
-  // Access token'ı gerekirse yeniler (24 saat geçerli), DB'de cache'ler
   async function getValidToken(pool) {
     const ayar = await getAyarlar(pool);
     if (!ayar || !ayar.ApiKey || !ayar.Channel) {
-      throw Object.assign(new Error('KolayBi API Key / Channel tanımlı değil. Önce ayarları girin.'), { status: 503 });
+      throw Object.assign(
+        new Error('Seçili şirket için KolayBi API Key / Channel tanımlı değil. Önce ayarları girin.'),
+        { status: 503 }
+      );
     }
 
     const now = new Date();
@@ -30,14 +38,22 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     if (!res.ok) {
       throw Object.assign(new Error(`KolayBi access token alınamadı (HTTP ${res.status})`), { status: 502 });
     }
+
     const body = await res.json();
     const token = body.data;
+    const gecerlilik = new Date(now.getTime() + 23 * 60 * 60 * 1000);
 
-    const gecerlilik = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23 saat (güvenlik payı)
     await pool.request()
       .input('AccessToken', sql.NVarChar, token)
       .input('TokenGecerlilik', sql.DateTime, gecerlilik)
-      .query('UPDATE KolaybiAyarlar SET AccessToken = @AccessToken, TokenGecerlilik = @TokenGecerlilik WHERE Id = 1');
+      .query(`
+        UPDATE KolaybiAyarlar
+        SET AccessToken = @AccessToken,
+            TokenGecerlilik = @TokenGecerlilik,
+            UpdatedAt = SYSDATETIME()
+        WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
+          AND IsActive = 1
+      `);
 
     return { token, channel: ayar.Channel, baseUrl: ayar.BaseUrl };
   }
@@ -45,7 +61,9 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
   async function kolaybiRequest(pool, path, params = {}) {
     const { token, channel, baseUrl } = await getValidToken(pool);
     const url = new URL(`${baseUrl}${path}`);
-    Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v); });
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+    });
 
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${token}`, Channel: channel },
@@ -61,12 +79,13 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     approved: 'Bekliyor', rejected: 'İptal', cancelled: 'İptal',
   };
 
-  // --- Ayarlar ---
   app.get('/api/kolaybi/ayarlar', async (req, res) => {
     try {
       const pool = await poolPromise;
       const ayar = await getAyarlar(pool);
       res.json({
+        CompanyId: ayar?.CompanyId || null,
+        CompanyCode: ayar?.CompanyCode || null,
         Channel: ayar?.Channel || '',
         BaseUrl: ayar?.BaseUrl || 'https://ofis-sandbox-api.kolaybi.com',
         ApiKeyTanimli: Boolean(ayar?.ApiKey),
@@ -85,15 +104,26 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
         .input('Channel', sql.NVarChar, Channel || null)
         .input('BaseUrl', sql.NVarChar, BaseUrl || 'https://ofis-sandbox-api.kolaybi.com');
 
-      let query = 'UPDATE KolaybiAyarlar SET Channel=@Channel, BaseUrl=@BaseUrl, AccessToken=NULL, TokenGecerlilik=NULL';
+      let query = `
+        UPDATE KolaybiAyarlar
+        SET Channel=@Channel,
+            BaseUrl=@BaseUrl,
+            AccessToken=NULL,
+            TokenGecerlilik=NULL,
+            UpdatedAt=SYSDATETIME()
+        WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
+          AND IsActive = 1
+      `;
       if (ApiKey) {
         request.input('ApiKey', sql.NVarChar, ApiKey);
-        query += ', ApiKey=@ApiKey';
+        query = query.replace('AccessToken=NULL,', 'ApiKey=@ApiKey, AccessToken=NULL,');
       }
-      query += ' WHERE Id=1';
 
-      await request.query(query);
-      res.json({ success: true, message: 'Ayarlar güncellendi' });
+      const result = await request.query(query);
+      if (result.rowsAffected[0] === 0) {
+        return res.status(404).json({ error: 'Seçili şirket için KolayBi ayar kaydı bulunamadı.' });
+      }
+      res.json({ success: true, message: 'Seçili şirketin KolayBi ayarları güncellendi.' });
     } catch (err) {
       res.status(500).json({ error: 'Ayarlar güncellenirken hata oluştu', detail: err.message });
     }
@@ -103,13 +133,12 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     try {
       const pool = await poolPromise;
       await getValidToken(pool);
-      res.json({ success: true, message: 'Bağlantı başarılı, access token alındı.' });
+      res.json({ success: true, message: 'Seçili şirket için KolayBi bağlantısı başarılı, access token alındı.' });
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
     }
   });
 
-  // --- Önizleme: KolayBi'deki faturaları göster (bizim DB'ye dokunmaz) ---
   app.get('/api/kolaybi/faturalar-onizleme', async (req, res) => {
     try {
       const pool = await poolPromise;
@@ -121,7 +150,6 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
     }
   });
 
-  // --- Senkronizasyon: KolayBi faturalarını çekip Faturalar/FaturaDetay'a aktar ---
   app.post('/api/kolaybi/senkronize-et', async (req, res) => {
     try {
       const pool = await poolPromise;
@@ -133,15 +161,30 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
 
         for (const f of faturalar) {
           try {
-            const existing = await pool.request().input('KolaybiInvoiceId', sql.Int, f.id)
-              .query('SELECT FaturaId FROM Faturalar WHERE KolaybiInvoiceId = @KolaybiInvoiceId');
+            const existing = await pool.request()
+              .input('KolaybiInvoiceId', sql.Int, f.id)
+              .query(`
+                SELECT FaturaId
+                FROM Faturalar
+                WHERE KolaybiInvoiceId = @KolaybiInvoiceId
+              `);
             if (existing.recordset.length > 0) { sonuc.atlanan++; continue; }
 
             const yon = kolaybiType === 'sale_invoice' ? 'Satış' : 'Alış';
-            const cariAdi = f.contact ? `${f.contact.name || ''} ${f.contact.surname || ''}`.trim() : 'Bilinmeyen Cari';
+            const cariAdi = f.contact
+              ? `${f.contact.name || ''} ${f.contact.surname || ''}`.trim()
+              : 'Bilinmeyen Cari';
 
-            let cariResult = await pool.request().input('CariAdi', sql.NVarChar, cariAdi)
-              .query('SELECT TOP 1 CariId, CariKodu FROM CariListesi WHERE CariAdi = @CariAdi');
+            let cariResult = await pool.request()
+              .input('CariAdi', sql.NVarChar, cariAdi)
+              .query(`
+                SELECT TOP 1 CariId, CariKodu
+                FROM CariListesi
+                WHERE CariAdi = @CariAdi
+                  AND CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
+                  AND IsActive = 1
+              `);
+
             let cariId, cariKodu;
             if (cariResult.recordset.length > 0) {
               cariId = cariResult.recordset[0].CariId;
@@ -149,7 +192,7 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
             } else {
               cariKodu = `KLB-${f.contact?.id || Date.now()}`;
               const yeniCari = await pool.request()
-                .input('CompanyId', sql.Int, 1)
+                .input('CompanyId', sql.Int, sql.Int)
                 .input('CariKodu', sql.NVarChar, cariKodu)
                 .input('CariAdi', sql.NVarChar, cariAdi)
                 .input('CariTipi', sql.Int, yon === 'Satış' ? 1 : 2)
@@ -157,13 +200,15 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
                 .query(`
                   INSERT INTO CariListesi (CompanyId, CariKodu, CariAdi, CariTipi, MusteriTuru)
                   OUTPUT INSERTED.CariId
-                  VALUES (@CompanyId, @CariKodu, @CariAdi, @CariTipi, @MusteriTuru)
+                  VALUES (
+                    TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId')),
+                    @CariKodu, @CariAdi, @CariTipi, @MusteriTuru
+                  )
                 `);
               cariId = yeniCari.recordset[0].CariId;
             }
 
             const durum = STATUS_MAP[f.status] || 'Bekliyor';
-
             const faturaResult = await pool.request()
               .input('FaturaKodu', sql.NVarChar, f.serial_no || `KLB-${f.id}`)
               .input('Yon', sql.NVarChar, yon)
@@ -177,9 +222,15 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
               .input('Durum', sql.NVarChar, durum)
               .input('KolaybiInvoiceId', sql.Int, f.id)
               .query(`
-                INSERT INTO Faturalar (FaturaKodu, Yon, CariId, CariKodu, CariAdi, FaturaTarihi, VadeTarihi, GenelToplam, ParaBirimi, Durum, KolaybiInvoiceId)
+                INSERT INTO Faturalar (
+                  FaturaKodu, Yon, CariId, CariKodu, CariAdi, FaturaTarihi,
+                  VadeTarihi, GenelToplam, ParaBirimi, Durum, KolaybiInvoiceId
+                )
                 OUTPUT INSERTED.FaturaId
-                VALUES (@FaturaKodu, @Yon, @CariId, @CariKodu, @CariAdi, @FaturaTarihi, @VadeTarihi, @GenelToplam, @ParaBirimi, @Durum, @KolaybiInvoiceId)
+                VALUES (
+                  @FaturaKodu, @Yon, @CariId, @CariKodu, @CariAdi, @FaturaTarihi,
+                  @VadeTarihi, @GenelToplam, @ParaBirimi, @Durum, @KolaybiInvoiceId
+                )
               `);
 
             try {
@@ -211,7 +262,12 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
         }
       }
 
-      await pool.request().query('UPDATE KolaybiAyarlar SET SonSenkronTarihi = GETDATE() WHERE Id = 1');
+      await pool.request().query(`
+        UPDATE KolaybiAyarlar
+        SET SonSenkronTarihi = GETDATE(), UpdatedAt = SYSDATETIME()
+        WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
+          AND IsActive = 1
+      `);
       res.json({ success: true, ...sonuc });
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
