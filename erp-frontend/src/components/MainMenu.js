@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import menuItems from "../data/menuItems";
 import { getCurrentUser, logoutUser } from "../auth";
+import CompanySelector from "./CompanySelector";
 import "./MainMenu.css";
 
 const ACTIVE_MODULES = [
@@ -39,12 +40,12 @@ const MainMenu = () => {
 
   return (
     <div className="main-menu-wrapper">
-      {/* --- Üst Bar --- */}
       <div className="top-bar">
         <div className="logo">ERP LOGO</div>
         <div className="home-button" onClick={handleHomeClick}>
           🏠 Ana Sayfa
         </div>
+        <CompanySelector />
         <div className="user-info">
           <div style={{ textAlign: "right" }}>
             <div style={{ fontWeight: "bold" }}>{user?.name || "Kullanıcı"}</div>
@@ -56,7 +57,6 @@ const MainMenu = () => {
         </div>
       </div>
 
-      {/* --- Arama ve Filtreleme --- */}
       <div className="search-bar">
         <input
           type="text"
@@ -72,7 +72,6 @@ const MainMenu = () => {
         </select>
       </div>
 
-      {/* --- Ana Menü Grid --- */}
       <div className="menu-grid">
         {filteredMenu.map((item, idx) => (
           <div
