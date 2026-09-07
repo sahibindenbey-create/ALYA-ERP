@@ -104,6 +104,61 @@ BEGIN
   );
 END;
 
+/*
+   Çekirdek ERP tabloları.
+   Mevcut veriler Şirket 1'e atanır. Yeni kayıtların CompanyId alanı daha sonra
+   backend request context'i tarafından doldurulacaktır.
+*/
+DECLARE @CoreTables TABLE (TableName SYSNAME PRIMARY KEY);
+INSERT INTO @CoreTables(TableName) VALUES
+  ('CariEvrak'),
+  ('Siparisler'),
+  ('SiparisDetay'),
+  ('Urunler'),
+  ('UrunDosya'),
+  ('Numuneler'),
+  ('Teklifler'),
+  ('TeklifKalemleri'),
+  ('Faturalar'),
+  ('FaturaDetay'),
+  ('KasaBanka'),
+  ('KasaBankaHareketleri'),
+  ('Personel'),
+  ('Receteler'),
+  ('ReceteKalemleri'),
+  ('FasonIsler'),
+  ('FasonHareketleri'),
+  ('Irsaliyeler'),
+  ('IrsaliyeDetay');
+
+DECLARE @TableName SYSNAME, @sql NVARCHAR(MAX), @constraintName SYSNAME;
+DECLARE table_cursor CURSOR LOCAL FAST_FORWARD FOR SELECT TableName FROM @CoreTables;
+OPEN table_cursor;
+FETCH NEXT FROM table_cursor INTO @TableName;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+  IF OBJECT_ID('dbo.' + @TableName, 'U') IS NOT NULL
+     AND COL_LENGTH('dbo.' + @TableName, 'CompanyId') IS NULL
+  BEGIN
+    SET @constraintName = 'DF_' + @TableName + '_CompanyId';
+    SET @sql = N'ALTER TABLE dbo.' + QUOTENAME(@TableName) +
+               N' ADD CompanyId INT NOT NULL CONSTRAINT ' + QUOTENAME(@constraintName) + N' DEFAULT (1) WITH VALUES;';
+    EXEC sp_executesql @sql;
+  END;
+
+  IF OBJECT_ID('dbo.' + @TableName, 'U') IS NOT NULL
+     AND COL_LENGTH('dbo.' + @TableName, 'CompanyId') IS NOT NULL
+  BEGIN
+    SET @sql = N'IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N''IX_' + @TableName + '_CompanyId'' AND object_id = OBJECT_ID(N''dbo.' + @TableName + N''')) ' +
+               N'CREATE INDEX ' + QUOTENAME('IX_' + @TableName + '_CompanyId') + N' ON dbo.' + QUOTENAME(@TableName) + N'(CompanyId);';
+    EXEC sp_executesql @sql;
+  END;
+
+  FETCH NEXT FROM table_cursor INTO @TableName;
+END;
+CLOSE table_cursor;
+DEALLOCATE table_cursor;
+
 /* ŞirketId bulunan mevcut tablolarda gelecekteki izolasyon için indeksler. */
 IF COL_LENGTH('dbo.CariListesi','CompanyId') IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_CariListesi_CompanyId' AND object_id=OBJECT_ID('dbo.CariListesi'))
