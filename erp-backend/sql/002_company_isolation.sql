@@ -1,9 +1,9 @@
 /*
   ALYA ERP - Şirket izolasyonu
-  Ön koşul: 001_multi_company_kolaybi.sql çalıştırılmış olmalı.
+  Ön koşul: 001_multi_company_kolaybi.sql ve 003_platform_company.sql çalıştırılmış olmalı.
 
   Backend, her HTTP isteğinde SESSION_CONTEXT('CompanyId') ayarlar.
-  Bu migration CompanyId taşıyan çekirdek tablolarda Row-Level Security uygular.
+  Bu migration CompanyId taşıyan çekirdek ve pazaryeri tablolarında Row-Level Security uygular.
 */
 
 IF OBJECT_ID('dbo.fn_AlyaCompanyPredicate', 'IF') IS NULL
@@ -32,7 +32,8 @@ INSERT INTO @Tables(TableName) VALUES
   ('Personel'),
   ('Receteler'), ('ReceteKalemleri'),
   ('FasonIsler'), ('FasonHareketleri'),
-  ('Irsaliyeler'), ('IrsaliyeDetay');
+  ('Irsaliyeler'), ('IrsaliyeDetay'),
+  ('PlatformSiparisler');
 
 DECLARE c CURSOR LOCAL FAST_FORWARD FOR SELECT TableName FROM @Tables;
 OPEN c;
@@ -42,7 +43,6 @@ BEGIN
   IF OBJECT_ID('dbo.' + @TableName, 'U') IS NOT NULL
      AND COL_LENGTH('dbo.' + @TableName, 'CompanyId') IS NOT NULL
   BEGIN
-    /* Yeni INSERT'lerde CompanyId request context'ten gelsin. */
     SET @defaultName = 'DF_' + @TableName + '_CompanyContext';
     IF NOT EXISTS (
       SELECT 1 FROM sys.default_constraints dc
