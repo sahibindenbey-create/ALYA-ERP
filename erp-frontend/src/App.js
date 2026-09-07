@@ -24,11 +24,31 @@ import FinansPage from "./pages/FinansPage";
 import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import PrivateRoute from "./components/PrivateRoute";
+import CompanySelector from "./components/CompanySelector";
 import { initializeCompanyContext } from "./companyContext";
 import { isAuthenticated } from "./auth";
 import "./components/CompanySelector.css";
 
 initializeCompanyContext();
+
+function DashboardWithCompanySelector() {
+  return (
+    <div style={{ position: "relative", minHeight: "100vh" }}>
+      <div
+        style={{
+          position: "fixed",
+          top: 58,
+          right: 24,
+          zIndex: 9999,
+          width: "min(430px, calc(100vw - 48px))",
+        }}
+      >
+        <CompanySelector />
+      </div>
+      <Dashboard />
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -38,7 +58,7 @@ function App() {
           <Route path="/" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/login"} replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/menu" element={<PrivateRoute><MainMenu /></PrivateRoute>} />
-          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>}>
+          <Route path="/dashboard" element={<PrivateRoute><DashboardWithCompanySelector /></PrivateRoute>}>
             <Route path="cari-giris" element={<CariForm mode="giris" />} />
             <Route path="cari-giris/:id" element={<CariForm mode="giris" />} />
             <Route path="cari-listesi" element={<CariForm mode="liste" />} />
