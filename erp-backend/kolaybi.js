@@ -3,8 +3,6 @@
 
 const registerKolaybi = ({ app, poolPromise, sql }) => {
 
-  // db.js her HTTP isteğinde SESSION_CONTEXT('CompanyId') ayarladığı için
-  // KolayBi tarafındaki tüm DB işlemleri seçili şirkete göre izole edilir.
   async function getAyarlar(pool) {
     const result = await pool.request().query(`
       SELECT TOP 1 *
@@ -19,10 +17,7 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
   async function getValidToken(pool) {
     const ayar = await getAyarlar(pool);
     if (!ayar || !ayar.ApiKey || !ayar.Channel) {
-      throw Object.assign(
-        new Error('Seçili şirket için KolayBi API Key / Channel tanımlı değil. Önce ayarları girin.'),
-        { status: 503 }
-      );
+      throw Object.assign(new Error('Seçili şirket için KolayBi API Key / Channel tanımlı değil. Önce ayarları girin.'), { status: 503 });
     }
 
     const now = new Date();
@@ -163,17 +158,11 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
           try {
             const existing = await pool.request()
               .input('KolaybiInvoiceId', sql.Int, f.id)
-              .query(`
-                SELECT FaturaId
-                FROM Faturalar
-                WHERE KolaybiInvoiceId = @KolaybiInvoiceId
-              `);
+              .query(`SELECT FaturaId FROM Faturalar WHERE KolaybiInvoiceId = @KolaybiInvoiceId`);
             if (existing.recordset.length > 0) { sonuc.atlanan++; continue; }
 
             const yon = kolaybiType === 'sale_invoice' ? 'Satış' : 'Alış';
-            const cariAdi = f.contact
-              ? `${f.contact.name || ''} ${f.contact.surname || ''}`.trim()
-              : 'Bilinmeyen Cari';
+            const cariAdi = f.contact ? `${f.contact.name || ''} ${f.contact.surname || ''}`.trim() : 'Bilinmeyen Cari';
 
             let cariResult = await pool.request()
               .input('CariAdi', sql.NVarChar, cariAdi)
@@ -184,7 +173,6 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
                   AND CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
                   AND IsActive = 1
               `);
-
             let cariId, cariKodu;
             if (cariResult.recordset.length > 0) {
               cariId = cariResult.recordset[0].CariId;
@@ -192,7 +180,6 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
             } else {
               cariKodu = `KLB-${f.contact?.id || Date.now()}`;
               const yeniCari = await pool.request()
-                .input('CompanyId', sql.Int, sql.Int)
                 .input('CariKodu', sql.NVarChar, cariKodu)
                 .input('CariAdi', sql.NVarChar, cariAdi)
                 .input('CariTipi', sql.Int, yon === 'Satış' ? 1 : 2)
@@ -222,15 +209,9 @@ const registerKolaybi = ({ app, poolPromise, sql }) => {
               .input('Durum', sql.NVarChar, durum)
               .input('KolaybiInvoiceId', sql.Int, f.id)
               .query(`
-                INSERT INTO Faturalar (
-                  FaturaKodu, Yon, CariId, CariKodu, CariAdi, FaturaTarihi,
-                  VadeTarihi, GenelToplam, ParaBirimi, Durum, KolaybiInvoiceId
-                )
+                INSERT INTO Faturalar (FaturaKodu, Yon, CariId, CariKodu, CariAdi, FaturaTarihi, VadeTarihi, GenelToplam, ParaBirimi, Durum, KolaybiInvoiceId)
                 OUTPUT INSERTED.FaturaId
-                VALUES (
-                  @FaturaKodu, @Yon, @CariId, @CariKodu, @CariAdi, @FaturaTarihi,
-                  @VadeTarihi, @GenelToplam, @ParaBirimi, @Durum, @KolaybiInvoiceId
-                )
+                VALUES (@FaturaKodu, @Yon, @CariId, @CariKodu, @CariAdi, @FaturaTarihi, @VadeTarihi, @GenelToplam, @ParaBirimi, @Durum, @KolaybiInvoiceId)
               `);
 
             try {
