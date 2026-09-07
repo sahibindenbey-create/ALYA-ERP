@@ -25,18 +25,14 @@ BEGIN TRY
     IF OBJECT_ID(N'dbo.fn_CompanyIsolationPredicate', N'IF') IS NULL
         THROW 51003, N'fn_CompanyIsolationPredicate bulunamadı.', 1;
 
-    /*
-      002 / Aşama 1-3 ile CompanyId verilen ERP tabloları.
-      Bu liste dışındaki tablo CompanyId taşıyorsa script bunu ayrıca raporlayıp durur.
-    */
+    /* 002 / Aşama 1-3 kapsamındaki 25 şirket izolasyon tablosu. */
     DECLARE @Expected TABLE (TableName sysname PRIMARY KEY);
     INSERT INTO @Expected(TableName) VALUES
       (N'BordroParametreleri'),
       (N'CariEvrak'),
-      (N'CariyeHareket'),
-      (N'CariyeHareketleri'),
-      (N'CariyeHareket'),
       (N'CariHareket'),
+      (N'CariHareketleri'),
+      (N'CariListesi'),
       (N'DovizBozum'),
       (N'Hizmetler'),
       (N'IhracatIslemleri'),
@@ -58,7 +54,6 @@ BEGIN TRY
       (N'Urunler'),
       (N'MaliyetParametreleri');
 
-    /* Yalnızca gerçekten var olan tabloları dikkate al; beklenen tabloların eksikliği hata olsun. */
     IF EXISTS (
         SELECT 1
         FROM @Expected e
@@ -72,10 +67,7 @@ BEGIN TRY
         THROW 51004, @Missing, 1;
     END;
 
-    /*
-      CompanyId taşıyan ama 002 kapsamına girmemiş yeni tabloları yakala.
-      Bu kontrol, ileride yeni modül eklenince izolasyonun sessizce delinmesini önler.
-    */
+    /* Yeni bir CompanyId tablosu eklenmişse RLS sessizce eksik kalmasın. */
     DECLARE @Unexpected TABLE (TableName sysname);
     INSERT INTO @Unexpected(TableName)
     SELECT t.name
@@ -95,10 +87,7 @@ BEGIN TRY
         THROW 51005, @UnexpectedText, 1;
     END;
 
-    /*
-      INSERT / UPDATE için BLOCK predicate ekle.
-      Mevcut predicate varsa tekrar eklenmez.
-    */
+    /* INSERT / UPDATE için BLOCK predicate ekle. */
     DECLARE @TableName sysname;
     DECLARE table_cursor CURSOR LOCAL FAST_FORWARD FOR
         SELECT TableName FROM @Expected ORDER BY TableName;
@@ -140,7 +129,6 @@ BEGIN TRY
     CLOSE table_cursor;
     DEALLOCATE table_cursor;
 
-    /* Son kontrol: 25 tablo + INSERT/UPDATE block predicate'leri mevcut olmalı. */
     DECLARE @ExpectedCount int = (SELECT COUNT(*) FROM @Expected);
     DECLARE @InsertBlockCount int = (
         SELECT COUNT(*)
