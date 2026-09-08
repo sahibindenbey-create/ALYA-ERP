@@ -1,7 +1,7 @@
 import React from 'react';
 import ReceteYonetimPageV3 from './ReceteYonetimPageV3';
 import Ahbrd1301ReceptTemplate from './Ahbrd1301ReceptTemplateV2';
-import ReceteGercekUretimPanel from '../components/ReceteGercekUretimPanel';
+import ReceteGercekUretimPanel from '../components/ReceteGercekUretimPanelV2';
 
 export default function ReceteYonetimPage(){
   const [version,setVersion]=React.useState(0);
