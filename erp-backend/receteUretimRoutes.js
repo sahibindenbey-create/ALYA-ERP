@@ -4,6 +4,7 @@ const express = require('express');
  * Reçeteden gerçek üretim işlemi.
  * - Seçili şirketi SESSION_CONTEXT üzerinden zorunlu kılar.
  * - Çok seviyeli AltReceteId ağacını açar.
+ * - Fire + verim oranlarını gerçek tüketim miktarına uygular.
  * - Hammadde stoklarını kilitleyip düşer.
  * - Mamul stokunu artırır.
  * - UretimEmirleri ve StokHareketleri kaydını aynı transaction içinde oluşturur.
@@ -27,8 +28,8 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
       SELECT d.ReceteDetayId,d.ReceteId,d.HammaddeUrunId,d.HammaddeAdi,
              ISNULL(d.Miktar,0) AS Miktar,ISNULL(d.GirdiMiktari,d.Miktar) AS GirdiMiktari,
              ISNULL(d.CiktiMiktari,0) AS DetayCiktiMiktari,
-             ISNULL(d.FireOrani,0) AS FireOrani,d.KalemTipi,d.AltReceteId,
-             ISNULL(d.FasonMu,0) AS FasonMu,d.Depo,d.Birim
+             ISNULL(d.FireOrani,0) AS FireOrani,ISNULL(d.VerimOrani,100) AS VerimOrani,
+             d.KalemTipi,d.AltReceteId,ISNULL(d.FasonMu,0) AS FasonMu,d.Depo,d.Birim
       FROM dbo.ReceteDetay d
       WHERE d.ReceteId=@RecipeId2
       ORDER BY d.SiraNo,d.ReceteDetayId`);
@@ -39,9 +40,15 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
     if (stack.includes(receteId)) {
       throw new Error(`Reçete döngüsü tespit edildi: ${[...stack, receteId].join(' -> ')}`);
     }
+
     const recipe = await loadRecipe(request, receteId);
     const baseOutput = Number(recipe.CiktiMiktari) || 1;
     const factor = outputQty / baseOutput;
+    const recipeFire = Number(recipe.StandartFireOrani || 0);
+    if (recipeFire < 0 || recipeFire >= 100) {
+      throw new Error(`Reçete ${receteId} için geçersiz standart fire oranı: %${recipeFire}`);
+    }
+
     const requirements = new Map();
 
     for (const item of recipe.items) {
@@ -50,8 +57,18 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
 
       const unitQty = Number(item.GirdiMiktari || item.Miktar || 0);
       if (unitQty <= 0) continue;
+
       const fire = Number(item.FireOrani || 0);
-      const required = unitQty * factor * (1 + fire / 100);
+      const verim = Number(item.VerimOrani ?? 100);
+      if (fire < 0 || fire >= 100) throw new Error(`Geçersiz fire oranı: ${item.HammaddeAdi || item.HammaddeUrunId}`);
+      if (verim <= 0 || verim > 100) throw new Error(`Geçersiz verim oranı: ${item.HammaddeAdi || item.HammaddeUrunId}`);
+
+      // Tüketim = reçete ihtiyacı / verim + fire.
+      // Standart reçete firesi de her gerçek malzeme tüketimine uygulanır.
+      const yieldFactor = 100 / verim;
+      const fireFactor = 1 + (fire / 100);
+      const recipeFireFactor = 1 + (recipeFire / 100);
+      const required = unitQty * factor * yieldFactor * fireFactor * recipeFireFactor;
 
       if (item.AltReceteId) {
         const nested = await explode(request, Number(item.AltReceteId), required, [...stack, receteId]);
@@ -72,6 +89,7 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
         requirements.set(item.HammaddeUrunId, old);
       }
     }
+
     return [...requirements.values()];
   }
 
@@ -94,8 +112,7 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
       // Önce tüm hammaddeleri kilitle ve yeterli stok olduğunu doğrula.
       const locked = [];
       for (const item of requirements) {
-        const r = new sql.Request(transaction)
-          .input('UrunId', sql.Int, item.UrunId);
+        const r = new sql.Request(transaction).input('UrunId', sql.Int, item.UrunId);
         const stock = await r.query(`${companySql}
           SELECT TOP 1 UrunId,UrunAdi,Birim,ISNULL(StokMiktari,0) AS StokMiktari,Tur
           FROM dbo.Urunler WITH (UPDLOCK,HOLDLOCK)
