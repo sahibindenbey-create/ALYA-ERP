@@ -5,18 +5,18 @@
   min-width: 390px;
   max-width: 540px;
   padding: 7px 12px;
-  border: 1px solid rgba(247, 208, 0, .35);
-  border-radius: 10px;
-  background: #303030;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.16);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--card-radius-sm);
+  background: #fff;
+  color: var(--text-primary);
+  box-shadow: var(--card-shadow);
 }
 
 .company-selector-label {
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .1em;
-  color: #f7d000;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
@@ -29,7 +29,7 @@
 }
 
 .company-selector-mark {
-  color: #f7d000;
+  color: var(--accent);
   font-size: 10px;
 }
 
@@ -37,8 +37,8 @@
   width: 100%;
   border: 0;
   outline: 0;
-  background: #303030;
-  color: #fff;
+  background: transparent;
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -47,12 +47,12 @@
 }
 
 .company-selector select option {
-  background: #252525;
-  color: #fff;
+  background: #fff;
+  color: var(--text-primary);
 }
 
 .company-selector-status {
-  color: #f7d000;
+  color: var(--success);
   font-size: 9px;
   font-weight: 800;
   white-space: nowrap;
