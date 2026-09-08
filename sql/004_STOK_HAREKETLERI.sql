@@ -2,6 +2,8 @@
    ALYA-ERP - 004 STOK HAREKETLERI
    Amaç: Şirket + ürün bazlı stok hareket altyapısı
    ========================================================= */
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
 
 IF OBJECT_ID(N'dbo.StokHareketleri', N'U') IS NULL
 BEGIN
@@ -27,50 +29,87 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StokHareketleri_Company_Urun_Tarih' AND object_id = OBJECT_ID(N'dbo.StokHareketleri'))
-    CREATE INDEX IX_StokHareketleri_Company_Urun_Tarih ON dbo.StokHareketleri(CompanyId, UrunId, CreatedAt DESC);
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_StokHareketleri_Company_Urun_Tarih'
+      AND object_id = OBJECT_ID(N'dbo.StokHareketleri')
+)
+    CREATE INDEX IX_StokHareketleri_Company_Urun_Tarih
+        ON dbo.StokHareketleri(CompanyId, UrunId, CreatedAt DESC);
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_StokHareketleri_Company_Depo' AND object_id = OBJECT_ID(N'dbo.StokHareketleri'))
-    CREATE INDEX IX_StokHareketleri_Company_Depo ON dbo.StokHareketleri(CompanyId, Depo);
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_StokHareketleri_Company_Depo'
+      AND object_id = OBJECT_ID(N'dbo.StokHareketleri')
+)
+    CREATE INDEX IX_StokHareketleri_Company_Depo
+        ON dbo.StokHareketleri(CompanyId, Depo);
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.security_policies WHERE name = N'SecurityPolicy_CompanyIsolation')
+/*
+   RLS policy mevcutsa StokHareketleri de ayni company izolasyonuna dahil edilir.
+   NOT: sys.security_predicates icinde security_policy_id diye bir kolon yoktur.
+   Policy object_id = sys.security_predicates.object_id
+   Hedef tablo = sys.security_predicates.target_object_id
+   predicate_type: 0=FILTER, 1=BLOCK
+*/
+IF OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation', N'SP') IS NULL
 BEGIN
-    PRINT N'Company RLS policy bulunamadı. Önce 003 migration çalıştırılmalıdır.';
+    PRINT N'Company RLS policy bulunamadi. Once 003 migration calistirilmalidir.';
 END
 ELSE
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM sys.security_predicates
-        WHERE object_id = OBJECT_ID(N'dbo.StokHareketleri')
-          AND security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
-          AND predicate_type = 1
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM sys.security_predicates p
+        WHERE p.object_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
+          AND p.target_object_id = OBJECT_ID(N'dbo.StokHareketleri')
+          AND p.predicate_type = 0
     )
+    BEGIN
         ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
-        ADD FILTER PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.StokHareketleri;
+            ADD FILTER PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
+            ON dbo.StokHareketleri;
+    END;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM sys.security_predicates
-        WHERE object_id = OBJECT_ID(N'dbo.StokHareketleri')
-          AND security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
-          AND predicate_type = 2
-          AND operation = 1
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM sys.security_predicates p
+        WHERE p.object_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
+          AND p.target_object_id = OBJECT_ID(N'dbo.StokHareketleri')
+          AND p.predicate_type = 1
+          AND p.operation = 1
     )
+    BEGIN
         ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
-        ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.StokHareketleri AFTER INSERT;
+            ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
+            ON dbo.StokHareketleri AFTER INSERT;
+    END;
 
-    IF NOT EXISTS (
-        SELECT 1 FROM sys.security_predicates
-        WHERE object_id = OBJECT_ID(N'dbo.StokHareketleri')
-          AND security_policy_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
-          AND predicate_type = 2
-          AND operation = 2
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM sys.security_predicates p
+        WHERE p.object_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
+          AND p.target_object_id = OBJECT_ID(N'dbo.StokHareketleri')
+          AND p.predicate_type = 1
+          AND p.operation = 2
     )
+    BEGIN
         ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
-        ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId) ON dbo.StokHareketleri AFTER UPDATE;
+            ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
+            ON dbo.StokHareketleri AFTER UPDATE;
+    END;
+
+    ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
+        WITH (STATE = ON);
 END;
 GO
 
-PRINT N'004_STOK_HAREKETLERI tamamlandı.';
+PRINT N'004_STOK_HAREKETLERI tamamlandi.';
 GO
