@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import "./CompanySelector.css";
 
 const API_URL = "http://localhost:5000/api";
 const STORAGE_KEY = "selectedCompanyId";
