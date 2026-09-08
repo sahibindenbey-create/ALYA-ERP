@@ -24,6 +24,7 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import PublicIcon from '@mui/icons-material/Public';
 import { logoutUser, getCurrentUser } from "../auth";
+import CompanySelector from "../components/CompanySelector";
 import "./Dashboard.css";
 
 const NAV_GROUPS = [
@@ -278,6 +279,7 @@ function Dashboard() {
             ERP Sistemi <span>/</span> <strong>{pageTitle}</strong>
           </div>
           <div className="db-topbar-right">
+            <CompanySelector />
             <div className="db-bildirim-wrapper">
               <button className="db-icon-btn" onClick={() => setBildirimAcik(!bildirimAcik)}>
                 <NotificationsNoneIcon fontSize="small" />
