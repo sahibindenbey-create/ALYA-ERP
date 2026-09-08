@@ -15,6 +15,7 @@ const menuItems = [
       { name: "Ürün Listesi", path: "urun-listesi", icon: "📦" },
       { name: "Ürün Kart Giriş", path: "urun-giris", icon: "➕" },
       { name: "Üretim Reçeteleri", path: "receteler", icon: "🧪" },
+      { name: "AHBRD 1301 Üretim Ağacı", path: "ahbrd-1301", icon: "🏗️" },
       { name: "Teklif Talepleri", path: "teklif-talepleri", icon: "💬" },
       { name: "Fason Takip", path: "fason", icon: "🏭" },
       { name: "Tüm Kayıtlar", path: "kayitlar", icon: "🗂️" },
