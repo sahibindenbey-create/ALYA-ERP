@@ -1,7 +1,10 @@
 import React from 'react';
+import axios from 'axios';
 import ReceteYonetimPageV3 from './ReceteYonetimPageV3';
 import Ahbrd1301ReceptTemplate from './Ahbrd1301ReceptTemplateV2';
 import ReceteGercekUretimPanel from '../components/ReceteGercekUretimPanelV2';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export default function ReceteYonetimPage(){
   const [version,setVersion]=React.useState(0);
@@ -9,10 +12,9 @@ export default function ReceteYonetimPage(){
 
   React.useEffect(()=>{
     let alive=true;
-    fetch('http://localhost:5000/api/recete-yonetim')
-      .then(r=>r.ok?r.json():[])
-      .then(data=>{if(alive)setReceteler(data||[]);})
-      .catch(()=>{});
+    axios.get(`${API_URL}/recete-yonetim`)
+      .then(({data})=>{if(alive)setReceteler(Array.isArray(data)?data:[]);})
+      .catch(()=>{if(alive)setReceteler([]);});
     return()=>{alive=false;};
   },[version]);
 
