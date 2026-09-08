@@ -8,6 +8,7 @@ const express = require('express');
  * - Hammadde stoklarını kilitleyip düşer.
  * - Mamul stokunu artırır.
  * - UretimEmirleri ve StokHareketleri kaydını aynı transaction içinde oluşturur.
+ * - IslemAnahtari ile aynı istemci isteğinin iki kez işlenmesini engeller.
  * Herhangi bir adım başarısız olursa tamamı geri alınır.
  */
 module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
@@ -63,8 +64,6 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
       if (fire < 0 || fire >= 100) throw new Error(`Geçersiz fire oranı: ${item.HammaddeAdi || item.HammaddeUrunId}`);
       if (verim <= 0 || verim > 100) throw new Error(`Geçersiz verim oranı: ${item.HammaddeAdi || item.HammaddeUrunId}`);
 
-      // Tüketim = reçete ihtiyacı / verim + fire.
-      // Standart reçete firesi de her gerçek malzeme tüketimine uygulanır.
       const yieldFactor = 100 / verim;
       const fireFactor = 1 + (fire / 100);
       const recipeFireFactor = 1 + (recipeFire / 100);
@@ -73,12 +72,14 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
       if (item.AltReceteId) {
         const nested = await explode(request, Number(item.AltReceteId), required, [...stack, receteId]);
         for (const n of nested) {
-          const old = requirements.get(n.UrunId) || { ...n, Miktar: 0 };
+          const key = `${n.UrunId}|${n.Depo || 'Merkez Depo'}`;
+          const old = requirements.get(key) || { ...n, Miktar: 0 };
           old.Miktar += n.Miktar;
-          requirements.set(n.UrunId, old);
+          requirements.set(key, old);
         }
       } else {
-        const old = requirements.get(item.HammaddeUrunId) || {
+        const key = `${item.HammaddeUrunId}|${item.Depo || 'Merkez Depo'}`;
+        const old = requirements.get(key) || {
           UrunId: item.HammaddeUrunId,
           UrunAdi: item.HammaddeAdi,
           Birim: item.Birim,
@@ -86,7 +87,7 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
           Miktar: 0
         };
         old.Miktar += required;
-        requirements.set(item.HammaddeUrunId, old);
+        requirements.set(key, old);
       }
     }
 
@@ -98,18 +99,43 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
     const miktar = Number(req.body?.miktar ?? req.body?.UretilenMiktar);
     const notlar = req.body?.notlar ?? req.body?.Notlar ?? null;
     const depo = String(req.body?.depo ?? req.body?.Depo ?? 'Merkez Depo').trim() || 'Merkez Depo';
+    const islemAnahtari = String(req.body?.islemAnahtari ?? req.body?.IslemAnahtari ?? '').trim();
 
     if (!Number.isInteger(receteId) || receteId <= 0) return res.status(400).json({ error: 'Geçersiz reçete.' });
     if (!Number.isFinite(miktar) || miktar <= 0) return res.status(400).json({ error: 'Üretim miktarı sıfırdan büyük olmalıdır.' });
+    if (!islemAnahtari || islemAnahtari.length > 100) return res.status(400).json({ error: 'Üretim işlem anahtarı geçersiz.' });
 
     const transaction = new sql.Transaction(await poolPromise);
     try {
       await transaction.begin();
       const request = new sql.Request(transaction);
+
+      // Retry veya çift tıklama aynı anahtarla geldiyse daha önce oluşturulan üretimi döndür.
+      const existing = await request
+        .input('IslemAnahtari', sql.NVarChar(100), islemAnahtari)
+        .query(`${companySql}
+          SELECT TOP 1 UretimId,ReceteId,MamulUrunId,UretilenMiktar
+          FROM dbo.UretimEmirleri WITH (UPDLOCK,HOLDLOCK)
+          WHERE CompanyId=@SessionCompanyId AND IslemAnahtari=@IslemAnahtari`);
+      if (existing.recordset.length) {
+        await transaction.rollback();
+        return res.json({
+          success: true,
+          duplicate: true,
+          uretimId: existing.recordset[0].UretimId,
+          receteId: existing.recordset[0].ReceteId,
+          mamulUrunId: existing.recordset[0].MamulUrunId,
+          uretilenMiktar: Number(existing.recordset[0].UretilenMiktar),
+          message: 'Bu üretim isteği daha önce işlendi; stok ikinci kez değiştirilmedi.'
+        });
+      }
+
       const recipe = await loadRecipe(request, receteId);
       const requirements = await explode(new sql.Request(transaction), receteId, miktar);
 
-      // Önce tüm hammaddeleri kilitle ve yeterli stok olduğunu doğrula.
+      // Stok global tutuluyor; Depo alanı hareketin fiziksel depo bilgisidir.
+      // Aynı ürün farklı depolarda reçetelenmişse her depo hareketi ayrı tutulur,
+      // ancak Urunler.StokMiktari şirket toplam stok bakiyesidir.
       const locked = [];
       for (const item of requirements) {
         const r = new sql.Request(transaction).input('UrunId', sql.Int, item.UrunId);
@@ -122,11 +148,11 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
         if (String(row.Tur || '').toLowerCase() === 'hizmet') throw new Error(`Hizmet kartı hammadde olarak kullanılamaz: ${row.UrunAdi}`);
         const onceki = Number(row.StokMiktari || 0);
         const gereken = Number(item.Miktar || 0);
+        if (gereken <= 0) continue;
         if (onceki < gereken) throw new Error(`Yetersiz stok: ${row.UrunAdi}. Mevcut ${onceki}, gereken ${gereken}.`);
         locked.push({ ...item, UrunAdi: row.UrunAdi, Birim: row.Birim || item.Birim, OncekiStok: onceki, Gereken: gereken });
       }
 
-      // Mamulü de kilitle; aynı anda başka üretim/stok hareketinin üzerine yazmasını önler.
       const mamulReq = new sql.Request(transaction).input('MamulUrunId', sql.Int, recipe.MamulUrunId);
       const mamulResult = await mamulReq.query(`${companySql}
         SELECT TOP 1 UrunId,UrunAdi,Birim,ISNULL(StokMiktari,0) AS StokMiktari,Tur
@@ -141,11 +167,39 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
         .input('MamulUrunId', sql.Int, recipe.MamulUrunId)
         .input('MamulAdi', sql.NVarChar, recipe.MamulAdi || mamul.UrunAdi)
         .input('UretilenMiktar', sql.Decimal(18, 4), miktar)
-        .input('Notlar', sql.NVarChar, notlar);
-      const production = await insertProduction.query(`${companySql}
-        INSERT INTO dbo.UretimEmirleri (CompanyId,ReceteId,MamulUrunId,MamulAdi,UretilenMiktar,Notlar)
-        OUTPUT INSERTED.UretimId
-        VALUES (@SessionCompanyId,@ReceteId,@MamulUrunId,@MamulAdi,@UretilenMiktar,@Notlar)`);
+        .input('Notlar', sql.NVarChar, notlar)
+        .input('IslemAnahtari', sql.NVarChar(100), islemAnahtari);
+      let production;
+      try {
+        production = await insertProduction.query(`${companySql}
+          INSERT INTO dbo.UretimEmirleri
+            (CompanyId,ReceteId,MamulUrunId,MamulAdi,UretilenMiktar,Notlar,IslemAnahtari)
+          OUTPUT INSERTED.UretimId
+          VALUES (@SessionCompanyId,@ReceteId,@MamulUrunId,@MamulAdi,@UretilenMiktar,@Notlar,@IslemAnahtari)`);
+      } catch (insertError) {
+        // Unique index başka bir paralel isteğin önce yazdığını gösterirse güvenle mevcut kaydı döndür.
+        if (insertError.number === 2601 || insertError.number === 2627) {
+          const duplicate = await new sql.Request(transaction)
+            .input('DupKey', sql.NVarChar(100), islemAnahtari)
+            .query(`${companySql}
+              SELECT TOP 1 UretimId,ReceteId,MamulUrunId,UretilenMiktar
+              FROM dbo.UretimEmirleri
+              WHERE CompanyId=@SessionCompanyId AND IslemAnahtari=@DupKey`);
+          await transaction.rollback();
+          if (duplicate.recordset.length) {
+            return res.json({
+              success: true,
+              duplicate: true,
+              uretimId: duplicate.recordset[0].UretimId,
+              receteId: duplicate.recordset[0].ReceteId,
+              mamulUrunId: duplicate.recordset[0].MamulUrunId,
+              uretilenMiktar: Number(duplicate.recordset[0].UretilenMiktar),
+              message: 'Bu üretim isteği paralel olarak daha önce işlendi; stok ikinci kez değiştirilmedi.'
+            });
+          }
+        }
+        throw insertError;
+      }
       const uretimId = production.recordset[0].UretimId;
 
       for (const item of locked) {
@@ -199,11 +253,20 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
       await transaction.commit();
       res.json({
         success: true,
+        duplicate: false,
         uretimId,
         receteId,
         mamulUrunId: recipe.MamulUrunId,
         uretilenMiktar: miktar,
-        tuketilenHammaddeler: locked.map(x => ({ UrunId: x.UrunId, UrunAdi: x.UrunAdi, Miktar: x.Gereken, OncekiStok: x.OncekiStok, SonrakiStok: x.OncekiStok - x.Gereken })),
+        depo,
+        tuketilenHammaddeler: locked.map(x => ({
+          UrunId: x.UrunId,
+          UrunAdi: x.UrunAdi,
+          Depo: x.Depo || depo,
+          Miktar: x.Gereken,
+          OncekiStok: x.OncekiStok,
+          SonrakiStok: x.OncekiStok - x.Gereken
+        })),
         mamulStok: { OncekiStok: mamulOnceki, SonrakiStok: mamulSonraki }
       });
     } catch (e) {
