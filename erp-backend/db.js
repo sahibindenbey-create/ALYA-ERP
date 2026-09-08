@@ -36,6 +36,14 @@ express.application.listen = function patchedListen(...args) {
         res.status(500).json({ success: false, error: 'Şirketler alınamadı', detail: err.message });
       }
     });
+
+    // Stok modülü server.js'e dokunmadan, mevcut listen noktasında kaydedilir.
+    try {
+      require('./stokRoutes')(this);
+      console.log('[Stok] Stok API rotaları yüklendi.');
+    } catch (err) {
+      console.error('[Stok] Rotalar yüklenemedi:', err.message);
+    }
   }
   return originalListen.apply(this, args);
 };
