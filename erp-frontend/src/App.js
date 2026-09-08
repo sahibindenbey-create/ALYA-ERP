@@ -24,6 +24,7 @@ import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import StokPanel from "./pages/StokPanel";
 import ReceteYonetimPage from "./pages/ReceteYonetimPage";
+import Ahbrd1301UretimAgaci from "./pages/Ahbrd1301UretimAgaci";
 import PrivateRoute from "./components/PrivateRoute";
 import CompanySelector from "./components/CompanySelector";
 import { initializeCompanyContext } from "./companyContext";
@@ -73,6 +74,7 @@ function App() {
           <Route path="urun-stoklar" element={<StokPanel />} />
           <Route path="hizmetler" element={<UrunForm mode="giris" />} />
           <Route path="receteler" element={<ReceteYonetimPage />} />
+          <Route path="ahbrd-1301" element={<Ahbrd1301UretimAgaci />} />
           <Route path="uretim-maliyeti" element={<UretimMaliyetiPage />} />
           <Route path="fason" element={<FasonPage />} />
           <Route path="teklif/liste" element={<TeklifForm mode="liste" />} />
