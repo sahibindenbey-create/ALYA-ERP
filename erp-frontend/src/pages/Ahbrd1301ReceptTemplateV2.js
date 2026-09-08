@@ -1,9 +1,14 @@
 import React from 'react';
 import Ahbrd1301ReceptTemplateOriginal from './Ahbrd1301ReceptTemplate';
+import GercekUretimPanelFinal from '../components/GercekUretimPanelFinal';
 
-// ÖNEMLİ: axios global olarak patch edilmez.
-// Bu bileşen yalnızca AHBRD reçete şablonunu görüntüler.
-// Ürün verisi kullanan ana reçete ekranı kendi endpoint'ini doğrudan çağırır.
+// AHBRD ekranında global axios patch yapılmaz.
+// Gerçek üretim paneli ayrı ve kontrollü bir endpoint üzerinden çalışır.
 export default function Ahbrd1301ReceptTemplateV2(props) {
-  return <Ahbrd1301ReceptTemplateOriginal {...props} />;
+  return (
+    <>
+      <Ahbrd1301ReceptTemplateOriginal {...props} />
+      <GercekUretimPanelFinal />
+    </>
+  );
 }
