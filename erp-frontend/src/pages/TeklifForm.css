@@ -1,16 +1,69 @@
 .teklif-sure-badge {
-  display: inline-block;
-  margin-top: 3px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-family: var(--font);
+  font-size: .67rem;
+  font-weight: 800;
+  line-height: 1.2;
 }
+
 .teklif-sure-badge.yaklasan {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--warning-bg);
+  border-color: #fde68a;
+  color: var(--warning);
 }
+
 .teklif-sure-badge.gecmis {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--danger-bg);
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
+.fat-container {
+  font-family: var(--font);
+}
+
+.fat-form-card,
+.fat-list-card {
+  border: 1px solid var(--border-soft);
+}
+
+.fat-list-card {
+  overflow: hidden;
+}
+
+.fat-list-card input,
+.fat-list-card select,
+.fat-list-card button {
+  font-family: var(--font);
+}
+
+.fat-list-card input:focus,
+.fat-list-card select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(35, 103, 209, .10);
+}
+
+.fat-list-card table {
+  border-collapse: collapse;
+}
+
+.fat-list-card thead th {
+  background: var(--surface-soft);
+}
+
+.fat-list-card tbody tr:hover {
+  background: #fafcff;
+}
+
+@media (max-width: 800px) {
+  .teklif-sure-badge {
+    font-size: .64rem;
+  }
 }
