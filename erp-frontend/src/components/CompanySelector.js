@@ -1,48 +1,68 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import BusinessIcon from "@mui/icons-material/Business";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { DEFAULT_COMPANIES, getActiveCompanyId, initializeCompanyContext, setActiveCompanyId } from "../companyContext";
 
-export default function CompanySelector() {
-  const [companies, setCompanies] = useState(DEFAULT_COMPANIES);
-  const [activeId, setActiveId] = useState(getActiveCompanyId());
-  const [loading, setLoading] = useState(false);
+const API_URL = "http://localhost:5000/api";
+const STORAGE_KEY = "selectedCompanyId";
+
+const CompanySelector = () => {
+  const [companies, setCompanies] = useState([]);
+  const [companyId, setCompanyId] = useState(Number(localStorage.getItem(STORAGE_KEY) || 1));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    initializeCompanyContext();
-    axios.get("http://localhost:5000/api/sirketler")
-      .then((res) => {
-        if (Array.isArray(res.data) && res.data.length) setCompanies(res.data);
-      })
-      .catch(() => {});
-  }, []);
+    const loadCompanies = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/sirketler`);
+        const list = Array.isArray(response.data) ? response.data : [];
+        setCompanies(list);
 
-  const active = companies.find(c => Number(c.CompanyId) === activeId) || DEFAULT_COMPANIES[0];
+        const saved = Number(localStorage.getItem(STORAGE_KEY) || 1);
+        const valid = list.some((company) => Number(company.CompanyId) === saved);
+        if (!valid && list.length > 0) {
+          localStorage.setItem(STORAGE_KEY, String(list[0].CompanyId));
+          setCompanyId(Number(list[0].CompanyId));
+        }
+      } catch (error) {
+        console.error("Şirketler alınamadı:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCompanies();
+  }, []);
 
   const handleChange = (event) => {
     const id = Number(event.target.value);
-    setLoading(true);
-    setActiveCompanyId(id);
-    setActiveId(id);
-    // Şirket değişiminde tüm açık modüllerin yeni context'i kullanması için sayfayı yeniliyoruz.
+    localStorage.setItem(STORAGE_KEY, String(id));
+    setCompanyId(id);
+    window.dispatchEvent(new CustomEvent("companyChanged", { detail: { CompanyId: id } }));
     window.location.reload();
   };
 
+  const selectedCompany = companies.find((company) => Number(company.CompanyId) === companyId);
+
   return (
-    <div className="alya-company-selector" title={active.CompanyName}>
-      <BusinessIcon fontSize="small" />
-      <div className="alya-company-selector-text">
-        <span className="alya-company-selector-label">AKTİF ŞİRKET</span>
-        <select value={activeId} onChange={handleChange} disabled={loading} aria-label="Aktif şirket">
-          {companies.map(company => (
+    <div className="company-selector">
+      <span className="company-selector-label">ŞİRKET</span>
+      <div className="company-selector-control">
+        <span className="company-selector-mark" aria-hidden="true">◆</span>
+        <select
+          value={companyId}
+          onChange={handleChange}
+          disabled={loading || companies.length === 0}
+          aria-label="Aktif şirket"
+        >
+          {companies.map((company) => (
             <option key={company.CompanyId} value={company.CompanyId}>
-              {company.CompanyName}
+              {company.CompanyCode} - {company.CompanyName}
             </option>
           ))}
         </select>
       </div>
-      <ExpandMoreIcon fontSize="small" className="alya-company-selector-arrow" />
+      {selectedCompany && <span className="company-selector-status">● AKTİF</span>}
     </div>
   );
-}
+};
+
+export default CompanySelector;
