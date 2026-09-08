@@ -6,9 +6,7 @@ const STORAGE_KEY = "selectedCompanyId";
 
 const CompanySelector = () => {
   const [companies, setCompanies] = useState([]);
-  const [companyId, setCompanyId] = useState(
-    Number(localStorage.getItem(STORAGE_KEY) || 1)
-  );
+  const [companyId, setCompanyId] = useState(Number(localStorage.getItem(STORAGE_KEY) || 1));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +17,7 @@ const CompanySelector = () => {
         setCompanies(list);
 
         const saved = Number(localStorage.getItem(STORAGE_KEY) || 1);
-        const valid = list.some((x) => Number(x.CompanyId) === saved);
+        const valid = list.some((company) => Number(company.CompanyId) === saved);
         if (!valid && list.length > 0) {
           localStorage.setItem(STORAGE_KEY, String(list[0].CompanyId));
           setCompanyId(Number(list[0].CompanyId));
@@ -38,39 +36,31 @@ const CompanySelector = () => {
     const id = Number(event.target.value);
     localStorage.setItem(STORAGE_KEY, String(id));
     setCompanyId(id);
-
-    window.dispatchEvent(
-      new CustomEvent("companyChanged", { detail: { CompanyId: id } })
-    );
-
-    // Şirket değiştiğinde açık modül eski şirket verisini göstermesin.
+    window.dispatchEvent(new CustomEvent("companyChanged", { detail: { CompanyId: id } }));
     window.location.reload();
   };
 
+  const selectedCompany = companies.find((company) => Number(company.CompanyId) === companyId);
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span style={{ fontSize: 12, opacity: 0.8 }}>Şirket:</span>
-      <select
-        value={companyId}
-        onChange={handleChange}
-        disabled={loading || companies.length === 0}
-        style={{
-          minWidth: 190,
-          padding: "8px 10px",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,.25)",
-          background: "rgba(255,255,255,.12)",
-          color: "inherit",
-          fontWeight: 600,
-          outline: "none"
-        }}
-      >
-        {companies.map((company) => (
-          <option key={company.CompanyId} value={company.CompanyId} style={{ color: "#222" }}>
-            {company.CompanyCode} - {company.CompanyName}
-          </option>
-        ))}
-      </select>
+    <div className="company-selector">
+      <span className="company-selector-label">ŞİRKET</span>
+      <div className="company-selector-control">
+        <span className="company-selector-mark" aria-hidden="true">◆</span>
+        <select
+          value={companyId}
+          onChange={handleChange}
+          disabled={loading || companies.length === 0}
+          aria-label="Aktif şirket"
+        >
+          {companies.map((company) => (
+            <option key={company.CompanyId} value={company.CompanyId}>
+              {company.CompanyCode} - {company.CompanyName}
+            </option>
+          ))}
+        </select>
+      </div>
+      {selectedCompany && <span className="company-selector-status">● AKTİF</span>}
     </div>
   );
 };
