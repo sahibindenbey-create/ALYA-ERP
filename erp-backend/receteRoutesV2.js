@@ -32,32 +32,95 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
     } catch(e){res.status(500).json({error:'Reçete detayı alınamadı',detail:e.message});}
   });
 
+  async function calculateRecipeCost(pool, receteId, miktar, stack = new Set()) {
+    if (stack.has(receteId)) throw new Error(`Reçete döngüsü tespit edildi: ${receteId}`);
+    const nextStack = new Set(stack);
+    nextStack.add(receteId);
+
+    const h = await pool.request().input('ReceteId', sql.Int, receteId).query(`${companySql}
+      SELECT TOP 1 * FROM dbo.Receteler
+      WHERE ReceteId=@ReceteId AND IsActive=1`);
+    if (!h.recordset.length) throw new Error(`Alt reçete bulunamadı: ${receteId}`);
+    const recipe = h.recordset[0];
+
+    const d = await pool.request().input('ReceteId',sql.Int,receteId).query(`${companySql}
+      SELECT d.*,ISNULL(u.AlisFiyati,0) AS AlisFiyati
+      FROM dbo.ReceteDetay d
+      LEFT JOIN dbo.Urunler u ON u.UrunId=d.HammaddeUrunId
+      WHERE d.ReceteId=@ReceteId
+      ORDER BY d.SiraNo,d.ReceteDetayId`);
+
+    const o = await pool.request().input('ReceteId',sql.Int,receteId).query(`${companySql}
+      SELECT ISNULL(SUM(HizmetMaliyeti),0) AS HizmetMaliyeti,
+             ISNULL(SUM(NakliyeMaliyeti),0) AS NakliyeMaliyeti,
+             ISNULL(SUM(IscilikDakika),0) AS IscilikDakika,
+             ISNULL(SUM(MakineDakika),0) AS MakineDakika,
+             ISNULL(SUM(TahminiSureDk),0) AS TahminiSureDk
+      FROM dbo.ReceteIstasyon WHERE ReceteId=@ReceteId`);
+
+    const output = Math.max(Number(recipe.CiktiMiktari || 1), 0.000001);
+    const scale = Math.max(Number(miktar || 0), 0) / output;
+    let material = 0, service = 0, transport = 0, labor = 0, machine = 0;
+    let iscilikDakika = Number(o.recordset[0]?.IscilikDakika || 0) * scale;
+    let makineDakika = Number(o.recordset[0]?.MakineDakika || 0) * scale;
+    let tahminiSureDk = Number(o.recordset[0]?.TahminiSureDk || 0) * scale;
+
+    for (const x of d.recordset) {
+      const baseQty = Number(x.GirdiMiktari ?? x.Miktar ?? 0);
+      const fire = 1 + Number(x.FireOrani || 0) / 100;
+      const yieldRate = Math.max(Number(x.VerimOrani || 100), 0.000001) / 100;
+      const q = baseQty * scale * fire / yieldRate;
+      const type = String(x.KalemTipi || 'Malzeme');
+
+      if (x.AltReceteId) {
+        const child = await calculateRecipeCost(pool, Number(x.AltReceteId), q, nextStack);
+        material += child.materialCost;
+        service += child.serviceCost;
+        transport += child.transportCost;
+        labor += child.laborCost;
+        machine += child.machineCost;
+        iscilikDakika += child.iscilikDakika;
+        makineDakika += child.makineDakika;
+        tahminiSureDk += child.tahminiSureDk;
+      } else if (['Hizmet','Fason'].includes(type) || x.FasonMu) {
+        service += Number(x.HizmetBirimFiyati || 0) * q;
+      } else if (type === 'Nakliye') {
+        transport += Number(x.NakliyeMaliyeti || 0) * scale;
+      } else {
+        material += q * Number(x.AlisFiyati || 0);
+      }
+
+      labor += Number(x.IscilikDakika || 0) * scale * Number(x.IscilikBirimMaliyeti || 0);
+      machine += Number(x.MakineDakika || 0) * scale * Number(x.MakineBirimMaliyeti || 0);
+      iscilikDakika += Number(x.IscilikDakika || 0) * scale;
+      makineDakika += Number(x.MakineDakika || 0) * scale;
+    }
+
+    service += Number(o.recordset[0]?.HizmetMaliyeti || 0) * scale;
+    transport += Number(o.recordset[0]?.NakliyeMaliyeti || 0) * scale;
+
+    const total = material + service + transport + labor + machine;
+    return {
+      uretimMiktari: Number(miktar || 0),
+      materialCost: material,
+      serviceCost: service,
+      transportCost: transport,
+      laborCost: labor,
+      machineCost: machine,
+      iscilikDakika,
+      makineDakika,
+      tahminiSureDk,
+      totalCost: total,
+      unitCost: miktar ? total / Number(miktar) : 0
+    };
+  }
+
   router.get('/:id/maliyet',async(req,res)=>{
     try{
       const pool=await poolPromise,id=Number(req.params.id),miktar=Math.max(0,Number(req.query.miktar||1));
-      const d=await pool.request().input('ReceteId',sql.Int,id).query(`${companySql}
-        SELECT d.*,ISNULL(u.AlisFiyati,0) AS AlisFiyati FROM dbo.ReceteDetay d LEFT JOIN dbo.Urunler u ON u.UrunId=d.HammaddeUrunId
-        WHERE d.ReceteId=@ReceteId ORDER BY d.SiraNo,d.ReceteDetayId`);
-      let material=0,service=0,transport=0,labor=0,machine=0;
-      for(const x of d.recordset){
-        const q=Number(x.GirdiMiktari??x.Miktar??0)*miktar*(1+Number(x.FireOrani||0)/100);
-        const type=String(x.KalemTipi||'Malzeme');
-        if(['Hizmet','Fason'].includes(type)||x.FasonMu) service+=Number(x.HizmetBirimFiyati||0)*q;
-        else if(type==='Nakliye') transport+=Number(x.NakliyeMaliyeti||0)*miktar;
-        else if(x.AltReceteId){ /* alt reçete maliyeti ağacın kökünden hesaplanır */ }
-        else material+=q*Number(x.AlisFiyati||0);
-        labor+=Number(x.IscilikDakika||0)*miktar*Number(x.IscilikBirimMaliyeti||0);
-        machine+=Number(x.MakineDakika||0)*miktar*Number(x.MakineBirimMaliyeti||0);
-      }
-      const o=await pool.request().input('ReceteId',sql.Int,id).query(`${companySql}
-        SELECT ISNULL(SUM(HizmetMaliyeti),0) AS HizmetMaliyeti,ISNULL(SUM(NakliyeMaliyeti),0) AS NakliyeMaliyeti,
-               ISNULL(SUM(IscilikDakika),0) AS IscilikDakika,ISNULL(SUM(MakineDakika),0) AS MakineDakika,ISNULL(SUM(TahminiSureDk),0) AS TahminiSureDk
-        FROM dbo.ReceteIstasyon WHERE ReceteId=@ReceteId`);
-      service+=Number(o.recordset[0]?.HizmetMaliyeti||0)*miktar; transport+=Number(o.recordset[0]?.NakliyeMaliyeti||0)*miktar;
-      const iscilikDakika=Number(o.recordset[0]?.IscilikDakika||0)+d.recordset.reduce((s,x)=>s+Number(x.IscilikDakika||0)*miktar,0);
-      const makineDakika=Number(o.recordset[0]?.MakineDakika||0)+d.recordset.reduce((s,x)=>s+Number(x.MakineDakika||0)*miktar,0);
-      const total=material+service+transport+labor+machine;
-      res.json({uretimMiktari:miktar,materialCost:material,serviceCost:service,transportCost:transport,laborCost:labor,machineCost:machine,iscilikDakika,makineDakika,tahminiSureDk:Number(o.recordset[0]?.TahminiSureDk||0)*miktar,totalCost:total,unitCost:miktar?total/miktar:0});
+      if(!Number.isInteger(id)||id<=0) return res.status(400).json({error:'Geçersiz reçete.'});
+      const result = await calculateRecipeCost(pool, id, miktar);
+      res.json(result);
     }catch(e){res.status(500).json({error:'Reçete maliyeti hesaplanamadı',detail:e.message});}
   });
 
