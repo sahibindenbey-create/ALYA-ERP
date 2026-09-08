@@ -3,7 +3,6 @@ import MainMenu from "./components/MainMenu";
 import CariForm from "./components/CariForm";
 import SiparisForm from "./components/SiparisForm";
 import UrunForm from "./components/UrunForm";
-import ReceteForm from "./components/ReceteForm";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import KayitlarPage from "./pages/KayitlarPage";
@@ -24,6 +23,7 @@ import FinansPage from "./pages/FinansPage";
 import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import StokPanel from "./pages/StokPanel";
+import ReceteYonetimPage from "./pages/ReceteYonetimPage";
 import PrivateRoute from "./components/PrivateRoute";
 import CompanySelector from "./components/CompanySelector";
 import { initializeCompanyContext } from "./companyContext";
@@ -72,7 +72,7 @@ function App() {
           <Route path="urun-listesi" element={<UrunForm mode="liste" />} />
           <Route path="urun-stoklar" element={<StokPanel />} />
           <Route path="hizmetler" element={<UrunForm mode="giris" />} />
-          <Route path="receteler" element={<ReceteForm />} />
+          <Route path="receteler" element={<ReceteYonetimPage />} />
           <Route path="uretim-maliyeti" element={<UretimMaliyetiPage />} />
           <Route path="fason" element={<FasonPage />} />
           <Route path="teklif/liste" element={<TeklifForm mode="liste" />} />
@@ -83,7 +83,6 @@ function App() {
           <Route path="raporlar" element={<FinansalRaporlarPage />} />
           <Route path="kullanicilar" element={<KullaniciYonetimi />} />
           <Route path="kayitlar" element={<KayitlarPage />} />
-
           <Route path="satis" element={<SiparisForm mode="liste" />} />
           <Route path="satinalma" element={<FaturaForm defaultYon="Alış" mode="liste" />} />
           <Route path="sevkiyat-lojistik" element={<IrsaliyeForm />} />
@@ -92,8 +91,8 @@ function App() {
           <Route path="banka" element={<FinansPage section="hesaplar" />} />
           <Route path="fatura" element={<FaturaForm mode="liste" />} />
           <Route path="cari" element={<CariForm mode="liste" />} />
-          <Route path="uretim-planlama" element={<ReceteForm />} />
-          <Route path="uretim" element={<ReceteForm />} />
+          <Route path="uretim-planlama" element={<ReceteYonetimPage />} />
+          <Route path="uretim" element={<ReceteYonetimPage />} />
           <Route path="maliyet" element={<UretimMaliyetiPage />} />
           <Route path="maliyet-muhasebesi" element={<UretimMaliyetiPage />} />
           <Route path="dis-ticaret" element={<IhracatPage />} />
@@ -101,14 +100,12 @@ function App() {
           <Route path="fiyat-yonetimi" element={<UrunForm mode="liste" />} />
           <Route path="depo-alan-planlama" element={<StokPanel />} />
           <Route path="platform-siparisleri" element={<TumPlatformlarPage />} />
-
           <Route path=":modulePath" element={<ModulePlaceholder />} />
         </Route>
         <Route path="/cariler" element={<Navigate to="/dashboard/cari-listesi" replace />} />
         <Route path="/cari-kart" element={<Navigate to="/dashboard/cari-giris" replace />} />
         <Route path="/dashboard/cari-yonetimi" element={<Navigate to="/dashboard/cari-listesi" replace />} />
         <Route path="/dashboard/siparis-yonetimi" element={<Navigate to="/dashboard/siparis-giris" replace />} />
-        <Route path="/dashboard/urun-stoklar" element={<Navigate to="/dashboard/urun-stoklar" replace />} />
         <Route path="/dashboard/faturalar" element={<Navigate to="/dashboard/faturalar/satis" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
