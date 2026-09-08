@@ -44,7 +44,7 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
         const type=String(x.KalemTipi||'Malzeme');
         if(['Hizmet','Fason'].includes(type)||x.FasonMu) service+=Number(x.HizmetBirimFiyati||0)*q;
         else if(type==='Nakliye') transport+=Number(x.NakliyeMaliyeti||0)*miktar;
-        else if(x.AltReceteId){ /* alt reçete maliyeti ayrıca ağacın kökünden hesaplanır */ }
+        else if(x.AltReceteId){ /* alt reçete maliyeti ağacın kökünden hesaplanır */ }
         else material+=q*Number(x.AlisFiyati||0);
         labor+=Number(x.IscilikDakika||0)*miktar*Number(x.IscilikBirimMaliyeti||0);
         machine+=Number(x.MakineDakika||0)*miktar*Number(x.MakineBirimMaliyeti||0);
@@ -85,16 +85,16 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
       await new sql.Request(transaction).input('ReceteId',sql.Int,receteId).query(`${companySql} DELETE FROM dbo.ReceteDetay WHERE ReceteId=@ReceteId`);
       await new sql.Request(transaction).input('ReceteId',sql.Int,receteId).query(`${companySql} DELETE FROM dbo.ReceteIstasyon WHERE ReceteId=@ReceteId`);
     }else{
-      const h=await request.query(`${companySql} INSERT INTO dbo.Receteler(ReceteKodu,ReceteAdi,MamulUrunId,MamulAdi,Aciklama,Versiyon,UretimBirimi,Durum,ReceteTipi,CiktiMiktari,CiktiBirimi,StandartFireOrani)
-        OUTPUT INSERTED.ReceteId VALUES(@ReceteKodu,@ReceteAdi,@MamulUrunId,@MamulAdi,@Aciklama,@Versiyon,@UretimBirimi,@Durum,@ReceteTipi,@CiktiMiktari,@CiktiBirimi,@StandartFireOrani)`);
+      const h=await request.query(`${companySql} INSERT INTO dbo.Receteler(CompanyId,ReceteKodu,ReceteAdi,MamulUrunId,MamulAdi,Aciklama,Versiyon,UretimBirimi,Durum,ReceteTipi,CiktiMiktari,CiktiBirimi,StandartFireOrani)
+        OUTPUT INSERTED.ReceteId VALUES(@CompanyId,@ReceteKodu,@ReceteAdi,@MamulUrunId,@MamulAdi,@Aciklama,@Versiyon,@UretimBirimi,@Durum,@ReceteTipi,@CiktiMiktari,@CiktiBirimi,@StandartFireOrani)`);
       receteId=h.recordset[0].ReceteId;
     }
     for(let i=0;i<items.length;i++){
       const x=items[i];
       await new sql.Request(transaction)
-        .input('ReceteId',sql.Int,receteId).input('HammaddeUrunId',sql.Int,Number(x.hammaddeUrunId??x.HammaddeUrunId)||null)
-        .input('HammaddeAdi',sql.NVarChar,x.hammaddeAdi??x.HammaddeAdi??'').input('Miktar',sql.Decimal(18,4),Number(x.miktar??x.Miktar??x.girdiMiktari??0))
-        .input('Birim',sql.NVarChar,x.birim??x.Birim??'Adet').input('Istasyon',sql.NVarChar,x.istasyon??x.Istasyon??null)
+        .input('CompanyId',sql.Int,null).input('ReceteId',sql.Int,receteId).input('HammaddeUrunId',sql.Int,Number(x.hammaddeUrunId??x.HammaddeUrunId)||null)
+        .input('HammaddeAdi',sql.NVarChar,x.hammaddeAdi??x.HammaddeAdi??'').input('Miktar',sql.Decimal(18,4),Number(x.miktar??x.Miktar??x.girdiMiktari??x.GirdiMiktari??0))
+        .input('Birim',sql.NVarChar,x.birim??x.Birim??x.girdiBirimi??x.GirdiBirimi??'Adet').input('Istasyon',sql.NVarChar,x.istasyon??x.Istasyon??null)
         .input('FireOrani',sql.Decimal(9,4),Number(x.fireOrani??x.FireOrani??0)).input('SiraNo',sql.Int,i+1).input('Aciklama',sql.NVarChar,x.aciklama??x.Aciklama??null)
         .input('KalemTipi',sql.NVarChar,x.kalemTipi??x.KalemTipi??'Malzeme').input('AltReceteId',sql.Int,Number(x.altReceteId??x.AltReceteId)||null)
         .input('GirdiMiktari',sql.Decimal(18,4),Number(x.girdiMiktari??x.GirdiMiktari??x.miktar??x.Miktar??0))
@@ -109,8 +109,8 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
         .input('MakineDakika',sql.Decimal(18,4),Number(x.makineDakika??x.MakineDakika??0)).input('IscilikBirimMaliyeti',sql.Decimal(18,4),Number(x.iscilikBirimMaliyeti??x.IscilikBirimMaliyeti??0))
         .input('MakineBirimMaliyeti',sql.Decimal(18,4),Number(x.makineBirimMaliyeti??x.MakineBirimMaliyeti??0)).input('Depo',sql.NVarChar,x.depo??x.Depo??null)
         .input('OperasyonSira',sql.Int,Number(x.operasyonSira??x.OperasyonSira)||null).input('IstasyonAdi',sql.NVarChar,x.istasyonAdi??x.IstasyonAdi??x.istasyon??x.Istasyon??null)
-        .query(`${companySql} INSERT INTO dbo.ReceteDetay(ReceteId,HammaddeUrunId,HammaddeAdi,Miktar,Birim,Istasyon,FireOrani,SiraNo,Aciklama,KalemTipi,AltReceteId,GirdiMiktari,GirdiBirimi,CiktiMiktari,CiktiBirimi,VerimOrani,DonusumAciklama,TedarikciCariId,FasonMu,HizmetBirimFiyati,NakliyeMaliyeti,IscilikDakika,MakineDakika,IscilikBirimMaliyeti,MakineBirimMaliyeti,Depo,OperasyonSira,IstasyonAdi)
-          VALUES(@ReceteId,@HammaddeUrunId,@HammaddeAdi,@Miktar,@Birim,@Istasyon,@FireOrani,@SiraNo,@Aciklama,@KalemTipi,@AltReceteId,@GirdiMiktari,@GirdiBirimi,@CiktiMiktari,@CiktiBirimi,@VerimOrani,@DonusumAciklama,@TedarikciCariId,@FasonMu,@HizmetBirimFiyati,@NakliyeMaliyeti,@IscilikDakika,@MakineDakika,@IscilikBirimMaliyeti,@MakineBirimMaliyeti,@Depo,@OperasyonSira,@IstasyonAdi)`);
+        .query(`${companySql} INSERT INTO dbo.ReceteDetay(CompanyId,ReceteId,HammaddeUrunId,HammaddeAdi,Miktar,Birim,Istasyon,FireOrani,SiraNo,Aciklama,KalemTipi,AltReceteId,GirdiMiktari,GirdiBirimi,CiktiMiktari,CiktiBirimi,VerimOrani,DonusumAciklama,TedarikciCariId,FasonMu,HizmetBirimFiyati,NakliyeMaliyeti,IscilikDakika,MakineDakika,IscilikBirimMaliyeti,MakineBirimMaliyeti,Depo,OperasyonSira,IstasyonAdi)
+          VALUES(@CompanyId,@ReceteId,@HammaddeUrunId,@HammaddeAdi,@Miktar,@Birim,@Istasyon,@FireOrani,@SiraNo,@Aciklama,@KalemTipi,@AltReceteId,@GirdiMiktari,@GirdiBirimi,@CiktiMiktari,@CiktiBirimi,@VerimOrani,@DonusumAciklama,@TedarikciCariId,@FasonMu,@HizmetBirimFiyati,@NakliyeMaliyeti,@IscilikDakika,@MakineDakika,@IscilikBirimMaliyeti,@MakineBirimMaliyeti,@Depo,@OperasyonSira,@IstasyonAdi)`);
     }
     for(let i=0;i<operations.length;i++){
       const x=operations[i];
