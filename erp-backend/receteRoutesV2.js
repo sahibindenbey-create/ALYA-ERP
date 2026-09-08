@@ -2,7 +2,7 @@ const express = require('express');
 
 module.exports = function registerReceteRoutes(app, poolPromise, sql) {
   const router = express.Router();
-  const companySql = `DECLARE @CompanyId INT = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId')); IF @CompanyId IS NULL OR @CompanyId <= 0 THROW 51001, 'CompanyId context bulunamadı.', 1;`;
+  const companySql = `DECLARE @SessionCompanyId INT = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId')); IF @SessionCompanyId IS NULL OR @SessionCompanyId <= 0 THROW 51001, 'CompanyId context bulunamadı.', 1;`;
 
   router.get('/', async (req, res) => {
     try {
@@ -86,13 +86,13 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
       await new sql.Request(transaction).input('ReceteId',sql.Int,receteId).query(`${companySql} DELETE FROM dbo.ReceteIstasyon WHERE ReceteId=@ReceteId`);
     }else{
       const h=await request.query(`${companySql} INSERT INTO dbo.Receteler(CompanyId,ReceteKodu,ReceteAdi,MamulUrunId,MamulAdi,Aciklama,Versiyon,UretimBirimi,Durum,ReceteTipi,CiktiMiktari,CiktiBirimi,StandartFireOrani)
-        OUTPUT INSERTED.ReceteId VALUES(@CompanyId,@ReceteKodu,@ReceteAdi,@MamulUrunId,@MamulAdi,@Aciklama,@Versiyon,@UretimBirimi,@Durum,@ReceteTipi,@CiktiMiktari,@CiktiBirimi,@StandartFireOrani)`);
+        OUTPUT INSERTED.ReceteId VALUES(@SessionCompanyId,@ReceteKodu,@ReceteAdi,@MamulUrunId,@MamulAdi,@Aciklama,@Versiyon,@UretimBirimi,@Durum,@ReceteTipi,@CiktiMiktari,@CiktiBirimi,@StandartFireOrani)`);
       receteId=h.recordset[0].ReceteId;
     }
     for(let i=0;i<items.length;i++){
       const x=items[i];
       await new sql.Request(transaction)
-        .input('CompanyId',sql.Int,null).input('ReceteId',sql.Int,receteId).input('HammaddeUrunId',sql.Int,Number(x.hammaddeUrunId??x.HammaddeUrunId)||null)
+        .input('ReceteId',sql.Int,receteId).input('HammaddeUrunId',sql.Int,Number(x.hammaddeUrunId??x.HammaddeUrunId)||null)
         .input('HammaddeAdi',sql.NVarChar,x.hammaddeAdi??x.HammaddeAdi??'').input('Miktar',sql.Decimal(18,4),Number(x.miktar??x.Miktar??x.girdiMiktari??x.GirdiMiktari??0))
         .input('Birim',sql.NVarChar,x.birim??x.Birim??x.girdiBirimi??x.GirdiBirimi??'Adet').input('Istasyon',sql.NVarChar,x.istasyon??x.Istasyon??null)
         .input('FireOrani',sql.Decimal(9,4),Number(x.fireOrani??x.FireOrani??0)).input('SiraNo',sql.Int,i+1).input('Aciklama',sql.NVarChar,x.aciklama??x.Aciklama??null)
@@ -110,11 +110,11 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
         .input('MakineBirimMaliyeti',sql.Decimal(18,4),Number(x.makineBirimMaliyeti??x.MakineBirimMaliyeti??0)).input('Depo',sql.NVarChar,x.depo??x.Depo??null)
         .input('OperasyonSira',sql.Int,Number(x.operasyonSira??x.OperasyonSira)||null).input('IstasyonAdi',sql.NVarChar,x.istasyonAdi??x.IstasyonAdi??x.istasyon??x.Istasyon??null)
         .query(`${companySql} INSERT INTO dbo.ReceteDetay(CompanyId,ReceteId,HammaddeUrunId,HammaddeAdi,Miktar,Birim,Istasyon,FireOrani,SiraNo,Aciklama,KalemTipi,AltReceteId,GirdiMiktari,GirdiBirimi,CiktiMiktari,CiktiBirimi,VerimOrani,DonusumAciklama,TedarikciCariId,FasonMu,HizmetBirimFiyati,NakliyeMaliyeti,IscilikDakika,MakineDakika,IscilikBirimMaliyeti,MakineBirimMaliyeti,Depo,OperasyonSira,IstasyonAdi)
-          VALUES(@CompanyId,@ReceteId,@HammaddeUrunId,@HammaddeAdi,@Miktar,@Birim,@Istasyon,@FireOrani,@SiraNo,@Aciklama,@KalemTipi,@AltReceteId,@GirdiMiktari,@GirdiBirimi,@CiktiMiktari,@CiktiBirimi,@VerimOrani,@DonusumAciklama,@TedarikciCariId,@FasonMu,@HizmetBirimFiyati,@NakliyeMaliyeti,@IscilikDakika,@MakineDakika,@IscilikBirimMaliyeti,@MakineBirimMaliyeti,@Depo,@OperasyonSira,@IstasyonAdi)`);
+          VALUES(@SessionCompanyId,@ReceteId,@HammaddeUrunId,@HammaddeAdi,@Miktar,@Birim,@Istasyon,@FireOrani,@SiraNo,@Aciklama,@KalemTipi,@AltReceteId,@GirdiMiktari,@GirdiBirimi,@CiktiMiktari,@CiktiBirimi,@VerimOrani,@DonusumAciklama,@TedarikciCariId,@FasonMu,@HizmetBirimFiyati,@NakliyeMaliyeti,@IscilikDakika,@MakineDakika,@IscilikBirimMaliyeti,@MakineBirimMaliyeti,@Depo,@OperasyonSira,@IstasyonAdi)`);
     }
     for(let i=0;i<operations.length;i++){
       const x=operations[i];
-      await new sql.Request(transaction).input('ReceteId',sql.Int,receteId).input('CompanyId',sql.Int,null).input('Sira',sql.Int,i+1)
+      await new sql.Request(transaction).input('ReceteId',sql.Int,receteId).input('Sira',sql.Int,i+1)
         .input('IstasyonAdi',sql.NVarChar,x.istasyonAdi??x.IstasyonAdi??'').input('TahminiSureDk',sql.Decimal(18,4),Number(x.tahminiSureDk??x.TahminiSureDk??0))
         .input('IslemAdi',sql.NVarChar,x.islemAdi??x.IslemAdi??null).input('IscilikDakika',sql.Decimal(18,4),Number(x.iscilikDakika??x.IscilikDakika??0))
         .input('MakineDakika',sql.Decimal(18,4),Number(x.makineDakika??x.MakineDakika??0)).input('FasonMu',sql.Bit,!!(x.fasonMu??x.FasonMu)).input('Aciklama',sql.NVarChar,x.aciklama??x.Aciklama??null)
@@ -122,7 +122,7 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
         .input('NakliyeMaliyeti',sql.Decimal(18,4),Number(x.nakliyeMaliyeti??x.NakliyeMaliyeti??0)).input('GirdiMiktari',sql.Decimal(18,4),Number(x.girdiMiktari??x.GirdiMiktari)||null)
         .input('CiktiMiktari',sql.Decimal(18,4),Number(x.ciktiMiktari??x.CiktiMiktari)||null).input('CiktiBirimi',sql.NVarChar,x.ciktiBirimi??x.CiktiBirimi??null).input('Depo',sql.NVarChar,x.depo??x.Depo??null)
         .query(`${companySql} INSERT INTO dbo.ReceteIstasyon(ReceteId,CompanyId,Sira,IstasyonAdi,TahminiSureDk,IslemAdi,IscilikDakika,MakineDakika,FasonMu,Aciklama,TedarikciCariId,HizmetMaliyeti,NakliyeMaliyeti,GirdiMiktari,CiktiMiktari,CiktiBirimi,Depo)
-          VALUES(@ReceteId,@CompanyId,@Sira,@IstasyonAdi,@TahminiSureDk,@IslemAdi,@IscilikDakika,@MakineDakika,@FasonMu,@Aciklama,@TedarikciCariId,@HizmetMaliyeti,@NakliyeMaliyeti,@GirdiMiktari,@CiktiMiktari,@CiktiBirimi,@Depo)`);
+          VALUES(@ReceteId,@SessionCompanyId,@Sira,@IstasyonAdi,@TahminiSureDk,@IslemAdi,@IscilikDakika,@MakineDakika,@FasonMu,@Aciklama,@TedarikciCariId,@HizmetMaliyeti,@NakliyeMaliyeti,@GirdiMiktari,@CiktiMiktari,@CiktiBirimi,@Depo)`);
     }
     return receteId;
   }
