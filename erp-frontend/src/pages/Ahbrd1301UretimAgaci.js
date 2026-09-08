@@ -15,54 +15,64 @@ const STAGES=[
  {key:'MAMUL',title:'AHBRD 1301 MAMUL',output:'AHBRD 1301',type:'Mamul',note:'Paketleme çıktısı AHBRD 1301 mamul stokuna girer.'}
 ];
 const RAW=[
- ['Alüminyum levha H1050 1250x2500x1 mm','TABLA','0.20','Levha','1 levha = 5 adet 1250x500 blank'],
- ['Kanal sacı','TABLA','','Adet','Delik + kaynak ile tabla gövdesine bağlanır'],
- ['Kesim hizmeti','TABLA','','Hizmet','Fason kesim'],
- ['Baskı hizmeti','TABLA','','Hizmet','Fason baskı'],
- ['Nakliye','TABLA','','Hizmet','Kesim/baskı sonrası taşıma'],
- ['20x40x1 mm kutu profil 221 cm','AYAK','','Adet','110 cm kesim'],
- ['254 cm yuvarlak profil 1 mm','AYAK','','Adet','42 cm kesim'],
- ['Şapka','AYAK','','Adet','Fason üretim'],
- ['8 mm dolu demir','AYAK','','Adet','Şapka ile kaynak + galvaniz'],
- ['Perçin','AYAK','','Adet','4 perçin / ayak'],
- ['Göbek civata','AYAK','','Adet','Plastik parça ile birlikte'],
- ['Plastik ayak parçası','AYAK','','Adet','Fason baskı'],
- ['Kurt ağzı kademe demiri','KADEME','','Adet','Fason baskı'],
- ['8 mm dolu demir','KADEME','','Adet','Özel büküm'],
- ['Yay','KADEME','','Adet','Satın alma'],
- ['8 mm segman','KADEME','','Adet','Satın alma'],
- ['Kumaş','KILIF','','Metre','Fason dikim'],
- ['Biye','KILIF','','Metre','Fason dikim'],
- ['İp','KILIF','','Metre','Fason dikim'],
- ['Stoper','KILIF','','Adet','Fason dikim'],
- ['Uç','KILIF','','Adet','Fason dikim'],
- ['Keçe','KILIF','','Adet','Fason dikim'],
- ['Plastik tabla','AKSESUAR','','Adet','Fason baskı'],
- ['Silikon','AKSESUAR','','Adet','Fabrikada 9 cm kesim'],
- ['6/8 mm demir','AKSESUAR','','Adet','Tabla üzerine bağlanır'],
- ['Plastik başlık','AKSESUAR','','Adet','Fason/tedarik'],
- ['Ön etiket','PAKET','','Adet','Paketleme'],
- ['Koli','PAKET','','Adet','Paketleme']
+ ['Alüminyum levha H1050 1250x2500x1 mm','TABLA','0.20','Levha','1 levha = 5 adet 1250x500 blank'],['Kanal sacı','TABLA','','Adet','Delik + kaynak ile tabla gövdesine bağlanır'],['Kesim hizmeti','TABLA','','Hizmet','Fason kesim'],['Baskı hizmeti','TABLA','','Hizmet','Fason baskı'],['Nakliye','TABLA','','Hizmet','Kesim/baskı sonrası taşıma'],['20x40x1 mm kutu profil 221 cm','AYAK','','Adet','110 cm kesim'],['254 cm yuvarlak profil 1 mm','AYAK','','Adet','42 cm kesim'],['Şapka','AYAK','','Adet','Fason üretim'],['8 mm dolu demir','AYAK','','Adet','Şapka ile kaynak + galvaniz'],['Perçin','AYAK','','Adet','4 perçin / ayak'],['Göbek civata','AYAK','','Adet','Plastik parça ile birlikte'],['Plastik ayak parçası','AYAK','','Adet','Fason baskı'],['Kurt ağzı kademe demiri','KADEME','','Adet','Fason baskı'],['8 mm dolu demir','KADEME','','Adet','Özel büküm'],['Yay','KADEME','','Adet','Satın alma'],['8 mm segman','KADEME','','Adet','Satın alma'],['Kumaş','KILIF','','Metre','Fason dikim'],['Biye','KILIF','','Metre','Fason dikim'],['İp','KILIF','','Metre','Fason dikim'],['Stoper','KILIF','','Adet','Fason dikim'],['Uç','KILIF','','Adet','Fason dikim'],['Keçe','KILIF','','Adet','Fason dikim'],['Plastik tabla','AKSESUAR','','Adet','Fason baskı'],['Silikon','AKSESUAR','','Adet','Fabrikada 9 cm kesim'],['6/8 mm demir','AKSESUAR','','Adet','Tabla üzerine bağlanır'],['Plastik başlık','AKSESUAR','','Adet','Fason/tedarik'],['Ön etiket','PAKET','','Adet','Paketleme'],['Koli','PAKET','','Adet','Paketleme']
 ];
 const blankInputs=()=>RAW.map((r,i)=>({id:i,name:r[0],stage:r[1],qty:r[2],unit:r[3],note:r[4],urunId:'',cost:0,fason:false}));
+
+const norm=v=>String(v||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ö/g,'o').replace(/ç/g,'c').replace(/[×x*]/g,' ').replace(/[.,;:/\\()\[\]_-]+/g,' ').replace(/\s+/g,' ').trim();
+const aliases={
+ 'Alüminyum levha H1050 1250x2500x1 mm':['aluminyum','levha','h1050','1250 2500','aluminyum sac'],
+ '20x40x1 mm kutu profil 221 cm':['20 40','kutu profil','221'],
+ '254 cm yuvarlak profil 1 mm':['254','yuvarlak profil'],
+ '8 mm segman':['segman','8 mm'],
+ 'Kurt ağzı kademe demiri':['kurt agzi','kademe'],
+ 'Plastik ayak parçası':['plastik','ayak'],
+ 'Plastik tabla':['plastik','tabla'],
+ 'Plastik başlık':['plastik','baslik'],
+ 'Silikon':['silikon'],
+ 'Kanal sacı':['kanal','sac'],
+ 'Göbek civata':['gobek','civata'],
+ 'Ön etiket':['etiket'],
+ 'Koli':['koli']
+};
+const bestProduct=(products,needle)=>{
+ const n=norm(needle), a=(aliases[needle]||[]).map(norm);
+ let best=null,bestScore=0;
+ for(const p of products){
+  const text=norm(`${p.UrunKodu||''} ${p.UrunAdi||''}`); if(!text)continue;
+  let score=0;
+  if(text===n)score+=100;
+  if(text.includes(n))score+=70;
+  const nt=n.split(' ').filter(Boolean); const tt=new Set(text.split(' '));
+  score+=nt.filter(x=>tt.has(x)).length*12;
+  for(const x of a)if(text.includes(x))score+=18;
+  if(needle.includes('Hizmet')||needle.includes('Nakliye'))score=0;
+  if(score>bestScore){bestScore=score;best=p;}
+ }
+ return bestScore>=30?best:null;
+};
 
 export default function Ahbrd1301UretimAgaci(){
  const [urunler,setUrunler]=useState([]),[receteler,setReceteler]=useState([]),[inputs,setInputs]=useState(blankInputs),[outputs,setOutputs]=useState({}),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const [active,setActive]=useState('TABLA');
- useEffect(()=>{(async()=>{try{const [u,r]=await Promise.all([axios.get(`${API_URL}/urunler`),axios.get(`${API_URL}/recete-yonetim`)]);setUrunler(u.data||[]);setReceteler(r.data||[]);const initial={};for(const s of STAGES){const hit=(u.data||[]).find(x=>`${x.UrunKodu||''} ${x.UrunAdi||''}`.toLocaleLowerCase('tr-TR').includes(s.key==='MAMUL'?'ahbrd 1301':s.output.toLocaleLowerCase('tr-TR')));if(hit)initial[s.key]=hit.UrunId;}setOutputs(initial);}catch(e){setMessage(e.response?.data?.error||'Ürün/reçete listesi alınamadı.');}})();},[]);
+ const autoMatch=(products,currentInputs=inputs)=>{
+  const nextOutputs={};
+  for(const s of STAGES){const hit=s.key==='MAMUL'?bestProduct(products,'AHBRD 1301'):bestProduct(products,s.output);if(hit)nextOutputs[s.key]=hit.UrunId;}
+  const nextInputs=currentInputs.map(x=>{if(x.urunId)return x;const hit=bestProduct(products,x.name);return hit?{...x,urunId:hit.UrunId}:x;});
+  return {nextOutputs,nextInputs};
+ };
+ useEffect(()=>{(async()=>{try{const [u,r]=await Promise.all([axios.get(`${API_URL}/urunler`),axios.get(`${API_URL}/recete-yonetim`)]);const products=u.data||[];setUrunler(products);setReceteler(r.data||[]);const matched=autoMatch(products);setOutputs(matched.nextOutputs);setInputs(matched.nextInputs);}catch(e){setMessage(e.response?.data?.error||'Ürün/reçete listesi alınamadı.');}})();},[]);
  const productOptions=useMemo(()=>urunler.filter(u=>u.Tur!=='Hizmet').map(u=>({value:u.UrunId,label:u.UrunAdi,sublabel:u.UrunKodu})),[urunler]);
  const serviceOptions=useMemo(()=>urunler.map(u=>({value:u.UrunId,label:u.UrunAdi,sublabel:u.UrunKodu})),[urunler]);
  const recipeByCode=useMemo(()=>{const m={};for(const r of receteler)m[r.ReceteKodu]=r;return m;},[receteler]);
  const stageInputs=inputs.filter(x=>x.stage===active);
  const setInput=(id,key,value)=>setInputs(v=>v.map(x=>x.id===id?{...x,[key]:value}:x));
+ const runAutoMatch=()=>{const m=autoMatch(urunler);setOutputs(v=>({...v,...m.nextOutputs}));setInputs(m.nextInputs);setMessage('Gerçek ürün kartları otomatik eşleştirildi. Eşleşmeyen kalemler boş bırakıldı.');};
  const buildItems=stageKey=>inputs.filter(x=>x.stage===stageKey&&((Number(x.qty)>0)||Number(x.cost)>0)).map(x=>({kalemTipi:x.unit==='Hizmet'?'Hizmet':'Malzeme',hammaddeUrunId:x.urunId||'',hammaddeAdi:x.name,girdiMiktari:Number(x.qty||1),girdiBirimi:x.unit,ciktiMiktari:'',ciktiBirimi:x.unit,verimOrani:100,fireOrani:0,donusumAciklama:x.note,tedarikciCariId:'',fasonMu:x.fason,hizmetBirimFiyati:Number(x.cost||0),nakliyeMaliyeti:0,iscilikDakika:0,makineDakika:0,iscilikBirimMaliyeti:0,makineBirimMaliyeti:0,depo:'Merkez Depo',operasyonSira:'',istasyonAdi:'',aciklama:x.note}));
- const createOne=async(stage,children)=>{const outputId=outputs[stage.key];if(!outputId)throw new Error(`${stage.title}: çıktı ürünü seçilmedi.`);const code=`AHBRD1301-${stage.key}`;const existing=recipeByCode[code];const outputName=urunler.find(u=>String(u.UrunId)===String(outputId))?.UrunAdi||stage.output;const form={receteKodu:code,receteAdi:stage.output,mamulUrunId:outputId,mamulAdi:outputName,aciklama:`AHBRD 1301 üretim ağacı · ${stage.note}`,versiyon:existing?.Versiyon||1,uretimBirimi:'Adet',durum:'Aktif',receteTipi:stage.type,ciktiMiktari:1,ciktiBirimi:'Adet',standartFireOrani:0};
- let items=buildItems(stage.key);for(const child of children)items.push({kalemTipi:'Yarı Mamul',hammaddeUrunId:'',hammaddeAdi:child.name,altReceteId:child.id,girdiMiktari:child.qty,girdiBirimi:'Adet',ciktiMiktari:1,ciktiBirimi:'Adet',verimOrani:100,fireOrani:0,donusumAciklama:'AHBRD 1301 üretim ağacı alt reçetesi',depo:'Merkez Depo',istasyonAdi:'Son Montaj',aciklama:'Alt reçete bağlantısı'});
- const payload={form,items,operations:[]};if(existing)await axios.put(`${API_URL}/recete-yonetim/${existing.ReceteId}`,payload);else await axios.post(`${API_URL}/recete-yonetim`,payload);const fresh=(await axios.get(`${API_URL}/recete-yonetim`)).data||[];return fresh.find(x=>x.ReceteKodu===code)||{ReceteId:existing?.ReceteId,name:stage.output};};
- const apply=async()=>{setBusy(true);setMessage('');try{const created={};for(const stage of STAGES){let children=[];if(stage.key==='MONTAJ'){for(const k of ['TABLA','AYAK','KADEME','KILIF','AKSESUAR']){const r=created[k]||recipeByCode[`AHBRD1301-${k}`];if(r?.ReceteId)children.push({id:r.ReceteId,name:r.MamulAdi||STAGES.find(s=>s.key===k)?.output||k,qty:1});}}if(stage.key==='PAKET'){const r=created.MONTAJ||recipeByCode['AHBRD1301-MONTAJ'];if(r?.ReceteId)children.push({id:r.ReceteId,name:r.MamulAdi||'Son Montaj',qty:1});}if(stage.key==='MAMUL'){const r=created.PAKET||recipeByCode['AHBRD1301-PAKET'];if(r?.ReceteId)children.push({id:r.ReceteId,name:r.MamulAdi||'Paketleme',qty:1});}created[stage.key]=await createOne(stage,children);}
- const fresh=(await axios.get(`${API_URL}/recete-yonetim`)).data||[];setReceteler(fresh);setMessage(`AHBRD 1301 üretim ağacı kuruldu/güncellendi. ${STAGES.length} reçete kartı hazır.`);}catch(e){setMessage(e.response?.data?.detail||e.response?.data?.error||e.message||'Kurulum sırasında hata oluştu.');}finally{setBusy(false);}};
- return <div className="ahbrd-wizard"><header><div><span>ÜRETİM ŞABLONU</span><h1>AHBRD 1301 · Üretim Ağacı</h1><p>Tabla → Ayak → Kademe → Kılıf → Aksesuar → Son Montaj → Paketleme → Mamul</p></div><button onClick={apply} disabled={busy}>{busy?'Kuruluyor…':'⚙ Ağacı Kur / Güncelle'}</button></header>
- <div className="ahbrd-alert">Bu sihirbaz <b>gerçek ürün kartlarını</b> kullanır; ürün ID'si uydurmaz. Miktarı bilinmeyen kalemleri boş bırakabilirsin. 1 levha → 5 adet 1250×500 mm blank dönüşümü not olarak korunur.</div>
+ const createOne=async(stage,children)=>{const outputId=outputs[stage.key];if(!outputId)throw new Error(`${stage.title}: çıktı ürünü seçilmedi.`);const code=`AHBRD1301-${stage.key}`;const existing=recipeByCode[code];const outputName=urunler.find(u=>String(u.UrunId)===String(outputId))?.UrunAdi||stage.output;const form={receteKodu:code,receteAdi:stage.output,mamulUrunId:outputId,mamulAdi:outputName,aciklama:`AHBRD 1301 üretim ağacı · ${stage.note}`,versiyon:existing?.Versiyon||1,uretimBirimi:'Adet',durum:'Aktif',receteTipi:stage.type,ciktiMiktari:1,ciktiBirimi:'Adet',standartFireOrani:0};let items=buildItems(stage.key);for(const child of children)items.push({kalemTipi:'Yarı Mamul',hammaddeUrunId:'',hammaddeAdi:child.name,altReceteId:child.id,girdiMiktari:child.qty,girdiBirimi:'Adet',ciktiMiktari:1,ciktiBirimi:'Adet',verimOrani:100,fireOrani:0,donusumAciklama:'AHBRD 1301 üretim ağacı alt reçetesi',depo:'Merkez Depo',istasyonAdi:'Son Montaj',aciklama:'Alt reçete bağlantısı'});const payload={form,items,operations:[]};if(existing)await axios.put(`${API_URL}/recete-yonetim/${existing.ReceteId}`,payload);else await axios.post(`${API_URL}/recete-yonetim`,payload);const fresh=(await axios.get(`${API_URL}/recete-yonetim`)).data||[];return fresh.find(x=>x.ReceteKodu===code)||{ReceteId:existing?.ReceteId,name:stage.output};};
+ const apply=async()=>{setBusy(true);setMessage('');try{const created={};for(const stage of STAGES){let children=[];if(stage.key==='MONTAJ'){for(const k of ['TABLA','AYAK','KADEME','KILIF','AKSESUAR']){const r=created[k]||recipeByCode[`AHBRD1301-${k}`];if(r?.ReceteId)children.push({id:r.ReceteId,name:r.MamulAdi||STAGES.find(s=>s.key===k)?.output||k,qty:1});}}if(stage.key==='PAKET'){const r=created.MONTAJ||recipeByCode['AHBRD1301-MONTAJ'];if(r?.ReceteId)children.push({id:r.ReceteId,name:r.MamulAdi||'Son Montaj',qty:1});}if(stage.key==='MAMUL'){const r=created.PAKET||recipeByCode['AHBRD1301-PAKET'];if(r?.ReceteId)children.push({id:r.ReceteId,name:r.MamulAdi||'Paketleme',qty:1});}created[stage.key]=await createOne(stage,children);}const fresh=(await axios.get(`${API_URL}/recete-yonetim`)).data||[];setReceteler(fresh);setMessage(`AHBRD 1301 üretim ağacı kuruldu/güncellendi. ${STAGES.length} reçete kartı hazır.`);}catch(e){setMessage(e.response?.data?.detail||e.response?.data?.error||e.message||'Kurulum sırasında hata oluştu.');}finally{setBusy(false);}};
+ return <div className="ahbrd-wizard"><header><div><span>ÜRETİM ŞABLONU</span><h1>AHBRD 1301 · Üretim Ağacı</h1><p>Tabla → Ayak → Kademe → Kılıf → Aksesuar → Son Montaj → Paketleme → Mamul</p></div><div className="ahbrd-actions"><button className="secondary" onClick={runAutoMatch} disabled={busy}>↻ Otomatik Eşleştir</button><button onClick={apply} disabled={busy}>{busy?'Kuruluyor…':'⚙ Ağacı Kur / Güncelle'}</button></div></header>
+ <div className="ahbrd-alert">Bu sihirbaz <b>gerçek ürün kartlarını</b> kullanır; ürün ID'si uydurmaz. Miktarı bilinmeyen kalemleri boş bırakabilirsin. Otomatik eşleştirme kod + ürün adı + anahtar kelimelerle yapılır; emin olunmayan kartlar boş bırakılır.</div>
  <div className="ahbrd-stagebar">{STAGES.map(s=><button key={s.key} className={active===s.key?'active':''} onClick={()=>setActive(s.key)}><b>{s.key}</b><span>{s.title}</span></button>)}</div>
  <main><section className="ahbrd-card"><div className="ahbrd-card-head"><div><span>ÇIKTI</span><h2>{STAGES.find(s=>s.key===active)?.title}</h2></div><label>Çıktı ürünü<SearchableSelect options={productOptions} value={outputs[active]||''} onChange={id=>setOutputs(v=>({...v,[active]:id}))} placeholder="Mevcut ürün kartını seç…"/></label></div><p className="ahbrd-note">{STAGES.find(s=>s.key===active)?.note}</p><div className="ahbrd-table"><div className="ahbrd-tr ahbrd-th"><span>Girdi</span><span>Miktar</span><span>Birim</span><span>Ürün kartı</span><span>Fason</span><span>Maliyet</span></div>{stageInputs.map(x=><div className="ahbrd-tr" key={x.id}><span><b>{x.name}</b><small>{x.note}</small></span><input type="number" step="0.0001" value={x.qty} onChange={e=>setInput(x.id,'qty',e.target.value)} placeholder="Miktar"/><input value={x.unit} onChange={e=>setInput(x.id,'unit',e.target.value)}/><SearchableSelect options={serviceOptions} value={x.urunId} onChange={id=>setInput(x.id,'urunId',id)} placeholder="Ürün / hizmet eşleştir…"/><label className="check"><input type="checkbox" checked={x.fason} onChange={e=>setInput(x.id,'fason',e.target.checked)}/> Fason</label><input type="number" step="0.01" value={x.cost} onChange={e=>setInput(x.id,'cost',e.target.value)} placeholder="0.00"/></div>)}</div></section>
  <aside className="ahbrd-side"><div><span>BAĞLANTI</span><h3>Üretim sırası</h3></div>{STAGES.map((s,i)=><div className={`ahbrd-link ${active===s.key?'active':''}`} key={s.key}><b>{i+1}</b><span>{s.title}</span><small>{outputs[s.key]?'✓ Ürün eşlendi':'⚠ Ürün seç'}</small></div>)}<div className="ahbrd-cost"><span>ŞABLON</span><strong>8 seviye</strong><small>Son montaj 5 alt grubu, paketleme ise son montajı, mamul ise paketlemeyi tüketir.</small></div></aside></main>{message&&<div className="ahbrd-message">{message}</div>}
