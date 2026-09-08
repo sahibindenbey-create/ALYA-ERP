@@ -37,7 +37,6 @@ express.application.listen = function patchedListen(...args) {
     });
 
     // AHBRD 1301 / Reçete ekranı için şirket RLS bağlamını garanti eden ürün kartı endpoint'i.
-    // Mevcut /api/urunler endpoint'ine dokunmadan, seçili şirkete ait gerçek ürün kartlarını döndürür.
     this.get('/api/recete-agaci/urun-kartlari', async (req, res) => {
       try {
         const pool = await poolPromise;
@@ -59,6 +58,9 @@ express.application.listen = function patchedListen(...args) {
 
     try { require('./receteRoutesV2')(this, poolPromise, sql); console.log('[Reçete] Gelişmiş reçete API rotaları yüklendi.'); }
     catch (err) { console.error('[Reçete] Rotalar yüklenemedi:', err.message); }
+
+    try { require('./receteUretimRoutes')(this, poolPromise, sql); console.log('[Reçete Üretim] Üretim API rotaları yüklendi.'); }
+    catch (err) { console.error('[Reçete Üretim] Rotalar yüklenemedi:', err.message); }
 
     try { require('./receteAgacRoutes')(this, poolPromise, sql); }
     catch (err) { console.error('[Reçete Ağacı] Rotalar yüklenemedi:', err.message); }
