@@ -19,8 +19,15 @@ express.application.handle = function patchedHandle(req, res, callback) {
 
 const originalListen = express.application.listen;
 express.application.listen = function patchedListen(...args) {
-  if (!this.__alyaCompanyRouteRegistered) {
-    this.__alyaCompanyRouteRegistered = true;
+  // hasOwnProperty kullanıyoruz; Express application prototype'undan miras alınan
+  // bir flag yüzünden rotaların hiç kaydolmaması engellenir.
+  if (!Object.prototype.hasOwnProperty.call(this, '__alyaCompanyRouteRegistered')) {
+    Object.defineProperty(this, '__alyaCompanyRouteRegistered', {
+      value: true,
+      writable: true,
+      configurable: true
+    });
+
     this.get('/api/sirketler', async (req, res) => {
       try {
         const pool = await poolPromise;
