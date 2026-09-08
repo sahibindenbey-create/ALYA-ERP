@@ -1,7 +1,7 @@
 import React,{useMemo,useState} from 'react';
 import axios from 'axios';
 
-const API_URL='http://localhost:5000/api';
+const API_URL=process.env.REACT_APP_API_URL||'http://localhost:5000/api';
 
 export default function ReceteGercekUretimPanelV2({receteler=[]}){
   const aktif=useMemo(()=>receteler.filter(r=>String(r.Durum||'Aktif')==='Aktif'),[receteler]);

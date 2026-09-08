@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import axios from 'axios';
 import SearchableSelect from '../components/SearchableSelect';
 import './ReceteYonetimPage.css';
-const API_URL='http://localhost:5000/api';
+const API_URL=process.env.REACT_APP_API_URL||'http://localhost:5000/api';
 const TYPES=['Malzeme','Yarı Mamul','Hizmet','Fason','Nakliye','Ambalaj'];
 const emptyForm={receteKodu:'',receteAdi:'',mamulUrunId:'',mamulAdi:'',aciklama:'',versiyon:1,uretimBirimi:'Adet',durum:'Aktif',receteTipi:'Mamul',ciktiMiktari:1,ciktiBirimi:'Adet',standartFireOrani:0};
 const emptyItem={kalemTipi:'Malzeme',hammaddeUrunId:'',hammaddeAdi:'',altReceteId:'',girdiMiktari:'',girdiBirimi:'Adet',ciktiMiktari:'',ciktiBirimi:'',verimOrani:100,fireOrani:0,donusumAciklama:'',tedarikciCariId:'',fasonMu:false,hizmetBirimFiyati:0,nakliyeMaliyeti:0,iscilikDakika:0,makineDakika:0,iscilikBirimMaliyeti:0,makineBirimMaliyeti:0,depo:'Merkez Depo',operasyonSira:'',istasyonAdi:'',aciklama:''};

@@ -3,7 +3,7 @@ import axios from 'axios';
 import SearchableSelect from '../components/SearchableSelect';
 import './Ahbrd1301ReceptTemplate.css';
 
-const API='http://localhost:5000/api';
+const API=process.env.REACT_APP_API_URL||'http://localhost:5000/api';
 const STAGES=[
  {key:'TABLA',title:'TABLA GRUBU',output:'Tabla Grubu',note:'Alüminyum levha → kesim → baskı → kanal sacı → delik → kaynak',aliases:['tabla','tabla grubu','üst tabla','ütü masası tabla','tabla sacı','alüminyum tabla']},
  {key:'AYAK',title:'AYAK GRUBU',output:'Ayak Grubu',note:'Kutu profil + yuvarlak profil → delik → kaynak → şapka/demir → galvaniz → perçin/göbek',aliases:['ayak','ayak grubu','ütü masası ayağı','masa ayağı']},
