@@ -37,18 +37,23 @@ express.application.listen = function patchedListen(...args) {
       }
     });
 
-    // Stok modülü server.js'e dokunmadan, mevcut listen noktasında kaydedilir.
     try {
       require('./stokRoutes')(this);
       console.log('[Stok] Stok API rotaları yüklendi.');
     } catch (err) {
       console.error('[Stok] Rotalar yüklenemedi:', err.message);
     }
+
+    try {
+      require('./receteRoutesV2')(this, poolPromise, sql);
+      console.log('[Reçete] Gelişmiş reçete API rotaları yüklendi.');
+    } catch (err) {
+      console.error('[Reçete] Rotalar yüklenemedi:', err.message);
+    }
   }
   return originalListen.apply(this, args);
 };
 
-// HTTP isteğindeki tüm SQL sorgularında CompanyId context'ini aynı bağlantıya taşı.
 const originalQuery = sql.Request.prototype.query;
 sql.Request.prototype.query = function patchedQuery(command, ...args) {
   const store = companyContext.getStore();
@@ -65,8 +70,6 @@ sql.Request.prototype.query = function patchedQuery(command, ...args) {
   return originalQuery.call(this, contextSql, ...args);
 };
 
-// Eski modüller body'den CompanyId=1 gönderse bile seçili şirketi zorunlu kıl.
-// Böylece RLS açılmadan önce dahi yeni kayıtlar yanlış şirkete yazılmaz.
 const originalInput = sql.Request.prototype.input;
 sql.Request.prototype.input = function patchedInput(name, type, value) {
   const store = companyContext.getStore();
