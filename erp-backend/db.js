@@ -36,6 +36,24 @@ express.application.listen = function patchedListen(...args) {
       }
     });
 
+    // AHBRD 1301 / Reçete ekranı için şirket RLS bağlamını garanti eden ürün kartı endpoint'i.
+    // Mevcut /api/urunler endpoint'ine dokunmadan, seçili şirkete ait gerçek ürün kartlarını döndürür.
+    this.get('/api/recete-agaci/urun-kartlari', async (req, res) => {
+      try {
+        const pool = await poolPromise;
+        const result = await pool.request().query(`
+          SELECT UrunId, UrunKodu, UrunAdi, Birim, Tur, Kategori, IsActive
+          FROM dbo.Urunler
+          WHERE IsActive = 1
+          ORDER BY UrunAdi, UrunId
+        `);
+        res.json({ success: true, CompanyId: resolveCompanyId(req), count: result.recordset.length, products: result.recordset });
+      } catch (err) {
+        console.error('[Reçete Ağacı] Ürün kartları alınamadı:', err);
+        res.status(500).json({ success: false, error: 'Ürün kartları alınamadı', detail: err.message });
+      }
+    });
+
     try { require('./stokRoutes')(this); console.log('[Stok] Stok API rotaları yüklendi.'); }
     catch (err) { console.error('[Stok] Rotalar yüklenemedi:', err.message); }
 
