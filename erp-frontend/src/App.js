@@ -24,40 +24,41 @@ import FinansPage from "./pages/FinansPage";
 import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
 import PrivateRoute from "./components/PrivateRoute";
+import CompanySelector from "./components/CompanySelector";
+import { initializeCompanyContext } from "./companyContext";
 import { isAuthenticated } from "./auth";
+import "./components/CompanySelector.css";
+
+initializeCompanyContext();
+
+function DashboardWithCompanySelector() {
+  return (
+    <div style={{ position: "relative", minHeight: "100vh" }}>
+      <div
+        style={{
+          position: "fixed",
+          top: 58,
+          right: 24,
+          zIndex: 9999,
+          width: "min(430px, calc(100vw - 48px))",
+        }}
+      >
+        <CompanySelector />
+      </div>
+      <Dashboard />
+    </div>
+  );
+}
 
 function App() {
   return (
     <Router>
       <div>
         <Routes>
-          {/* Kök: giriş yapılmışsa panele, yapılmamışsa login'e yönlendir */}
-          <Route
-            path="/"
-            element={<Navigate to={isAuthenticated() ? "/dashboard" : "/login"} replace />}
-          />
-
+          <Route path="/" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/login"} replace />} />
           <Route path="/login" element={<Login />} />
-
-          {/* Tüm modül launcher'ı (arama + grid) */}
-          <Route
-            path="/menu"
-            element={
-              <PrivateRoute>
-                <MainMenu />
-              </PrivateRoute>
-            }
-          />
-
-          {/* Sidebar'lı çalışma alanı */}
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          >
+          <Route path="/menu" element={<PrivateRoute><MainMenu /></PrivateRoute>} />
+          <Route path="/dashboard" element={<PrivateRoute><DashboardWithCompanySelector /></PrivateRoute>}>
             <Route path="cari-giris" element={<CariForm mode="giris" />} />
             <Route path="cari-giris/:id" element={<CariForm mode="giris" />} />
             <Route path="cari-listesi" element={<CariForm mode="liste" />} />
@@ -91,16 +92,12 @@ function App() {
             <Route path="kayitlar" element={<KayitlarPage />} />
             <Route path=":modulePath" element={<ModulePlaceholder />} />
           </Route>
-
-          {/* Eski path'lerle geriye dönük uyumluluk */}
           <Route path="/cariler" element={<Navigate to="/dashboard/cari-listesi" replace />} />
           <Route path="/cari-kart" element={<Navigate to="/dashboard/cari-giris" replace />} />
           <Route path="/dashboard/cari-yonetimi" element={<Navigate to="/dashboard/cari-listesi" replace />} />
           <Route path="/dashboard/siparis-yonetimi" element={<Navigate to="/dashboard/siparis-giris" replace />} />
           <Route path="/dashboard/urun-stoklar" element={<Navigate to="/dashboard/urun-listesi" replace />} />
           <Route path="/dashboard/faturalar" element={<Navigate to="/dashboard/faturalar/satis" replace />} />
-
-          {/* Bilinmeyen adresler */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

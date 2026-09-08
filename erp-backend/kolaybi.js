@@ -1,259 +1,1820 @@
-// kolaybi.js
-// KolayBi API entegrasyonu. Ayarlar ve senkronizasyon seçili şirkete göre çalışır.
+﻿// ============================================================
+// KOLAYBI ENTEGRASYONU
+// Çoklu şirket + otomatik senkronizasyon
+// ============================================================
+
+const { storage } = require('./company-context-hook');
 
 const registerKolaybi = ({ app, poolPromise, sql }) => {
 
-  async function getAyarlar(pool) {
-    const result = await pool.request().query(`
-      SELECT TOP 1 *
-      FROM KolaybiAyarlar
-      WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
-        AND IsActive = 1
-      ORDER BY Id
-    `);
+  // Aynı şirketin aynı anda iki senkronizasyon çalıştırmasını engeller
+  const running = new Set();
+
+  const DEFAULT_BASE_URL = 'https://ofis-api.kolaybi.com';
+
+  const API_TIMEOUT_MS = 30000;
+
+  // ------------------------------------------------------------
+  // FATURA DURUM HARİTASI
+  // ------------------------------------------------------------
+
+  const STATUS_MAP = {
+    draft: 'Bekliyor',
+    ready_to_send: 'Bekliyor',
+    sent: 'Bekliyor',
+    approved: 'Bekliyor',
+    rejected: 'İptal',
+    cancelled: 'İptal'
+  };
+
+  // ------------------------------------------------------------
+  // ŞİRKET ID
+  // ------------------------------------------------------------
+
+  const companyIdFromRequest = (req) => {
+
+    const id = Number(
+      req.headers['x-company-id'] ||
+      req.query.companyId ||
+      req.body?.CompanyId ||
+      1
+    );
+
+    return [1, 2, 3].includes(id) ? id : 1;
+  };
+
+  // ------------------------------------------------------------
+  // HTTP TIMEOUT
+  // ------------------------------------------------------------
+
+  const fetchWithTimeout = async (
+    url,
+    options = {},
+    timeout = API_TIMEOUT_MS
+  ) => {
+
+    const controller = new AbortController();
+
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, timeout);
+
+    try {
+
+      return await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+
+    } catch (err) {
+
+      if (err.name === 'AbortError') {
+
+        throw Object.assign(
+          new Error(
+            `KolayBi API zaman aşımına uğradı (${timeout / 1000} saniye).`
+          ),
+          { status: 504 }
+        );
+
+      }
+
+      throw err;
+
+    } finally {
+
+      clearTimeout(timer);
+
+    }
+
+  };
+
+  // ------------------------------------------------------------
+  // KOLAYBI AYARLARI
+  //
+  // GERÇEK TABLO:
+  //
+  // Id
+  // ApiKey
+  // Channel
+  // BaseUrl
+  // AccessToken
+  // TokenGecerlilik
+  // SonSenkronTarihi
+  // CompanyId
+  // KolaybiCompanyId
+  // IsActive
+  // CreatedAt
+  // UpdatedAt
+  // ------------------------------------------------------------
+
+  async function getAyarlar(pool, companyId = 1) {
+
+    const result = await pool.request()
+
+      .input(
+        'CompanyId',
+        sql.Int,
+        companyId
+      )
+
+      .query(`
+        SELECT TOP 1
+          Id,
+          ApiKey,
+          Channel,
+          BaseUrl,
+          AccessToken,
+          TokenGecerlilik,
+          SonSenkronTarihi,
+          CompanyId,
+          KolaybiCompanyId,
+          IsActive,
+          CreatedAt,
+          UpdatedAt
+        FROM dbo.KolaybiAyarlar
+        WHERE CompanyId = @CompanyId
+          AND IsActive = 1
+        ORDER BY Id DESC
+      `);
+
     return result.recordset[0] || null;
   }
 
-  async function getValidToken(pool) {
-    const ayar = await getAyarlar(pool);
-    if (!ayar || !ayar.ApiKey || !ayar.Channel) {
-      throw Object.assign(new Error('Seçili şirket için KolayBi API Key / Channel tanımlı değil. Önce ayarları girin.'), { status: 503 });
+  // ------------------------------------------------------------
+  // ACCESS TOKEN
+  // ------------------------------------------------------------
+
+  async function getValidToken(pool, companyId = 1) {
+
+    const ayar =
+      await getAyarlar(
+        pool,
+        companyId
+      );
+
+    if (
+      !ayar ||
+      !ayar.ApiKey ||
+      !ayar.Channel
+    ) {
+
+      throw Object.assign(
+
+        new Error(
+          `Şirket ${companyId} için KolayBi API Key / Channel tanımlı değil.`
+        ),
+
+        { status: 503 }
+
+      );
+
     }
 
     const now = new Date();
-    if (ayar.AccessToken && ayar.TokenGecerlilik && new Date(ayar.TokenGecerlilik) > now) {
-      return { token: ayar.AccessToken, channel: ayar.Channel, baseUrl: ayar.BaseUrl };
+
+    // ----------------------------------------------------------
+    // MEVCUT TOKEN GEÇERLİYSE ONU KULLAN
+    // ----------------------------------------------------------
+
+    if (
+      ayar.AccessToken &&
+      ayar.TokenGecerlilik &&
+      new Date(ayar.TokenGecerlilik) > now
+    ) {
+
+      return {
+
+        token:
+          ayar.AccessToken,
+
+        channel:
+          ayar.Channel,
+
+        baseUrl:
+          ayar.BaseUrl || DEFAULT_BASE_URL,
+
+        ayar
+
+      };
+
     }
 
-    const res = await fetch(`${ayar.BaseUrl}/kolaybi/v1/access_token`, {
-      method: 'POST',
-      headers: { Channel: ayar.Channel, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: ayar.ApiKey }),
-    });
-    if (!res.ok) {
-      throw Object.assign(new Error(`KolayBi access token alınamadı (HTTP ${res.status})`), { status: 502 });
+    const baseUrl =
+      ayar.BaseUrl || DEFAULT_BASE_URL;
+
+    console.log(
+      `[KolayBi][Şirket ${companyId}] Yeni access token alınıyor...`
+    );
+
+    // ----------------------------------------------------------
+    // YENİ TOKEN AL
+    // ----------------------------------------------------------
+
+    const response =
+      await fetchWithTimeout(
+
+        `${baseUrl}/kolaybi/v1/access_token`,
+
+        {
+          method: 'POST',
+
+          headers: {
+
+            Channel:
+              ayar.Channel,
+
+            'Content-Type':
+              'application/json'
+
+          },
+
+          body:
+            JSON.stringify({
+              api_key:
+                ayar.ApiKey
+            })
+
+        }
+
+      );
+
+    if (!response.ok) {
+
+      const text =
+        await response.text()
+          .catch(() => '');
+
+      throw Object.assign(
+
+        new Error(
+          `KolayBi access token alınamadı. HTTP ${response.status}. ${text}`
+        ),
+
+        { status: 502 }
+
+      );
+
     }
 
-    const body = await res.json();
-    const token = body.data;
-    const gecerlilik = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+    const body =
+      await response.json();
+
+    const token =
+      body?.data;
+
+    if (!token) {
+
+      throw Object.assign(
+
+        new Error(
+          'KolayBi access token cevabında token bulunamadı.'
+        ),
+
+        { status: 502 }
+
+      );
+
+    }
+
+    // Token yaklaşık 23 saat geçerli kabul ediliyor
+    const gecerlilik =
+      new Date(
+        now.getTime() +
+        23 * 60 * 60 * 1000
+      );
+
+    // ----------------------------------------------------------
+    // TOKEN'I KAYDET
+    // ----------------------------------------------------------
 
     await pool.request()
-      .input('AccessToken', sql.NVarChar, token)
-      .input('TokenGecerlilik', sql.DateTime, gecerlilik)
+
+      .input(
+        'CompanyId',
+        sql.Int,
+        companyId
+      )
+
+      .input(
+        'AccessToken',
+        sql.NVarChar,
+        token
+      )
+
+      .input(
+        'TokenGecerlilik',
+        sql.DateTime2,
+        gecerlilik
+      )
+
       .query(`
-        UPDATE KolaybiAyarlar
-        SET AccessToken = @AccessToken,
-            TokenGecerlilik = @TokenGecerlilik,
-            UpdatedAt = SYSDATETIME()
-        WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
+        UPDATE dbo.KolaybiAyarlar
+        SET
+          AccessToken = @AccessToken,
+          TokenGecerlilik = @TokenGecerlilik,
+          UpdatedAt = SYSDATETIME()
+        WHERE CompanyId = @CompanyId
           AND IsActive = 1
       `);
 
-    return { token, channel: ayar.Channel, baseUrl: ayar.BaseUrl };
+    console.log(
+      `[KolayBi][Şirket ${companyId}] Access token alındı.`
+    );
+
+    return {
+
+      token,
+
+      channel:
+        ayar.Channel,
+
+      baseUrl,
+
+      ayar
+
+    };
+
   }
 
-  async function kolaybiRequest(pool, path, params = {}) {
-    const { token, channel, baseUrl } = await getValidToken(pool);
-    const url = new URL(`${baseUrl}${path}`);
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
-    });
+  // ------------------------------------------------------------
+  // KOLAYBI API REQUEST
+  // ------------------------------------------------------------
 
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${token}`, Channel: channel },
-    });
-    if (!res.ok) {
-      throw Object.assign(new Error(`KolayBi API hatası (HTTP ${res.status})`), { status: 502 });
+  async function kolaybiRequest(
+    pool,
+    companyId,
+    path,
+    params = {}
+  ) {
+
+    const {
+      token,
+      channel,
+      baseUrl
+    } =
+      await getValidToken(
+        pool,
+        companyId
+      );
+
+    const url =
+      new URL(
+        `${baseUrl}${path}`
+      );
+
+    Object.entries(params)
+      .forEach(([key, value]) => {
+
+        if (
+          value !== undefined &&
+          value !== null &&
+          value !== ''
+        ) {
+
+          url.searchParams.set(
+            key,
+            value
+          );
+
+        }
+
+      });
+
+    console.log(
+      `[KolayBi][Şirket ${companyId}] GET ${url.pathname}${url.search}`
+    );
+
+    const response =
+      await fetchWithTimeout(
+
+        url.toString(),
+
+        {
+
+          method: 'GET',
+
+          headers: {
+
+            Authorization:
+              `Bearer ${token}`,
+
+            Channel:
+              channel,
+
+            Accept:
+              'application/json'
+
+          }
+
+        }
+
+      );
+
+    if (!response.ok) {
+
+      const text =
+        await response.text()
+          .catch(() => '');
+
+      throw Object.assign(
+
+        new Error(
+          `KolayBi API hatası. HTTP ${response.status}. ${text}`
+        ),
+
+        { status: 502 }
+
+      );
+
     }
-    return res.json();
+
+    return response.json();
+
   }
 
-  const STATUS_MAP = {
-    draft: 'Bekliyor', ready_to_send: 'Bekliyor', sent: 'Bekliyor',
-    approved: 'Bekliyor', rejected: 'İptal', cancelled: 'İptal',
+  // ------------------------------------------------------------
+  // EXTERNAL ID
+  // ------------------------------------------------------------
+
+  const getExternalId = (row) => {
+
+    const value =
+      row?.id ??
+      row?.document_id ??
+      row?.commercial_doc_id ??
+      row?.company_id ??
+      row?.associate_id ??
+      row?.product_id ??
+      row?.code;
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ''
+    ) {
+
+      return String(value);
+
+    }
+
+    return null;
+
   };
 
-  app.get('/api/kolaybi/ayarlar', async (req, res) => {
-    try {
-      const pool = await poolPromise;
-      const ayar = await getAyarlar(pool);
-      res.json({
-        CompanyId: ayar?.CompanyId || null,
-        CompanyCode: ayar?.CompanyCode || null,
-        Channel: ayar?.Channel || '',
-        BaseUrl: ayar?.BaseUrl || 'https://ofis-sandbox-api.kolaybi.com',
-        ApiKeyTanimli: Boolean(ayar?.ApiKey),
-        SonSenkronTarihi: ayar?.SonSenkronTarihi || null,
-      });
-    } catch (err) {
-      res.status(500).json({ error: 'Ayarlar alınamadı', detail: err.message });
+  // ------------------------------------------------------------
+  // ENTITY ID
+  // ------------------------------------------------------------
+
+  const getEntityId = (row) => {
+
+    const value =
+      row?.id ??
+      row?.document_id ??
+      row?.commercial_doc_id ??
+      row?.company_id ??
+      row?.associate_id ??
+      row?.product_id ??
+      row?.code;
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ''
+    ) {
+
+      return String(value);
+
     }
-  });
 
-  app.put('/api/kolaybi/ayarlar', async (req, res) => {
-    try {
-      const pool = await poolPromise;
-      const { ApiKey, Channel, BaseUrl } = req.body;
-      const request = pool.request()
-        .input('Channel', sql.NVarChar, Channel || null)
-        .input('BaseUrl', sql.NVarChar, BaseUrl || 'https://ofis-sandbox-api.kolaybi.com');
+    return null;
 
-      let query = `
-        UPDATE KolaybiAyarlar
-        SET Channel=@Channel,
-            BaseUrl=@BaseUrl,
-            AccessToken=NULL,
-            TokenGecerlilik=NULL,
-            UpdatedAt=SYSDATETIME()
-        WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
-          AND IsActive = 1
-      `;
-      if (ApiKey) {
-        request.input('ApiKey', sql.NVarChar, ApiKey);
-        query = query.replace('AccessToken=NULL,', 'ApiKey=@ApiKey, AccessToken=NULL,');
-      }
+  };
 
-      const result = await request.query(query);
-      if (result.rowsAffected[0] === 0) {
-        return res.status(404).json({ error: 'Seçili şirket için KolayBi ayar kaydı bulunamadı.' });
-      }
-      res.json({ success: true, message: 'Seçili şirketin KolayBi ayarları güncellendi.' });
-    } catch (err) {
-      res.status(500).json({ error: 'Ayarlar güncellenirken hata oluştu', detail: err.message });
+  // ------------------------------------------------------------
+  // SYNC KAYDI
+  //
+  // GERÇEK TABLO:
+  //
+  // SyncId
+  // CompanyId
+  // EntityType
+  // EntityId
+  // Direction
+  // Status
+  // ExternalId
+  // ErrorMessage
+  // SyncDate
+  // ------------------------------------------------------------
+
+  async function saveSyncRecord(
+    pool,
+    companyId,
+    entityType,
+    row
+  ) {
+
+    const externalId =
+      getExternalId(row);
+
+    const entityId =
+      getEntityId(row);
+
+    if (
+      !externalId ||
+      !entityId
+    ) {
+
+      return {
+
+        created: 0,
+        updated: 0,
+        skipped: 1
+
+      };
+
     }
-  });
 
-  app.post('/api/kolaybi/test-baglanti', async (req, res) => {
-    try {
-      const pool = await poolPromise;
-      await getValidToken(pool);
-      res.json({ success: true, message: 'Seçili şirket için KolayBi bağlantısı başarılı, access token alındı.' });
-    } catch (err) {
-      res.status(err.status || 500).json({ error: err.message });
+    const direction =
+      'KOLAYBI_TO_ERP';
+
+    const status =
+      'BAŞARILI';
+
+    // ----------------------------------------------------------
+    // KAYIT VAR MI?
+    // ----------------------------------------------------------
+
+    const existing =
+      await pool.request()
+
+        .input(
+          'CompanyId',
+          sql.Int,
+          companyId
+        )
+
+        .input(
+          'EntityType',
+          sql.NVarChar(100),
+          entityType
+        )
+
+        .input(
+          'ExternalId',
+          sql.NVarChar(255),
+          externalId
+        )
+
+        .query(`
+          SELECT TOP 1
+            SyncId,
+            EntityId,
+            Status
+          FROM dbo.KolaybiSyncKayitlari
+          WHERE CompanyId = @CompanyId
+            AND EntityType = @EntityType
+            AND ExternalId = @ExternalId
+          ORDER BY SyncId DESC
+        `);
+
+    // ----------------------------------------------------------
+    // VARSA GÜNCELLE
+    // ----------------------------------------------------------
+
+    if (
+      existing.recordset.length > 0
+    ) {
+
+      await pool.request()
+
+        .input(
+          'SyncId',
+          sql.BigInt,
+          existing.recordset[0].SyncId
+        )
+
+        .input(
+          'EntityId',
+          sql.NVarChar(255),
+          entityId
+        )
+
+        .input(
+          'Direction',
+          sql.NVarChar(100),
+          direction
+        )
+
+        .input(
+          'Status',
+          sql.NVarChar(100),
+          status
+        )
+
+        .input(
+          'ErrorMessage',
+          sql.NVarChar(2000),
+          null
+        )
+
+        .query(`
+          UPDATE dbo.KolaybiSyncKayitlari
+          SET
+            EntityId = @EntityId,
+            Direction = @Direction,
+            Status = @Status,
+            ErrorMessage = @ErrorMessage,
+            SyncDate = SYSDATETIME()
+          WHERE SyncId = @SyncId
+        `);
+
+      return {
+
+        created: 0,
+        updated: 1,
+        skipped: 0
+
+      };
+
     }
-  });
 
-  app.get('/api/kolaybi/faturalar-onizleme', async (req, res) => {
-    try {
-      const pool = await poolPromise;
-      const { type } = req.query;
-      const data = await kolaybiRequest(pool, '/kolaybi/v1/invoices', type ? { type } : {});
-      res.json(data);
-    } catch (err) {
-      res.status(err.status || 500).json({ error: err.message });
-    }
-  });
+    // ----------------------------------------------------------
+    // YENİ KAYIT
+    // ----------------------------------------------------------
 
-  app.post('/api/kolaybi/senkronize-et', async (req, res) => {
-    try {
-      const pool = await poolPromise;
-      const sonuc = { eklenen: 0, atlanan: 0, hatali: 0, detaylar: [] };
+    await pool.request()
 
-      for (const kolaybiType of ['sale_invoice', 'purchase_invoice']) {
-        const listeYaniti = await kolaybiRequest(pool, '/kolaybi/v1/invoices', { type: kolaybiType });
-        const faturalar = listeYaniti.data || [];
+      .input(
+        'CompanyId',
+        sql.Int,
+        companyId
+      )
 
-        for (const f of faturalar) {
-          try {
-            const existing = await pool.request()
-              .input('KolaybiInvoiceId', sql.Int, f.id)
-              .query(`SELECT FaturaId FROM Faturalar WHERE KolaybiInvoiceId = @KolaybiInvoiceId`);
-            if (existing.recordset.length > 0) { sonuc.atlanan++; continue; }
+      .input(
+        'EntityType',
+        sql.NVarChar(100),
+        entityType
+      )
 
-            const yon = kolaybiType === 'sale_invoice' ? 'Satış' : 'Alış';
-            const cariAdi = f.contact ? `${f.contact.name || ''} ${f.contact.surname || ''}`.trim() : 'Bilinmeyen Cari';
+      .input(
+        'EntityId',
+        sql.NVarChar(255),
+        entityId
+      )
 
-            let cariResult = await pool.request()
-              .input('CariAdi', sql.NVarChar, cariAdi)
-              .query(`
-                SELECT TOP 1 CariId, CariKodu
-                FROM CariListesi
-                WHERE CariAdi = @CariAdi
-                  AND CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
-                  AND IsActive = 1
-              `);
-            let cariId, cariKodu;
-            if (cariResult.recordset.length > 0) {
-              cariId = cariResult.recordset[0].CariId;
-              cariKodu = cariResult.recordset[0].CariKodu;
-            } else {
-              cariKodu = `KLB-${f.contact?.id || Date.now()}`;
-              const yeniCari = await pool.request()
-                .input('CariKodu', sql.NVarChar, cariKodu)
-                .input('CariAdi', sql.NVarChar, cariAdi)
-                .input('CariTipi', sql.Int, yon === 'Satış' ? 1 : 2)
-                .input('MusteriTuru', sql.NVarChar, yon === 'Satış' ? 'Müşteri' : 'Tedarikçi')
-                .query(`
-                  INSERT INTO CariListesi (CompanyId, CariKodu, CariAdi, CariTipi, MusteriTuru)
-                  OUTPUT INSERTED.CariId
-                  VALUES (
-                    TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId')),
-                    @CariKodu, @CariAdi, @CariTipi, @MusteriTuru
-                  )
-                `);
-              cariId = yeniCari.recordset[0].CariId;
-            }
+      .input(
+        'Direction',
+        sql.NVarChar(100),
+        direction
+      )
 
-            const durum = STATUS_MAP[f.status] || 'Bekliyor';
-            const faturaResult = await pool.request()
-              .input('FaturaKodu', sql.NVarChar, f.serial_no || `KLB-${f.id}`)
-              .input('Yon', sql.NVarChar, yon)
-              .input('CariId', sql.Int, cariId)
-              .input('CariKodu', sql.NVarChar, cariKodu)
-              .input('CariAdi', sql.NVarChar, cariAdi)
-              .input('FaturaTarihi', sql.Date, f.order_date)
-              .input('VadeTarihi', sql.Date, f.due_date || null)
-              .input('GenelToplam', sql.Decimal(18, 2), f.total_amount || 0)
-              .input('ParaBirimi', sql.NVarChar, (f.currency || 'TRY').toUpperCase())
-              .input('Durum', sql.NVarChar, durum)
-              .input('KolaybiInvoiceId', sql.Int, f.id)
-              .query(`
-                INSERT INTO Faturalar (FaturaKodu, Yon, CariId, CariKodu, CariAdi, FaturaTarihi, VadeTarihi, GenelToplam, ParaBirimi, Durum, KolaybiInvoiceId)
-                OUTPUT INSERTED.FaturaId
-                VALUES (@FaturaKodu, @Yon, @CariId, @CariKodu, @CariAdi, @FaturaTarihi, @VadeTarihi, @GenelToplam, @ParaBirimi, @Durum, @KolaybiInvoiceId)
-              `);
+      .input(
+        'Status',
+        sql.NVarChar(100),
+        status
+      )
 
-            try {
-              const detay = await kolaybiRequest(pool, `/kolaybi/v1/invoices/${f.id}`);
-              const kalemler = detay?.data?.items || [];
-              for (const k of kalemler) {
-                await pool.request()
-                  .input('FaturaId', sql.Int, faturaResult.recordset[0].FaturaId)
-                  .input('UrunKodu', sql.NVarChar, k.product_code || k.code || null)
-                  .input('UrunAdi', sql.NVarChar, k.product_name || k.name || k.description || 'Ürün')
-                  .input('Miktar', sql.Decimal(18, 2), k.quantity || 1)
-                  .input('Birim', sql.NVarChar, k.unit || 'Adet')
-                  .input('BirimFiyat', sql.Decimal(18, 2), k.unit_price || 0)
-                  .input('KdvOrani', sql.Int, k.vat_rate || 20)
-                  .query(`
-                    INSERT INTO FaturaDetay (FaturaId, UrunKodu, UrunAdi, Miktar, Birim, BirimFiyat, KdvOrani)
-                    VALUES (@FaturaId, @UrunKodu, @UrunAdi, @Miktar, @Birim, @BirimFiyat, @KdvOrani)
-                  `);
-              }
-            } catch (detayErr) {
-              console.warn('KolayBi fatura satırları alınamadı:', f.id, detayErr.message);
-            }
+      .input(
+        'ExternalId',
+        sql.NVarChar(255),
+        externalId
+      )
 
-            sonuc.eklenen++;
-          } catch (itemErr) {
-            sonuc.hatali++;
-            sonuc.detaylar.push(`Fatura ${f.id}: ${itemErr.message}`);
-          }
-        }
-      }
+      .input(
+        'ErrorMessage',
+        sql.NVarChar(2000),
+        null
+      )
 
-      await pool.request().query(`
-        UPDATE KolaybiAyarlar
-        SET SonSenkronTarihi = GETDATE(), UpdatedAt = SYSDATETIME()
-        WHERE CompanyId = TRY_CONVERT(INT, SESSION_CONTEXT(N'CompanyId'))
-          AND IsActive = 1
+      .query(`
+        INSERT INTO dbo.KolaybiSyncKayitlari
+        (
+          CompanyId,
+          EntityType,
+          EntityId,
+          Direction,
+          Status,
+          ExternalId,
+          ErrorMessage,
+          SyncDate
+        )
+        VALUES
+        (
+          @CompanyId,
+          @EntityType,
+          @EntityId,
+          @Direction,
+          @Status,
+          @ExternalId,
+          @ErrorMessage,
+          SYSDATETIME()
+        )
       `);
-      res.json({ success: true, ...sonuc });
-    } catch (err) {
-      res.status(err.status || 500).json({ error: err.message });
+
+    return {
+
+      created: 1,
+      updated: 0,
+      skipped: 0
+
+    };
+
+  }
+
+  // ------------------------------------------------------------
+  // RAW VERİLERİ KAYDET
+  // ------------------------------------------------------------
+
+  async function saveRaw(
+    pool,
+    companyId,
+    entityType,
+    rows
+  ) {
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    const list =
+      Array.isArray(rows)
+        ? rows
+        : [];
+
+    console.log(
+      `[KolayBi][Şirket ${companyId}] ${entityType}: ${list.length} kayıt işlenecek.`
+    );
+
+    for (
+      const row of list
+    ) {
+
+      try {
+
+        const result =
+          await saveSyncRecord(
+            pool,
+            companyId,
+            entityType,
+            row
+          );
+
+        created +=
+          result.created;
+
+        updated +=
+          result.updated;
+
+        skipped +=
+          result.skipped;
+
+      } catch (err) {
+
+        errors++;
+
+        console.error(
+          `[KolayBi][Şirket ${companyId}] ${entityType} kayıt hatası:`,
+          err.message
+        );
+
+      }
+
     }
-  });
+
+    return {
+
+      created,
+      updated,
+      skipped,
+      errors
+
+    };
+
+  }
+
+  // ------------------------------------------------------------
+  // ŞİRKET SENKRONİZASYONU
+  // ------------------------------------------------------------
+
+  async function syncCompany(companyId) {
+
+    if (
+      running.has(companyId)
+    ) {
+
+      console.log(
+        `[KolayBi][Şirket ${companyId}] Senkronizasyon zaten çalışıyor, atlandı.`
+      );
+
+      return {
+
+        companyId,
+        skipped: true
+
+      };
+
+    }
+
+    running.add(companyId);
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    const messages = [];
+
+    const started =
+      new Date();
+
+    console.log('');
+
+    console.log(
+      '======================================================'
+    );
+
+    console.log(
+      `[KolayBi] ŞİRKET ${companyId} SENKRONİZASYON BAŞLADI`
+    );
+
+    console.log(
+      '======================================================'
+    );
+
+    try {
+
+      const pool =
+        await poolPromise;
+
+      // --------------------------------------------------------
+      // SENKRONİZASYON JOB'LARI
+      // --------------------------------------------------------
+
+      const jobs = [
+
+        [
+          'company',
+          '/kolaybi/v1/companies',
+          {}
+        ],
+
+        [
+          'associate',
+          '/kolaybi/v1/associates',
+          {}
+        ],
+
+        [
+          'product',
+          '/kolaybi/v1/products',
+          {}
+        ],
+
+        [
+          'sale_invoice',
+          '/kolaybi/v1/invoices',
+          {
+            type: 'sale_invoice',
+            has_products: true
+          }
+        ],
+
+        [
+          'sale_return_invoice',
+          '/kolaybi/v1/invoices',
+          {
+            type: 'sale_return_invoice',
+            has_products: true
+          }
+        ],
+
+        [
+          'purchase_invoice',
+          '/kolaybi/v1/invoices',
+          {
+            type: 'purchase_invoice',
+            has_products: true
+          }
+        ],
+
+        [
+          'purchase_return_invoice',
+          '/kolaybi/v1/invoices',
+          {
+            type: 'purchase_return_invoice',
+            has_products: true
+          }
+        ]
+
+      ];
+
+      // --------------------------------------------------------
+      // JOB'LARI ÇALIŞTIR
+      // --------------------------------------------------------
+
+      for (
+        const [
+          type,
+          endpoint,
+          params
+        ] of jobs
+      ) {
+
+        console.log(
+          `[KolayBi][Şirket ${companyId}] ${type} senkronizasyonu başlıyor...`
+        );
+
+        try {
+
+          const response =
+            await kolaybiRequest(
+              pool,
+              companyId,
+              endpoint,
+              params
+            );
+
+          const rows =
+            Array.isArray(
+              response?.data
+            )
+              ? response.data
+              : [];
+
+          const result =
+            await saveRaw(
+              pool,
+              companyId,
+              type,
+              rows
+            );
+
+          created +=
+            result.created;
+
+          updated +=
+            result.updated;
+
+          skipped +=
+            result.skipped;
+
+          errors +=
+            result.errors;
+
+          console.log(
+
+            `[KolayBi][Şirket ${companyId}] ${type} tamamlandı. ` +
+
+            `Yeni: ${result.created}, ` +
+
+            `Güncellenen: ${result.updated}, ` +
+
+            `Atlanan: ${result.skipped}, ` +
+
+            `Hata: ${result.errors}`
+
+          );
+
+        } catch (err) {
+
+          errors++;
+
+          const message =
+            `${type}: ${err.message}`;
+
+          messages.push(
+            message
+          );
+
+          console.error(
+            `[KolayBi][Şirket ${companyId}] ${message}`
+          );
+
+        }
+
+      }
+
+      // --------------------------------------------------------
+      // SON DURUM
+      // --------------------------------------------------------
+
+      const finalStatus =
+        errors > 0
+          ? 'KISMI_HATA'
+          : 'BAŞARILI';
+
+      const finalMessage =
+        messages.length > 0
+          ? messages
+              .join(' | ')
+              .slice(0, 1000)
+          : null;
+
+      // --------------------------------------------------------
+      // SADECE GERÇEK KOLAYBI AYAR KOLONLARINI GÜNCELLE
+      //
+      // Gerçek tabloda:
+      // SonSenkronTarihi
+      // UpdatedAt
+      //
+      // SonSenkronDurumu ve SonSenkronMesaji YOK.
+      // --------------------------------------------------------
+
+      await pool.request()
+
+        .input(
+          'CompanyId',
+          sql.Int,
+          companyId
+        )
+
+        .query(`
+          UPDATE dbo.KolaybiAyarlar
+          SET
+            SonSenkronTarihi = SYSDATETIME(),
+            UpdatedAt = SYSDATETIME()
+          WHERE CompanyId = @CompanyId
+            AND IsActive = 1
+        `);
+
+      const finished =
+        new Date();
+
+      // --------------------------------------------------------
+      // LOG
+      // --------------------------------------------------------
+
+      console.log('');
+
+      console.log(
+        `[KolayBi][Şirket ${companyId}] SENKRONİZASYON TAMAMLANDI`
+      );
+
+      console.log(
+        `Başlangıç  : ${started.toLocaleString('tr-TR')}`
+      );
+
+      console.log(
+        `Bitiş      : ${finished.toLocaleString('tr-TR')}`
+      );
+
+      console.log(
+        `Yeni       : ${created}`
+      );
+
+      console.log(
+        `Güncellenen: ${updated}`
+      );
+
+      console.log(
+        `Atlanan    : ${skipped}`
+      );
+
+      console.log(
+        `Hata       : ${errors}`
+      );
+
+      console.log(
+        `Durum      : ${finalStatus}`
+      );
+
+      if (finalMessage) {
+
+        console.log(
+          `Mesaj      : ${finalMessage}`
+        );
+
+      }
+
+      console.log(
+        '------------------------------------------------------'
+      );
+
+      return {
+
+        companyId,
+
+        created,
+
+        updated,
+
+        skipped,
+
+        errors,
+
+        status:
+          finalStatus,
+
+        messages
+
+      };
+
+    } finally {
+
+      running.delete(
+        companyId
+      );
+
+    }
+
+  }
+
+  // ============================================================
+  // ŞİRKETLER
+  // ============================================================
+
+  app.get(
+    '/api/sirketler',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        // Şirket tablosunda RLS YOK.
+        // Bu nedenle tüm aktif şirketler görünür.
+
+        const result =
+          await pool.request()
+            .query(`
+              SELECT
+                CompanyId,
+                CompanyCode,
+                CompanyName,
+                IsActive
+              FROM dbo.Sirketler
+              WHERE IsActive = 1
+              ORDER BY CompanyId
+            `);
+
+        res.json(
+          result.recordset
+        );
+
+      } catch (err) {
+
+        console.error(
+          'Şirketler alınamadı:',
+          err.message
+        );
+
+        res.status(500).json({
+
+          error:
+            'Şirketler alınamadı',
+
+          detail:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // KOLAYBI AYARLARI GETİR
+  // ============================================================
+
+  app.get(
+    '/api/kolaybi/ayarlar',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        const ayar =
+          await getAyarlar(
+            pool,
+            companyId
+          );
+
+        res.json({
+
+          CompanyId:
+            companyId,
+
+          KolaybiCompanyId:
+            ayar?.KolaybiCompanyId || null,
+
+          Channel:
+            ayar?.Channel || '',
+
+          BaseUrl:
+            ayar?.BaseUrl ||
+            DEFAULT_BASE_URL,
+
+          ApiKeyTanimli:
+            Boolean(
+              ayar?.ApiKey
+            ),
+
+          SonSenkronTarihi:
+            ayar?.SonSenkronTarihi ||
+            null
+
+        });
+
+      } catch (err) {
+
+        console.error(
+          'KolayBi ayarları alınamadı:',
+          err.message
+        );
+
+        res.status(500).json({
+
+          error:
+            'Ayarlar alınamadı',
+
+          detail:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // KOLAYBI AYARLARI GÜNCELLE
+  // ============================================================
+
+  app.put(
+    '/api/kolaybi/ayarlar',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        const {
+          ApiKey,
+          Channel,
+          BaseUrl,
+          KolaybiCompanyId
+        } = req.body;
+
+        const request =
+          pool.request()
+
+            .input(
+              'CompanyId',
+              sql.Int,
+              companyId
+            )
+
+            .input(
+              'Channel',
+              sql.NVarChar,
+              Channel || null
+            )
+
+            .input(
+              'BaseUrl',
+              sql.NVarChar,
+              BaseUrl ||
+              DEFAULT_BASE_URL
+            )
+
+            .input(
+              'KolaybiCompanyId',
+              sql.NVarChar,
+              KolaybiCompanyId
+                ? String(KolaybiCompanyId)
+                : null
+            );
+
+        let query = `
+          UPDATE dbo.KolaybiAyarlar
+          SET
+            Channel = @Channel,
+            BaseUrl = @BaseUrl,
+            KolaybiCompanyId = @KolaybiCompanyId,
+            AccessToken = NULL,
+            TokenGecerlilik = NULL,
+            UpdatedAt = SYSDATETIME()
+        `;
+
+        // API Key boş bırakılırsa
+        // mevcut API Key korunur.
+
+        if (ApiKey) {
+
+          request.input(
+            'ApiKey',
+            sql.NVarChar,
+            ApiKey
+          );
+
+          query += `
+            ,
+            ApiKey = @ApiKey
+          `;
+
+        }
+
+        query += `
+          WHERE CompanyId = @CompanyId
+            AND IsActive = 1
+        `;
+
+        const result =
+          await request.query(
+            query
+          );
+
+        if (
+          !result.rowsAffected ||
+          result.rowsAffected[0] === 0
+        ) {
+
+          return res.status(404).json({
+
+            error:
+              `Şirket ${companyId} için KolayBi ayar kaydı bulunamadı.`
+
+          });
+
+        }
+
+        res.json({
+
+          success:
+            true,
+
+          message:
+            `Şirket ${companyId} KolayBi ayarları güncellendi.`
+
+        });
+
+      } catch (err) {
+
+        console.error(
+          'KolayBi ayar güncelleme hatası:',
+          err.message
+        );
+
+        res.status(500).json({
+
+          error:
+            'Ayarlar güncellenirken hata oluştu',
+
+          detail:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // BAĞLANTI TESTİ
+  // ============================================================
+
+  app.post(
+    '/api/kolaybi/test-baglanti',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        await getValidToken(
+          pool,
+          companyId
+        );
+
+        const companies =
+          await kolaybiRequest(
+            pool,
+            companyId,
+            '/kolaybi/v1/companies'
+          );
+
+        res.json({
+
+          success:
+            true,
+
+          message:
+            'Bağlantı başarılı, access token alındı.',
+
+          CompanyId:
+            companyId,
+
+          KolaybiSirketleri:
+            companies?.data || []
+
+        });
+
+      } catch (err) {
+
+        console.error(
+          `[KolayBi][Şirket ${companyIdFromRequest(req)}] Bağlantı testi hatası:`,
+          err.message
+        );
+
+        res.status(
+          err.status || 500
+        ).json({
+
+          error:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // KOLAYBI ŞİRKETLERİ
+  // ============================================================
+
+  app.get(
+    '/api/kolaybi/sirketler',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        const result =
+          await kolaybiRequest(
+            pool,
+            companyId,
+            '/kolaybi/v1/companies'
+          );
+
+        res.json(
+          result
+        );
+
+      } catch (err) {
+
+        res.status(
+          err.status || 500
+        ).json({
+
+          error:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // FATURA ÖNİZLEME
+  // ============================================================
+
+  app.get(
+    '/api/kolaybi/faturalar-onizleme',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        const {
+          type
+        } = req.query;
+
+        const params =
+          type
+
+            ? {
+                type,
+                has_products: true
+              }
+
+            : {
+                has_products: true
+              };
+
+        const result =
+          await kolaybiRequest(
+            pool,
+            companyId,
+            '/kolaybi/v1/invoices',
+            params
+          );
+
+        res.json(
+          result
+        );
+
+      } catch (err) {
+
+        res.status(
+          err.status || 500
+        ).json({
+
+          error:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // MANUEL SENKRONİZASYON
+  // ============================================================
+
+  app.post(
+    '/api/kolaybi/senkronize-et',
+    async (req, res) => {
+
+      try {
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        const result =
+          await storage.run(
+
+            {
+              companyId
+            },
+
+            () =>
+              syncCompany(
+                companyId
+              )
+
+          );
+
+        res.json({
+
+          success:
+            true,
+
+          ...result
+
+        });
+
+      } catch (err) {
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        console.error(
+
+          `[KolayBi][Şirket ${companyId}] Manuel senkronizasyon hatası:`,
+
+          err.message
+
+        );
+
+        res.status(
+          err.status || 500
+        ).json({
+
+          error:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // SENKRONİZASYON DURUMU
+  // ============================================================
+
+  app.get(
+    '/api/kolaybi/senkronizasyon-durumu',
+    async (req, res) => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companyId =
+          companyIdFromRequest(req);
+
+        const ayar =
+          await getAyarlar(
+            pool,
+            companyId
+          );
+
+        // ------------------------------------------------------
+        // SON SYNC KAYDI
+        // ------------------------------------------------------
+
+        const log =
+          await pool.request()
+
+            .input(
+              'CompanyId',
+              sql.Int,
+              companyId
+            )
+
+            .query(`
+              SELECT TOP 1
+                SyncId,
+                CompanyId,
+                EntityType,
+                EntityId,
+                Direction,
+                Status,
+                ExternalId,
+                ErrorMessage,
+                SyncDate
+              FROM dbo.KolaybiSyncKayitlari
+              WHERE CompanyId = @CompanyId
+              ORDER BY SyncId DESC
+            `);
+
+        res.json({
+
+          companyId,
+
+          running:
+            running.has(
+              companyId
+            ),
+
+          ayar:
+            ayar
+              ? {
+
+                  SonSenkronTarihi:
+                    ayar.SonSenkronTarihi
+
+                }
+              : null,
+
+          sonLog:
+            log.recordset[0] ||
+            null
+
+        });
+
+      } catch (err) {
+
+        console.error(
+          'KolayBi senkronizasyon durumu hatası:',
+          err.message
+        );
+
+        res.status(500).json({
+
+          error:
+            err.message
+
+        });
+
+      }
+
+    }
+  );
+
+  // ============================================================
+  // TÜM ŞİRKETLERİ OTOMATİK SENKRONİZE ET
+  // ============================================================
+
+  const runAllCompanies =
+    async () => {
+
+      try {
+
+        const pool =
+          await poolPromise;
+
+        const companies =
+          await pool.request()
+            .query(`
+              SELECT
+                CompanyId
+              FROM dbo.Sirketler
+              WHERE IsActive = 1
+              ORDER BY CompanyId
+            `);
+
+        console.log(
+          `[KolayBi] Otomatik senkronizasyon kontrolü: ${companies.recordset.length} şirket`
+        );
+
+        // ------------------------------------------------------
+        // HER ŞİRKET AYRI CONTEXT İLE ÇALIŞIR
+        // ------------------------------------------------------
+
+        for (
+          const row of companies.recordset
+        ) {
+
+          const companyId =
+            row.CompanyId;
+
+          storage.run(
+
+            {
+              companyId
+            },
+
+            () => {
+
+              syncCompany(
+                companyId
+              )
+                .catch(err => {
+
+                  console.error(
+
+                    `[KolayBi] Otomatik senkronizasyon Şirket ${companyId} hatası:`,
+
+                    err.message
+
+                  );
+
+                });
+
+            }
+
+          );
+
+        }
+
+      } catch (err) {
+
+        console.error(
+
+          'KolayBi otomatik senkronizasyon başlatılamadı:',
+
+          err.message
+
+        );
+
+      }
+
+    };
+
+  // ============================================================
+  // OTOMATİK SENKRONİZASYON
+  // Her 60 saniyede bir
+  // ============================================================
+
+  setInterval(
+    runAllCompanies,
+    60 * 1000
+  );
+
+  // İlk çalıştırma 5 saniye sonra
+  setTimeout(
+    runAllCompanies,
+    5000
+  );
+
+  console.log(
+    'KolayBi çoklu şirket entegrasyonu yüklendi.'
+  );
+
 };
 
-module.exports = registerKolaybi;
+// ============================================================
+// EXPORT
+// ============================================================
+
+module.exports =
+  registerKolaybi;

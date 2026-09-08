@@ -1,0 +1,50 @@
+.alya-company-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 360px;
+  max-width: 520px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.alya-company-selector-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.alya-company-selector-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #64748b;
+  line-height: 1.1;
+}
+
+.alya-company-selector select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 0;
+  text-overflow: ellipsis;
+}
+
+.alya-company-selector-arrow {
+  color: #64748b;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .alya-company-selector { min-width: 240px; max-width: 320px; }
+}
