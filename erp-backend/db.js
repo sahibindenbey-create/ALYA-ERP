@@ -19,23 +19,15 @@ express.application.handle = function patchedHandle(req, res, callback) {
 
 const originalListen = express.application.listen;
 express.application.listen = function patchedListen(...args) {
-  // hasOwnProperty kullanıyoruz; Express application prototype'undan miras alınan
-  // bir flag yüzünden rotaların hiç kaydolmaması engellenir.
   if (!Object.prototype.hasOwnProperty.call(this, '__alyaCompanyRouteRegistered')) {
-    Object.defineProperty(this, '__alyaCompanyRouteRegistered', {
-      value: true,
-      writable: true,
-      configurable: true
-    });
+    Object.defineProperty(this, '__alyaCompanyRouteRegistered', { value: true, writable: true, configurable: true });
 
     this.get('/api/sirketler', async (req, res) => {
       try {
         const pool = await poolPromise;
         const result = await pool.request().query(`
           SELECT CompanyId, CompanyCode, CompanyName, IsActive
-          FROM dbo.Sirketler
-          WHERE IsActive = 1
-          ORDER BY CompanyId
+          FROM dbo.Sirketler WHERE IsActive = 1 ORDER BY CompanyId
         `);
         res.json(result.recordset);
       } catch (err) {
@@ -44,19 +36,14 @@ express.application.listen = function patchedListen(...args) {
       }
     });
 
-    try {
-      require('./stokRoutes')(this);
-      console.log('[Stok] Stok API rotaları yüklendi.');
-    } catch (err) {
-      console.error('[Stok] Rotalar yüklenemedi:', err.message);
-    }
+    try { require('./stokRoutes')(this); console.log('[Stok] Stok API rotaları yüklendi.'); }
+    catch (err) { console.error('[Stok] Rotalar yüklenemedi:', err.message); }
 
-    try {
-      require('./receteRoutesV2')(this, poolPromise, sql);
-      console.log('[Reçete] Gelişmiş reçete API rotaları yüklendi.');
-    } catch (err) {
-      console.error('[Reçete] Rotalar yüklenemedi:', err.message);
-    }
+    try { require('./receteRoutesV2')(this, poolPromise, sql); console.log('[Reçete] Gelişmiş reçete API rotaları yüklendi.'); }
+    catch (err) { console.error('[Reçete] Rotalar yüklenemedi:', err.message); }
+
+    try { require('./receteAgacRoutes')(this, poolPromise, sql); }
+    catch (err) { console.error('[Reçete Ağacı] Rotalar yüklenemedi:', err.message); }
   }
   return originalListen.apply(this, args);
 };
@@ -64,15 +51,11 @@ express.application.listen = function patchedListen(...args) {
 const originalQuery = sql.Request.prototype.query;
 sql.Request.prototype.query = function patchedQuery(command, ...args) {
   const store = companyContext.getStore();
-  if (!store || !store.companyId) {
-    return originalQuery.call(this, command, ...args);
-  }
-
+  if (!store || !store.companyId) return originalQuery.call(this, command, ...args);
   const contextSql = `
     EXEC sys.sp_set_session_context @key = N'CompanyId', @value = @CompanyContextId;
     ${command}
   `;
-
   this.input('CompanyContextId', sql.Int, store.companyId);
   return originalQuery.call(this, contextSql, ...args);
 };
@@ -100,17 +83,7 @@ const config = {
 
 const poolPromise = new sql.ConnectionPool(config)
   .connect()
-  .then(pool => {
-    console.log('SQL Server bağlantısı başarılı!');
-    return pool;
-  })
-  .catch(err => {
-    console.error('SQL Server bağlantı hatası:', err.message);
-    throw err;
-  });
+  .then(pool => { console.log('SQL Server bağlantısı başarılı!'); return pool; })
+  .catch(err => { console.error('SQL Server bağlantı hatası:', err.message); throw err; });
 
-module.exports = {
-  sql,
-  poolPromise,
-  companyContext
-};
+module.exports = { sql, poolPromise, companyContext };
