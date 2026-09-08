@@ -1,6 +1,6 @@
 import React from 'react';
 import ReceteYonetimPageV3 from './ReceteYonetimPageV3';
-import Ahbrd1301ReceptTemplate from './Ahbrd1301ReceptTemplate';
+import Ahbrd1301ReceptTemplate from './Ahbrd1301ReceptTemplateV2';
 
 export default function ReceteYonetimPage(){
   const [version,setVersion]=React.useState(0);
