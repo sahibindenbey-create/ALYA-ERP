@@ -60,6 +60,9 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
 
     const output = Math.max(Number(recipe.CiktiMiktari || 1), 0.000001);
     const scale = Math.max(Number(miktar || 0), 0) / output;
+    const recipeFireRate = Number(recipe.StandartFireOrani || 0);
+    if (recipeFireRate < 0 || recipeFireRate >= 100) throw new Error(`Reçete ${receteId} için geçersiz standart fire oranı.`);
+    const recipeFire = 1 + recipeFireRate / 100;
     let material = 0, service = 0, transport = 0, labor = 0, machine = 0;
     let iscilikDakika = Number(o.recordset[0]?.IscilikDakika || 0) * scale;
     let makineDakika = Number(o.recordset[0]?.MakineDakika || 0) * scale;
@@ -69,7 +72,7 @@ module.exports = function registerReceteRoutes(app, poolPromise, sql) {
       const baseQty = Number(x.GirdiMiktari ?? x.Miktar ?? 0);
       const fire = 1 + Number(x.FireOrani || 0) / 100;
       const yieldRate = Math.max(Number(x.VerimOrani || 100), 0.000001) / 100;
-      const q = baseQty * scale * fire / yieldRate;
+      const q = baseQty * scale * fire * recipeFire / yieldRate;
       const type = String(x.KalemTipi || 'Malzeme');
 
       if (x.AltReceteId) {
