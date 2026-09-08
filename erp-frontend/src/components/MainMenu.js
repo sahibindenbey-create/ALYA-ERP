@@ -8,7 +8,8 @@ import "./MainMenu.css";
 const ACTIVE_MODULES = [
   "cari-listesi", "cari-giris", "siparis-listesi", "siparis-giris", "irsaliye",
   "faturalar/satis", "faturalar/alis", "finans", "personel",
-  "platform-import", "urun-listesi", "urun-giris", "receteler", "teklif-talepleri", "fason", "kayitlar"
+  "platform-import", "urun-listesi", "urun-giris", "receteler",
+  "teklif-talepleri", "fason", "kayitlar"
 ];
 
 const MainMenu = () => {
@@ -18,7 +19,11 @@ const MainMenu = () => {
   const navigate = useNavigate();
   const user = getCurrentUser();
 
-  const handleHomeClick = () => setActiveGroup(null);
+  const handleHomeClick = () => {
+    setActiveGroup(null);
+    setSearchTerm("");
+    setCategoryFilter("all");
+  };
 
   const handleLogout = () => {
     logoutUser();
@@ -31,69 +36,89 @@ const MainMenu = () => {
 
   const groupsToShow = categoryFilter === "all"
     ? menuItems
-    : menuItems.filter((g) => g.group.toLowerCase() === categoryFilter);
+    : menuItems.filter((group) => group.group.toLowerCase() === categoryFilter);
 
-  const flatMenu = groupsToShow.flatMap((group) => group.items);
-  const filteredMenu = flatMenu.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const search = searchTerm.trim().toLowerCase();
+  const filteredMenu = groupsToShow
+    .flatMap((group) => group.items)
+    .filter((item) => item.name.toLowerCase().includes(search));
 
   return (
-    <div className="main-menu-wrapper">
-      <div className="top-bar">
-        <div className="logo">ERP LOGO</div>
-        <div className="home-button" onClick={handleHomeClick}>
-          🏠 Ana Sayfa
-        </div>
+    <main className="main-menu-wrapper">
+      <header className="top-bar">
+        <div className="logo" aria-label="ALYA ERP">ALYA ERP</div>
+
+        <button type="button" className="home-button" onClick={handleHomeClick}>
+          <span className="home-button-icon" aria-hidden="true">⌂</span>
+          Ana Sayfa
+        </button>
+
         <CompanySelector />
+
         <div className="user-info">
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontWeight: "bold" }}>{user?.name || "Kullanıcı"}</div>
-            <div style={{ fontSize: 11, opacity: 0.75 }}>{user?.role || "Yönetici"}</div>
+          <div className="user-copy">
+            <div className="user-name">{user?.name || "Kullanıcı"}</div>
+            <div className="user-role">{user?.role || "Yönetici"}</div>
           </div>
-          <button className="settings-btn" title="Çıkış Yap" onClick={handleLogout}>
-            🚪
+          <button
+            type="button"
+            className="settings-btn"
+            title="Çıkış Yap"
+            aria-label="Çıkış Yap"
+            onClick={handleLogout}
+          >
+            <span aria-hidden="true">↪</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="search-bar">
+      <section className="search-bar" aria-label="Modül arama">
+        <span className="search-icon" aria-hidden="true">⌕</span>
         <input
-          type="text"
+          type="search"
           placeholder="Modül veya işlem ara..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          aria-label="Modül veya işlem ara"
         />
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-          <option value="all">Tümü</option>
+        <select
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          aria-label="Kategori filtresi"
+        >
+          <option value="all">Tüm Modüller</option>
           <option value="uygulamalar">Uygulamalar</option>
           <option value="eklentiler">Eklentiler</option>
           <option value="sistem">Sistem</option>
         </select>
-      </div>
+      </section>
 
-      <div className="menu-grid">
-        {filteredMenu.map((item, idx) => (
-          <div
-            key={idx}
-            className="menu-icon-card"
-            onClick={() => handleItemClick(item)}
-            style={ACTIVE_MODULES.includes(item.path) ? { border: "2px solid #27ae60" } : undefined}
-          >
-            <span className="menu-icon">{item.icon}</span>
-            <span className="menu-name">{item.name}</span>
-            {ACTIVE_MODULES.includes(item.path) && (
-              <span style={{ fontSize: 9, color: "#27ae60", fontWeight: "bold", marginTop: 4 }}>
-                AKTİF
-              </span>
-            )}
-          </div>
-        ))}
+      <section className="menu-grid" aria-label="ERP modülleri">
+        {filteredMenu.map((item, idx) => {
+          const isActive = ACTIVE_MODULES.includes(item.path);
+
+          return (
+            <button
+              type="button"
+              key={`${item.path}-${idx}`}
+              className={`menu-icon-card${isActive ? " is-active" : ""}`}
+              onClick={() => handleItemClick(item)}
+            >
+              <span className="menu-icon" aria-hidden="true">{item.icon}</span>
+              <span className="menu-name">{item.name}</span>
+              {isActive && <span className="active-badge">AKTİF</span>}
+            </button>
+          );
+        })}
+
         {filteredMenu.length === 0 && (
-          <p style={{ color: "#888" }}>Aramanızla eşleşen modül bulunamadı.</p>
+          <div className="empty-menu-state">
+            <strong>Modül bulunamadı</strong>
+            <span>Arama kriterinizi veya kategori filtresini değiştirin.</span>
+          </div>
         )}
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
 
