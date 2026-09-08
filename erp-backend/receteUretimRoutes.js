@@ -22,7 +22,10 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
     const map=new Map();
     for(const x of r.items){
       const type=String(x.KalemTipi||'Malzeme');
-      if(!x.HammaddeUrunId||x.FasonMu||['Hizmet','Fason','Nakliye'].includes(type)) continue;
+      // An alt recipe is a structural BOM line and commonly has no material
+      // product id of its own.  Resolve it before requiring HammaddeUrunId;
+      // otherwise nested materials are never consumed during production.
+      if(x.FasonMu||['Hizmet','Fason','Nakliye'].includes(type)) continue;
       const unit=Number(x.GirdiMiktari||x.Miktar||0); if(unit<=0) continue;
       const fire=Number(x.FireOrani||0), yieldRate=Number(x.VerimOrani??100);
       if(fire<0||fire>=100) throw new Error(`Geçersiz fire oranı: ${x.HammaddeAdi||x.HammaddeUrunId}`);
@@ -31,8 +34,10 @@ module.exports = function registerReceteUretimRoutes(app, poolPromise, sql) {
       if(x.AltReceteId){
         const nested=await explode(request,Number(x.AltReceteId),qty,[...stack,id]);
         for(const n of nested){const k=`${n.UrunId}|${n.Depo||'Merkez Depo'}`,old=map.get(k)||{...n,Miktar:0};old.Miktar+=n.Miktar;map.set(k,old);}
-      }else{
+      }else if(x.HammaddeUrunId){
         const k=`${x.HammaddeUrunId}|${x.Depo||'Merkez Depo'}`,old=map.get(k)||{UrunId:x.HammaddeUrunId,UrunAdi:x.HammaddeAdi,Birim:x.Birim,Depo:x.Depo||'Merkez Depo',Miktar:0};old.Miktar+=qty;map.set(k,old);
+      }else{
+        throw new Error(`Malzeme ürün kartı seçilmemiş: ${x.HammaddeAdi||`Reçete satırı #${x.ReceteDetayId}`}`);
       }
     }
     return [...map.values()];

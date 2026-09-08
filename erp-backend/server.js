@@ -1179,6 +1179,11 @@ app.delete('/api/receteler/:id', async (req, res) => {
    ========================================================= */
 
 app.get('/api/uretim', async (req, res) => {
+  return res.status(410).json({
+    error: 'Bu üretim geçmişi uç noktası kullanımdan kaldırıldı.',
+    message: 'Şirket izole üretim akışı için /api/recete-uretim uç noktalarını kullanın.'
+  });
+
   try {
     const pool = await poolPromise;
     const result = await pool.request()
@@ -1191,6 +1196,15 @@ app.get('/api/uretim', async (req, res) => {
 });
 
 app.post('/api/uretim', async (req, res) => {
+  // This legacy endpoint predates company isolation, stock locking and
+  // idempotency.  The active UI uses /api/recete-uretim/:id/uret instead.
+  // Keeping the old implementation callable could mix companies or create
+  // negative stock, so fail explicitly rather than process an unsafe request.
+  return res.status(410).json({
+    error: 'Bu üretim uç noktası kullanımdan kaldırıldı.',
+    message: 'Reçete üretimi için /api/recete-uretim/:id/uret uç noktasını kullanın.'
+  });
+
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
 
