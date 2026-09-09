@@ -17,15 +17,28 @@ function normalizeCompanyId(value) {
   return COMPANY_IDS.has(id) ? id : 1;
 }
 
+function getRequestedCompanyId(req) {
+  const raw = req.headers['x-company-id'] ?? req.query?.companyId ?? null;
+  if (raw === null || raw === undefined || raw === '') return 1;
+  return Number(raw);
+}
+
 const originalUse = express.application.use;
 if (!express.application.__alyaCompanyContextPatched) {
   express.application.use = function patchedUse(...args) {
     if (!this.__alyaCompanyContextInstalled) {
       const contextMiddleware = function alyaCompanyContext(req, res, next) {
-        const companyId = normalizeCompanyId(
-          req.headers['x-company-id'] || req.query?.companyId || 1
-        );
-        storage.run({ companyId }, next);
+        const requestedId = getRequestedCompanyId(req);
+
+        if (!COMPANY_IDS.has(requestedId)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Geçersiz CompanyId',
+            CompanyId: requestedId
+          });
+        }
+
+        storage.run({ companyId: requestedId }, next);
       };
       this.__alyaCompanyContextInstalled = true;
       originalUse.call(this, contextMiddleware);
