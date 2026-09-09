@@ -8,6 +8,7 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
 const express = require('express');
 const sql = require('mssql');
+const Module = require('module');
 
 const storage = new AsyncLocalStorage();
 const COMPANY_IDS = new Set([1, 2, 3]);
@@ -69,22 +70,65 @@ if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
   requestPrototype.__alyaCompanyQueryPatched = true;
 }
 
+// Test aşamasında KolayBi'nin hiçbir şirket için arka planda otomatik
+// senkronizasyon başlatmasına izin verme. Manuel endpoint'ler çalışmaya devam eder.
+function withoutTimers(fn) {
+  const originalSetTimeout = global.setTimeout;
+  const originalSetInterval = global.setInterval;
+  const noopTimer = () => ({ unref() {}, ref() {}, hasRef() { return false; } });
+
+  global.setTimeout = noopTimer;
+  global.setInterval = noopTimer;
+  try {
+    return fn();
+  } finally {
+    global.setTimeout = originalSetTimeout;
+    global.setInterval = originalSetInterval;
+  }
+}
+
+// company-context-hook içinden yüklenen KolayBi katmanlarının timer'larını kapat.
+withoutTimers(() => {
+  try {
+    require('./kolaybi-erp-sync');
+  } catch (err) {
+    console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message);
+  }
+
+  try {
+    require('./kolaybi-fatura-sync');
+  } catch (err) {
+    console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message);
+  }
+
+  try {
+    require('./kolaybi-full-sync');
+  } catch (err) {
+    console.error('[ALYA] KolayBi tam senkronizasyon katmanı yüklenemedi:', err.message);
+  }
+});
+
+// server.js'nin yüklediği ana kolaybi.js modülündeki 5 saniyelik ve periyodik
+// otomatik senkronizasyon timer'larını da yalnızca registration sırasında kapat.
+if (!Module.__alyaKolaybiAutoSyncTimerGuard) {
+  const originalLoad = Module._load;
+  Module._load = function guardedKolaybiLoad(request, parent, isMain) {
+    const loaded = originalLoad.apply(this, arguments);
+
+    if (
+      request === './kolaybi' &&
+      parent?.filename &&
+      parent.filename.endsWith('server.js') &&
+      typeof loaded === 'function'
+    ) {
+      return function guardedRegisterKolaybi(args) {
+        return withoutTimers(() => loaded(args));
+      };
+    }
+
+    return loaded;
+  };
+  Module.__alyaKolaybiAutoSyncTimerGuard = true;
+}
+
 module.exports = { storage, normalizeCompanyId };
-
-try {
-  require('./kolaybi-erp-sync');
-} catch (err) {
-  console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message);
-}
-
-try {
-  require('./kolaybi-fatura-sync');
-} catch (err) {
-  console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message);
-}
-
-try {
-  require('./kolaybi-full-sync');
-} catch (err) {
-  console.error('[ALYA] KolayBi tam senkronizasyon katmanı yüklenemedi:', err.message);
-}
