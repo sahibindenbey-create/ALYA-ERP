@@ -24,6 +24,8 @@ const idOf = (row, fallback) => String(
   row?.id ?? row?.document_id ?? row?.commercial_doc_id ?? row?.company_id ?? row?.associate_id ?? row?.product_id ?? row?.transaction_id ?? row?.code ?? fallback
 );
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 async function getApi(pool, sql, companyId) {
   const r = await pool.request()
     .input('CompanyId', sql.Int, companyId)
@@ -86,16 +88,70 @@ async function saveRaw(pool, sql, companyId, entityType, rows) {
   return count;
 }
 
+async function syncAssociateDetails(pool, sql, api, companyId, associates, result) {
+  for (const associate of Array.isArray(associates) ? associates : []) {
+    const associateId = associate?.id;
+    if (associateId === undefined || associateId === null) continue;
+
+    try {
+      const detail = await getJson(api, `/kolaybi/v1/associates/${associateId}`);
+      const row = detail?.data ?? detail;
+      if (row) await saveRaw(pool, sql, companyId, 'associate_detail', [{ ...row, id: associateId }]);
+    } catch (err) {
+      result.errors.push(`associate_detail/${associateId}: ${err.message}`);
+    }
+
+    try {
+      const response = await getJson(api, `/kolaybi/v1/associates/${associateId}/transactions`);
+      const data = response?.data?.transactionables || response?.data || [];
+      const rows = Array.isArray(data) ? data : [];
+      const saved = await saveRaw(
+        pool,
+        sql,
+        companyId,
+        'associate_transactions',
+        rows.map(x => ({ ...x, associate_id: associateId }))
+      );
+      result.sources.associate_transactions = (result.sources.associate_transactions || 0) + saved;
+    } catch (err) {
+      result.errors.push(`associate_transactions/${associateId}: ${err.message}`);
+    }
+
+    await sleep(100);
+  }
+}
+
+async function syncInvoiceDetails(pool, sql, api, companyId, invoices, result) {
+  for (const invoice of Array.isArray(invoices) ? invoices : []) {
+    const documentId = invoice?.commercial_doc_id ?? invoice?.document_id ?? invoice?.id;
+    if (documentId === undefined || documentId === null) continue;
+
+    try {
+      const detail = await getJson(api, `/kolaybi/v1/invoices/${documentId}`, { include_draft: true });
+      const row = detail?.data ?? detail;
+      if (row) await saveRaw(pool, sql, companyId, 'invoice_detail', [{ ...row, document_id: documentId }]);
+    } catch (err) {
+      result.errors.push(`invoice_detail/${documentId}: ${err.message}`);
+    }
+
+    await sleep(100);
+  }
+}
+
 async function syncAll({ poolPromise, sql, companyId }) {
   const pool = await poolPromise;
   const api = await getApi(pool, sql, companyId);
   const result = { CompanyId: companyId, KolaybiCompanyId: api.kolaybiCompanyId, sources: {}, errors: [] };
+  let allAssociates = [];
+  let allInvoices = [];
 
   for (const [name, path, params] of ENDPOINTS) {
     try {
       const response = await getJson(api, path, params);
       const rows = Array.isArray(response?.data) ? response.data : [];
       result.sources[name] = await saveRaw(pool, sql, companyId, name, rows);
+      if (name === 'associates') allAssociates = rows;
+      if (name.startsWith('invoices_')) allInvoices = allInvoices.concat(rows);
     } catch (err) {
       result.sources[name] = 0;
       result.errors.push(`${name}: ${err.message}`);
@@ -103,24 +159,8 @@ async function syncAll({ poolPromise, sql, companyId }) {
     }
   }
 
-  try {
-    const associates = await getJson(api, '/kolaybi/v1/associates', {});
-    for (const associate of Array.isArray(associates?.data) ? associates.data : []) {
-      const associateId = associate?.id;
-      if (associateId === undefined || associateId === null) continue;
-      try {
-        const response = await getJson(api, `/kolaybi/v1/associates/${associateId}/transactions`);
-        const data = response?.data?.transactionables || response?.data || [];
-        const rows = Array.isArray(data) ? data : [];
-        const saved = await saveRaw(pool, sql, companyId, 'associate_transactions', rows.map(x => ({ ...x, associate_id: associateId })));
-        result.sources.associate_transactions = (result.sources.associate_transactions || 0) + saved;
-      } catch (err) {
-        result.errors.push(`associate_transactions/${associateId}: ${err.message}`);
-      }
-    }
-  } catch (err) {
-    result.errors.push(`associate_transactions: ${err.message}`);
-  }
+  await syncAssociateDetails(pool, sql, api, companyId, allAssociates, result);
+  await syncInvoiceDetails(pool, sql, api, companyId, allInvoices, result);
 
   if (api.kolaybiCompanyId) {
     for (const direction of ['inbound', 'outbound']) {
