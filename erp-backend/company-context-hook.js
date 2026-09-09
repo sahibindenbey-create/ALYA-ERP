@@ -1,14 +1,6 @@
-/*
- * ALYA ERP - Çoklu şirket request context.
- *
- * Node -r ile preload edilir. Express request'indeki X-Company-Id değerini
- * AsyncLocalStorage'a taşır ve her SQL batch'inin aynı bağlantısında
- * SESSION_CONTEXT('CompanyId') ayarlar.
- */
 const { AsyncLocalStorage } = require('node:async_hooks');
 const express = require('express');
 const sql = require('mssql');
-const Module = require('module');
 
 const storage = new AsyncLocalStorage();
 const COMPANY_IDS = new Set([1, 2, 3]);
@@ -28,12 +20,12 @@ const originalUse = express.application.use;
 if (!express.application.__alyaCompanyContextPatched) {
   express.application.use = function patchedUse(...args) {
     if (!this.__alyaCompanyContextInstalled) {
-      const contextMiddleware = function alyaCompanyContext(req, res, next) {
-        const requestedId = getRequestedCompanyId(req);
-        if (!COMPANY_IDS.has(requestedId)) {
-          return res.status(400).json({ success:false, error:'Geçersiz CompanyId', CompanyId:requestedId });
+      const contextMiddleware = (req, res, next) => {
+        const companyId = getRequestedCompanyId(req);
+        if (!COMPANY_IDS.has(companyId)) {
+          return res.status(400).json({ success: false, error: 'Geçersiz CompanyId', CompanyId: companyId });
         }
-        storage.run({ companyId: requestedId }, next);
+        storage.run({ companyId }, next);
       };
       this.__alyaCompanyContextInstalled = true;
       originalUse.call(this, contextMiddleware);
@@ -43,60 +35,39 @@ if (!express.application.__alyaCompanyContextPatched) {
   express.application.__alyaCompanyContextPatched = true;
 }
 
-const requestPrototype = sql.Request && sql.Request.prototype;
+const requestPrototype = sql.Request?.prototype;
 if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
   const originalQuery = requestPrototype.query;
   requestPrototype.query = function companyAwareQuery(command, callback) {
-    const context = storage.getStore();
-    const companyId = context?.companyId;
-    if (!companyId || typeof command !== 'string') return originalQuery.call(this, command, callback);
+    const companyId = storage.getStore()?.companyId;
+    if (!companyId || typeof command !== 'string') {
+      return originalQuery.call(this, command, callback);
+    }
     const prefix = `EXEC sys.sp_set_session_context @key=N'CompanyId', @value=${companyId};`;
     return originalQuery.call(this, `${prefix}\n${command}`, callback);
   };
   requestPrototype.__alyaCompanyQueryPatched = true;
 }
 
-function withoutTimers(fn) {
-  const originalSetTimeout = global.setTimeout;
-  const originalSetInterval = global.setInterval;
-  const noopTimer = () => ({ unref(){}, ref(){}, hasRef(){return false;} });
-  global.setTimeout = noopTimer;
-  global.setInterval = noopTimer;
-  try { return fn(); } finally { global.setTimeout = originalSetTimeout; global.setInterval = originalSetInterval; }
-}
-
-withoutTimers(() => {
-  try { require('./kolaybi-erp-sync'); } catch (err) { console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message); }
-  try { require('./kolaybi-fatura-sync'); } catch (err) { console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message); }
-  try { require('./kolaybi-waybill-sync'); } catch (err) { console.error('[ALYA] KolayBi irsaliye aktarım katmanı yüklenemedi:', err.message); }
-  try { require('./kolaybi-full-sync'); } catch (err) { console.error('[ALYA] KolayBi tam senkronizasyon katmanı yüklenemedi:', err.message); }
-});
-
-if (!Module.__alyaKolaybiAutoSyncTimerGuard) {
-  const originalLoad = Module._load;
-  Module._load = function guardedKolaybiLoad(request,parent,isMain) {
-    const loaded = originalLoad.apply(this, arguments);
-    if (request === './kolaybi' && parent?.filename && parent.filename.endsWith('server.js') && typeof loaded === 'function') {
-      return function guardedRegisterKolaybi(args) {
-        const result = withoutTimers(() => loaded(args));
-        try {
-          const { install: installErp } = require('./kolaybi-erp-sync');
-          const { install: installInvoice } = require('./kolaybi-fatura-sync');
-          const { install: installWaybill } = require('./kolaybi-waybill-sync');
-          const { install: installFull } = require('./kolaybi-full-sync');
-          installErp(args);
-          installInvoice(args);
-          installWaybill(args);
-          installFull(args);
-        } catch (err) {
-          console.error('[ALYA] KolayBi senkronizasyon rotaları yüklenemedi:', err.message);
-        }
-        return result;
-      };
+const originalListen = express.application.listen;
+if (!express.application.__alyaKolaybiRoutesPatched) {
+  express.application.listen = function patchedListen(...args) {
+    if (!this.__alyaKolaybiRoutesInstalled) {
+      const { poolPromise, sql } = require('./db');
+      const { install: installErp } = require('./kolaybi-erp-sync');
+      const { install: installInvoice } = require('./kolaybi-fatura-sync');
+      const { install: installWaybill } = require('./kolaybi-waybill-sync');
+      const { install: installFull } = require('./kolaybi-full-sync');
+      const deps = { app: this, poolPromise, sql };
+      installErp(deps);
+      installInvoice(deps);
+      installWaybill(deps);
+      installFull(deps);
+      this.__alyaKolaybiRoutesInstalled = true;
     }
-    return loaded;
+    return originalListen.apply(this, args);
   };
-  Module.__alyaKolaybiAutoSyncTimerGuard = true;
+  express.application.__alyaKolaybiRoutesPatched = true;
 }
 
 module.exports = { storage, normalizeCompanyId };
