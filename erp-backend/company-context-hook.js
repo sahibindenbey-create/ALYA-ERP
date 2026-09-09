@@ -48,9 +48,6 @@ if (!express.application.__alyaCompanyContextPatched) {
   express.application.__alyaCompanyContextPatched = true;
 }
 
-// Tüm mssql Request.query çağrılarını şirket context'i ile çalıştır.
-// Böylece pool request'leri ve Transaction içindeki Request'ler aynı şekilde
-// RLS/default constraint izolasyonundan yararlanır.
 const requestPrototype = sql.Request && sql.Request.prototype;
 if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
   const originalQuery = requestPrototype.query;
@@ -72,19 +69,22 @@ if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
   requestPrototype.__alyaCompanyQueryPatched = true;
 }
 
-// Döngüsel require oluşmaması için export'u mapper yüklenmeden önce hazırla.
 module.exports = { storage, normalizeCompanyId };
 
-// KolayBi -> ERP gerçek veri aktarım katmanı server.js yüklenmeden önce hazır olsun.
 try {
   require('./kolaybi-erp-sync');
 } catch (err) {
   console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message);
 }
 
-// KolayBi -> ERP fatura aktarım katmanı server.js yüklenmeden önce hazır olsun.
 try {
   require('./kolaybi-fatura-sync');
 } catch (err) {
   console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message);
+}
+
+try {
+  require('./kolaybi-full-sync');
+} catch (err) {
+  console.error('[ALYA] KolayBi tam senkronizasyon katmanı yüklenemedi:', err.message);
 }
