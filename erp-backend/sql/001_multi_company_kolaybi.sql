@@ -1,5 +1,11 @@
 /* ALYA ERP - Çoklu Şirket + KolayBi altyapısı
    Güvenli, tekrar çalıştırılabilir migration.
+
+   Not: 003/005 gibi RLS migration'ları daha önce çalıştırılmışsa
+   KolaybiAyarlar üzerindeki BLOCK predicate, bu migration'ın şirket
+   başlangıç kayıtlarını oluşturmasını engelleyebilir. Veri taşıma/seed
+   adımında ilgili policy geçici olarak kapatılır ve hata durumunda da
+   tekrar açılır.
 */
 
 IF OBJECT_ID('dbo.Sirketler','U') IS NULL
@@ -61,22 +67,101 @@ BEGIN
     ALTER TABLE dbo.KolaybiAyarlar ADD UpdatedAt DATETIME2 NULL;
 END;
 
-/* Eski tek hesaplı kaydı Şirket 1'e taşı. */
-IF EXISTS (SELECT 1 FROM dbo.KolaybiAyarlar WHERE CompanyId IS NULL)
+/*
+   RLS daha önce aktif edilmişse KolaybiAyarlar'a şirket 2/3 seed kayıtları
+   eklenirken BLOCK predicate devreye girer. Migration bir admin/schema
+   değişikliği olduğundan ilgili policy'leri yalnızca bu seed bölümü boyunca
+   kapatıyoruz. Hata olursa CATCH bloğu policy'leri yeniden açar.
+*/
+IF OBJECT_ID('dbo.KolaybiAyarlar','U') IS NOT NULL
 BEGIN
-  UPDATE dbo.KolaybiAyarlar SET CompanyId = 1, UpdatedAt = SYSDATETIME() WHERE CompanyId IS NULL;
+  IF OBJECT_ID('tempdb..#KolaybiPolicies') IS NOT NULL DROP TABLE #KolaybiPolicies;
+  CREATE TABLE #KolaybiPolicies (PolicyName SYSNAME NOT NULL PRIMARY KEY);
+
+  INSERT INTO #KolaybiPolicies(PolicyName)
+  SELECT DISTINCT sp.name
+  FROM sys.security_policies sp
+  INNER JOIN sys.security_predicates p ON p.object_id = sp.object_id
+  WHERE p.target_object_id = OBJECT_ID('dbo.KolaybiAyarlar');
+
+  DECLARE @PolicyName SYSNAME, @PolicySql NVARCHAR(MAX);
+  DECLARE policy_cursor CURSOR LOCAL FAST_FORWARD FOR SELECT PolicyName FROM #KolaybiPolicies;
+  OPEN policy_cursor;
+  FETCH NEXT FROM policy_cursor INTO @PolicyName;
+  WHILE @@FETCH_STATUS = 0
+  BEGIN
+    SET @PolicySql = N'ALTER SECURITY POLICY dbo.' + QUOTENAME(@PolicyName) + N' WITH (STATE = OFF);';
+    EXEC sys.sp_executesql @PolicySql;
+    FETCH NEXT FROM policy_cursor INTO @PolicyName;
+  END;
+  CLOSE policy_cursor;
+  DEALLOCATE policy_cursor;
 END;
 
-/* Eksik şirket bağlantı kayıtlarını oluştur. API anahtarları boş bırakılır. */
-INSERT INTO dbo.KolaybiAyarlar (CompanyId, BaseUrl)
-SELECT s.CompanyId, 'https://ofis-api.kolaybi.com'
-FROM dbo.Sirketler s
-WHERE NOT EXISTS (SELECT 1 FROM dbo.KolaybiAyarlar k WHERE k.CompanyId = s.CompanyId);
+BEGIN TRY
+  /* Eski tek hesaplı kaydı Şirket 1'e taşı. */
+  IF EXISTS (SELECT 1 FROM dbo.KolaybiAyarlar WHERE CompanyId IS NULL)
+  BEGIN
+    UPDATE dbo.KolaybiAyarlar SET CompanyId = 1, UpdatedAt = SYSDATETIME() WHERE CompanyId IS NULL;
+  END;
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_KolaybiAyarlar_Company' AND object_id = OBJECT_ID('dbo.KolaybiAyarlar'))
-BEGIN
-  CREATE UNIQUE INDEX UQ_KolaybiAyarlar_Company ON dbo.KolaybiAyarlar(CompanyId) WHERE CompanyId IS NOT NULL;
-END;
+  /* Eksik şirket bağlantı kayıtlarını oluştur. API anahtarları boş bırakılır. */
+  INSERT INTO dbo.KolaybiAyarlar (CompanyId, BaseUrl)
+  SELECT s.CompanyId, 'https://ofis-api.kolaybi.com'
+  FROM dbo.Sirketler s
+  WHERE NOT EXISTS (SELECT 1 FROM dbo.KolaybiAyarlar k WHERE k.CompanyId = s.CompanyId);
+
+  IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UQ_KolaybiAyarlar_Company' AND object_id = OBJECT_ID('dbo.KolaybiAyarlar'))
+  BEGIN
+    CREATE UNIQUE INDEX UQ_KolaybiAyarlar_Company ON dbo.KolaybiAyarlar(CompanyId) WHERE CompanyId IS NOT NULL;
+  END;
+
+  /* RLS policy'lerini eski durumuna getir. */
+  IF OBJECT_ID('tempdb..#KolaybiPolicies') IS NOT NULL
+  BEGIN
+    DECLARE policy_cursor_restore CURSOR LOCAL FAST_FORWARD FOR SELECT PolicyName FROM #KolaybiPolicies;
+    OPEN policy_cursor_restore;
+    FETCH NEXT FROM policy_cursor_restore INTO @PolicyName;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+      SET @PolicySql = N'ALTER SECURITY POLICY dbo.' + QUOTENAME(@PolicyName) + N' WITH (STATE = ON);';
+      EXEC sys.sp_executesql @PolicySql;
+      FETCH NEXT FROM policy_cursor_restore INTO @PolicyName;
+    END;
+    CLOSE policy_cursor_restore;
+    DEALLOCATE policy_cursor_restore;
+  END;
+END TRY
+BEGIN CATCH
+  IF OBJECT_ID('tempdb..#KolaybiPolicies') IS NOT NULL
+  BEGIN
+    IF CURSOR_STATUS('local','policy_cursor_restore') >= -1
+    BEGIN
+      IF CURSOR_STATUS('local','policy_cursor_restore') >= 0 CLOSE policy_cursor_restore;
+      IF CURSOR_STATUS('local','policy_cursor_restore') >= -1 DEALLOCATE policy_cursor_restore;
+    END;
+
+    DECLARE policy_cursor_error CURSOR LOCAL FAST_FORWARD FOR SELECT PolicyName FROM #KolaybiPolicies;
+    OPEN policy_cursor_error;
+    FETCH NEXT FROM policy_cursor_error INTO @PolicyName;
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+      BEGIN TRY
+        SET @PolicySql = N'ALTER SECURITY POLICY dbo.' + QUOTENAME(@PolicyName) + N' WITH (STATE = ON);';
+        EXEC sys.sp_executesql @PolicySql;
+      END TRY
+      BEGIN CATCH
+        PRINT N'RLS policy yeniden etkinleştirilemedi: ' + @PolicyName + N' - ' + ERROR_MESSAGE();
+      END CATCH;
+      FETCH NEXT FROM policy_cursor_error INTO @PolicyName;
+    END;
+    CLOSE policy_cursor_error;
+    DEALLOCATE policy_cursor_error;
+  END;
+  THROW;
+END CATCH;
+
+IF OBJECT_ID('tempdb..#KolaybiPolicies') IS NOT NULL DROP TABLE #KolaybiPolicies;
 
 IF OBJECT_ID('dbo.KolaybiSyncKayitlari','U') IS NULL
 BEGIN
