@@ -30,15 +30,9 @@ if (!express.application.__alyaCompanyContextPatched) {
     if (!this.__alyaCompanyContextInstalled) {
       const contextMiddleware = function alyaCompanyContext(req, res, next) {
         const requestedId = getRequestedCompanyId(req);
-
         if (!COMPANY_IDS.has(requestedId)) {
-          return res.status(400).json({
-            success: false,
-            error: 'Geçersiz CompanyId',
-            CompanyId: requestedId
-          });
+          return res.status(400).json({ success:false, error:'Geçersiz CompanyId', CompanyId:requestedId });
         }
-
         storage.run({ companyId: requestedId }, next);
       };
       this.__alyaCompanyContextInstalled = true;
@@ -52,80 +46,39 @@ if (!express.application.__alyaCompanyContextPatched) {
 const requestPrototype = sql.Request && sql.Request.prototype;
 if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
   const originalQuery = requestPrototype.query;
-
   requestPrototype.query = function companyAwareQuery(command, callback) {
     const context = storage.getStore();
     const companyId = context?.companyId;
-
-    if (!companyId || typeof command !== 'string') {
-      return originalQuery.call(this, command, callback);
-    }
-
-    const prefix =
-      `EXEC sys.sp_set_session_context @key=N'CompanyId', @value=${companyId};`;
-
+    if (!companyId || typeof command !== 'string') return originalQuery.call(this, command, callback);
+    const prefix = `EXEC sys.sp_set_session_context @key=N'CompanyId', @value=${companyId};`;
     return originalQuery.call(this, `${prefix}\n${command}`, callback);
   };
-
   requestPrototype.__alyaCompanyQueryPatched = true;
 }
 
-// Test aşamasında KolayBi'nin hiçbir şirket için arka planda otomatik
-// senkronizasyon başlatmasına izin verme. Manuel endpoint'ler çalışmaya devam eder.
 function withoutTimers(fn) {
   const originalSetTimeout = global.setTimeout;
   const originalSetInterval = global.setInterval;
-  const noopTimer = () => ({ unref() {}, ref() {}, hasRef() { return false; } });
-
+  const noopTimer = () => ({ unref(){}, ref(){}, hasRef(){return false;} });
   global.setTimeout = noopTimer;
   global.setInterval = noopTimer;
-  try {
-    return fn();
-  } finally {
-    global.setTimeout = originalSetTimeout;
-    global.setInterval = originalSetInterval;
-  }
+  try { return fn(); } finally { global.setTimeout = originalSetTimeout; global.setInterval = originalSetInterval; }
 }
 
-// company-context-hook içinden yüklenen KolayBi katmanlarının timer'larını kapat.
 withoutTimers(() => {
-  try {
-    require('./kolaybi-erp-sync');
-  } catch (err) {
-    console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message);
-  }
-
-  try {
-    require('./kolaybi-fatura-sync');
-  } catch (err) {
-    console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message);
-  }
-
-  try {
-    require('./kolaybi-full-sync');
-  } catch (err) {
-    console.error('[ALYA] KolayBi tam senkronizasyon katmanı yüklenemedi:', err.message);
-  }
+  try { require('./kolaybi-erp-sync'); } catch (err) { console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message); }
+  try { require('./kolaybi-fatura-sync'); } catch (err) { console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message); }
+  try { require('./kolaybi-waybill-sync'); } catch (err) { console.error('[ALYA] KolayBi irsaliye aktarım katmanı yüklenemedi:', err.message); }
+  try { require('./kolaybi-full-sync'); } catch (err) { console.error('[ALYA] KolayBi tam senkronizasyon katmanı yüklenemedi:', err.message); }
 });
 
-// server.js'nin yüklediği ana kolaybi.js modülündeki 5 saniyelik ve periyodik
-// otomatik senkronizasyon timer'larını da yalnızca registration sırasında kapat.
 if (!Module.__alyaKolaybiAutoSyncTimerGuard) {
   const originalLoad = Module._load;
-  Module._load = function guardedKolaybiLoad(request, parent, isMain) {
+  Module._load = function guardedKolaybiLoad(request,parent,isMain) {
     const loaded = originalLoad.apply(this, arguments);
-
-    if (
-      request === './kolaybi' &&
-      parent?.filename &&
-      parent.filename.endsWith('server.js') &&
-      typeof loaded === 'function'
-    ) {
-      return function guardedRegisterKolaybi(args) {
-        return withoutTimers(() => loaded(args));
-      };
+    if (request === './kolaybi' && parent?.filename && parent.filename.endsWith('server.js') && typeof loaded === 'function') {
+      return function guardedRegisterKolaybi(args) { return withoutTimers(() => loaded(args)); };
     }
-
     return loaded;
   };
   Module.__alyaKolaybiAutoSyncTimerGuard = true;
