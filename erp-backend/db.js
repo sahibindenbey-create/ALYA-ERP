@@ -71,18 +71,8 @@ express.application.listen = function patchedListen(...args) {
   return originalListen.apply(this, args);
 };
 
-const originalQuery = sql.Request.prototype.query;
-sql.Request.prototype.query = function patchedQuery(command, ...args) {
-  const store = companyContext.getStore();
-  if (!store || !store.companyId) return originalQuery.call(this, command, ...args);
-  const contextSql = `
-    EXEC sys.sp_set_session_context @key = N'CompanyId', @value = @CompanyContextId;
-    ${command}
-  `;
-  this.input('CompanyContextId', sql.Int, store.companyId);
-  return originalQuery.call(this, contextSql, ...args);
-};
-
+// company-context-hook.js Node -r ile önceden yüklenir ve Request.query'yi
+// zaten şirket context'i ile sarar. Burada ikinci bir query patch'i yapmıyoruz.
 const originalInput = sql.Request.prototype.input;
 sql.Request.prototype.input = function patchedInput(name, type, value) {
   const store = companyContext.getStore();
