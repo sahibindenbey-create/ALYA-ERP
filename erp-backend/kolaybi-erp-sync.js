@@ -1,9 +1,8 @@
 /*
  * ALYA ERP - KolayBi -> ERP gerçek veri aktarım katmanı
  *
- * Bu dosya preload edilen company-context-hook tarafından yüklenir.
- * KolayBi modülünü değiştirmeden gerçek CariListesi / Urunler kayıtlarını
- * seçili CompanyId altında UPSERT eder.
+ * Tek sorumluluk: gerçek CariListesi / Urunler aktarımı.
+ * KolayBi ana modülü fatura ve waybill senkronizasyonunu ayrıca kurar.
  */
 
 const Module = require('module');
@@ -14,6 +13,7 @@ const { install: installWaybillSync } = require('./kolaybi-waybill-sync');
 const COMPANY_IDS = new Set([1, 2, 3]);
 const DEFAULT_BASE_URL = 'https://ofis-api.kolaybi.com';
 const originalLoad = Module._load;
+const tokenPromises = new Map();
 
 function value(row, keys, fallback = null) {
   for (const key of keys) {
@@ -25,6 +25,10 @@ function value(row, keys, fallback = null) {
 
 function asText(v) {
   return v === undefined || v === null ? null : String(v).trim() || null;
+}
+
+function normalizeBaseUrl(value) {
+  return String(value || DEFAULT_BASE_URL).trim().replace(/\/+$/, '').replace(/\/kolaybi\/v1$/i, '');
 }
 
 function associateCode(row) {
@@ -85,37 +89,75 @@ async function getToken(pool, sql, companyId) {
 
   const ayar = settings.recordset[0];
   if (!ayar?.ApiKey || !ayar?.Channel) {
-    throw new Error(`Şirket ${companyId} için KolayBi ayarı eksik.`);
+    throw new Error(`Şirket ${companyId} için KolayBi API Key / Channel tanımlı değil.`);
   }
 
-  const baseUrl = ayar.BaseUrl || DEFAULT_BASE_URL;
+  const baseUrl = normalizeBaseUrl(ayar.BaseUrl);
+  const channel = String(ayar.Channel).trim();
+
   if (ayar.AccessToken && ayar.TokenGecerlilik && new Date(ayar.TokenGecerlilik) > new Date()) {
-    return { token: ayar.AccessToken, channel: ayar.Channel, baseUrl };
+    return { token: ayar.AccessToken, channel, baseUrl };
   }
 
-  const response = await fetch(`${baseUrl}/kolaybi/v1/access_token`, {
-    method: 'POST',
-    headers: { Channel: ayar.Channel, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ api_key: ayar.ApiKey })
-  });
-  if (!response.ok) throw new Error(`KolayBi token HTTP ${response.status}`);
+  const key = String(companyId);
+  if (tokenPromises.has(key)) return tokenPromises.get(key);
 
-  const body = await response.json();
-  const token = body?.data;
-  if (!token) throw new Error('KolayBi token cevabı boş.');
+  const promise = (async () => {
+    console.log(`[KolayBi][Şirket ${companyId}] Access token alınıyor...`);
+    console.log(`[KolayBi][Şirket ${companyId}] BaseUrl: ${baseUrl}`);
+    console.log(`[KolayBi][Şirket ${companyId}] Channel: ${channel}`);
 
-  const validUntil = new Date(Date.now() + 23 * 60 * 60 * 1000);
-  await pool.request()
-    .input('CompanyId', sql.Int, companyId)
-    .input('AccessToken', sql.NVarChar, token)
-    .input('TokenGecerlilik', sql.DateTime2, validUntil)
-    .query(`
-      UPDATE dbo.KolaybiAyarlar
-      SET AccessToken=@AccessToken, TokenGecerlilik=@TokenGecerlilik, UpdatedAt=SYSDATETIME()
-      WHERE CompanyId=@CompanyId AND IsActive=1
-    `);
+    const response = await fetch(`${baseUrl}/kolaybi/v1/access_token`, {
+      method: 'POST',
+      headers: {
+        Channel: channel,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({ api_key: ayar.ApiKey })
+    });
 
-  return { token, channel: ayar.Channel, baseUrl };
+    const text = await response.text().catch(() => '');
+    if (!response.ok) {
+      let detail = text;
+      try {
+        const body = JSON.parse(text);
+        detail = body?.message || body?.error || body?.detail || text;
+      } catch (_) {}
+      throw new Error(`KolayBi access token HTTP ${response.status}: ${detail}`);
+    }
+
+    let body;
+    try {
+      body = JSON.parse(text);
+    } catch (_) {
+      throw new Error('KolayBi access token cevabı geçerli JSON değil.');
+    }
+
+    const token = body?.data;
+    if (!token) throw new Error('KolayBi access token cevabında token bulunamadı.');
+
+    const validUntil = new Date(Date.now() + 23 * 60 * 60 * 1000);
+    await pool.request()
+      .input('CompanyId', sql.Int, companyId)
+      .input('AccessToken', sql.NVarChar, token)
+      .input('TokenGecerlilik', sql.DateTime2, validUntil)
+      .query(`
+        UPDATE dbo.KolaybiAyarlar
+        SET AccessToken=@AccessToken, TokenGecerlilik=@TokenGecerlilik, UpdatedAt=SYSDATETIME()
+        WHERE CompanyId=@CompanyId AND IsActive=1
+      `);
+
+    console.log(`[KolayBi][Şirket ${companyId}] Access token alındı.`);
+    return { token, channel, baseUrl };
+  })();
+
+  tokenPromises.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    tokenPromises.delete(key);
+  }
 }
 
 async function upsertAssociate(pool, sql, companyId, row) {
@@ -147,38 +189,20 @@ async function upsertAssociate(pool, sql, companyId, row) {
     .input('Yetkili1Cep', sql.NVarChar, phone)
     .input('Yetkili1Mail', sql.NVarChar, email)
     .query(`
-      IF EXISTS (
-        SELECT 1 FROM dbo.CariListesi
-        WHERE CompanyId=@CompanyId AND CariKodu=@CariKodu
-      )
+      IF EXISTS (SELECT 1 FROM dbo.CariListesi WHERE CompanyId=@CompanyId AND CariKodu=@CariKodu)
       BEGIN
         UPDATE dbo.CariListesi SET
-          CariAdi=@CariAdi,
-          CariTipi=@CariTipi,
-          VergiDairesi=@VergiDairesi,
-          VergiNo=@VergiNo,
-          TCNo=@TCNo,
-          FaturaIl=@FaturaIl,
-          FaturaIlce=@FaturaIlce,
-          FaturaAdresDetay=@FaturaAdresDetay,
-          Iletisim=@Iletisim,
-          Yetkili1Cep=@Yetkili1Cep,
-          Yetkili1Mail=@Yetkili1Mail,
-          IsActive=1
+          CariAdi=@CariAdi, CariTipi=@CariTipi, VergiDairesi=@VergiDairesi, VergiNo=@VergiNo,
+          TCNo=@TCNo, FaturaIl=@FaturaIl, FaturaIlce=@FaturaIlce, FaturaAdresDetay=@FaturaAdresDetay,
+          Iletisim=@Iletisim, Yetkili1Cep=@Yetkili1Cep, Yetkili1Mail=@Yetkili1Mail, IsActive=1
         WHERE CompanyId=@CompanyId AND CariKodu=@CariKodu;
       END
       ELSE
       BEGIN
         INSERT INTO dbo.CariListesi
-        (
-          CompanyId,CariKodu,CariAdi,CariTipi,VergiDairesi,VergiNo,TCNo,
-          FaturaIl,FaturaIlce,FaturaAdresDetay,Iletisim,Yetkili1Cep,Yetkili1Mail,IsActive
-        )
+        (CompanyId,CariKodu,CariAdi,CariTipi,VergiDairesi,VergiNo,TCNo,FaturaIl,FaturaIlce,FaturaAdresDetay,Iletisim,Yetkili1Cep,Yetkili1Mail,IsActive)
         VALUES
-        (
-          @CompanyId,@CariKodu,@CariAdi,@CariTipi,@VergiDairesi,@VergiNo,@TCNo,
-          @FaturaIl,@FaturaIlce,@FaturaAdresDetay,@Iletisim,@Yetkili1Cep,@Yetkili1Mail,1
-        );
+        (@CompanyId,@CariKodu,@CariAdi,@CariTipi,@VergiDairesi,@VergiNo,@TCNo,@FaturaIl,@FaturaIlce,@FaturaAdresDetay,@Iletisim,@Yetkili1Cep,@Yetkili1Mail,1);
       END
     `);
   return true;
@@ -211,43 +235,26 @@ async function upsertProduct(pool, sql, companyId, row) {
     .input('Barkod', sql.NVarChar, barcode)
     .input('Aciklama', sql.NVarChar, description)
     .query(`
-      IF EXISTS (
-        SELECT 1 FROM dbo.Urunler
-        WHERE CompanyId=@CompanyId AND UrunKodu=@UrunKodu
-      )
+      IF EXISTS (SELECT 1 FROM dbo.Urunler WHERE CompanyId=@CompanyId AND UrunKodu=@UrunKodu)
       BEGIN
         UPDATE dbo.Urunler SET
-          UrunAdi=@UrunAdi,
-          Birim=@Birim,
-          Kategori=@Kategori,
-          StokMiktari=@StokMiktari,
-          AlisFiyati=@AlisFiyati,
-          ListeFiyati=@ListeFiyati,
-          KdvOrani=@KdvOrani,
-          Barkod=@Barkod,
-          Aciklama=@Aciklama,
-          IsActive=1,
-          UpdatedAt=SYSDATETIME()
+          UrunAdi=@UrunAdi, Birim=@Birim, Kategori=@Kategori, StokMiktari=@StokMiktari,
+          AlisFiyati=@AlisFiyati, ListeFiyati=@ListeFiyati, KdvOrani=@KdvOrani,
+          Barkod=@Barkod, Aciklama=@Aciklama, IsActive=1, UpdatedAt=SYSDATETIME()
         WHERE CompanyId=@CompanyId AND UrunKodu=@UrunKodu;
       END
       ELSE
       BEGIN
         INSERT INTO dbo.Urunler
-        (
-          CompanyId,UrunKodu,UrunAdi,Birim,Kategori,StokMiktari,
-          AlisFiyati,ListeFiyati,KdvOrani,Barkod,Aciklama,Tur,IsActive
-        )
+        (CompanyId,UrunKodu,UrunAdi,Birim,Kategori,StokMiktari,AlisFiyati,ListeFiyati,KdvOrani,Barkod,Aciklama,Tur,IsActive)
         VALUES
-        (
-          @CompanyId,@UrunKodu,@UrunAdi,@Birim,@Kategori,@StokMiktari,
-          @AlisFiyati,@ListeFiyati,@KdvOrani,@Barkod,@Aciklama,N'Ürün',1
-        );
+        (@CompanyId,@UrunKodu,@UrunAdi,@Birim,@Kategori,@StokMiktari,@AlisFiyati,@ListeFiyati,@KdvOrani,@Barkod,@Aciklama,N'Ürün',1);
       END
     `);
   return true;
 }
 
-async function syncRealData({ app, poolPromise, sql, companyId }) {
+async function syncRealData({ poolPromise, sql, companyId }) {
   const pool = await poolPromise;
   const api = await getToken(pool, sql, companyId);
 
@@ -261,13 +268,8 @@ async function syncRealData({ app, poolPromise, sql, companyId }) {
 
   let cariler = 0;
   let urunler = 0;
-
-  for (const row of associates) {
-    if (await upsertAssociate(pool, sql, companyId, row)) cariler++;
-  }
-  for (const row of products) {
-    if (await upsertProduct(pool, sql, companyId, row)) urunler++;
-  }
+  for (const row of associates) if (await upsertAssociate(pool, sql, companyId, row)) cariler++;
+  for (const row of products) if (await upsertProduct(pool, sql, companyId, row)) urunler++;
 
   return { CompanyId: companyId, cariler, urunler };
 }
@@ -281,11 +283,8 @@ function install({ app, poolPromise, sql }) {
     if (!COMPANY_IDS.has(companyId)) {
       return res.status(400).json({ success: false, error: 'Geçersiz CompanyId', CompanyId: companyId });
     }
-
     try {
-      const result = await storage.run({ companyId }, () =>
-        syncRealData({ app, poolPromise, sql, companyId })
-      );
+      const result = await storage.run({ companyId }, () => syncRealData({ poolPromise, sql, companyId }));
       res.json({ success: true, ...result });
     } catch (err) {
       console.error(`[KolayBi][ERP aktarım][Şirket ${companyId}]`, err);
@@ -296,14 +295,12 @@ function install({ app, poolPromise, sql }) {
   const autoSync = async () => {
     try {
       const pool = await poolPromise;
-      const result = await pool.request().query(`
-        SELECT CompanyId FROM dbo.Sirketler WHERE IsActive=1 ORDER BY CompanyId
-      `);
+      const result = await pool.request().query(`SELECT CompanyId FROM dbo.Sirketler WHERE IsActive=1 ORDER BY CompanyId`);
       for (const row of result.recordset) {
         const companyId = Number(row.CompanyId);
         if (!COMPANY_IDS.has(companyId)) continue;
         storage.run({ companyId }, () => {
-          syncRealData({ app, poolPromise, sql, companyId })
+          syncRealData({ poolPromise, sql, companyId })
             .then(x => console.log(`[KolayBi][ERP aktarım][Şirket ${companyId}] Cari: ${x.cariler}, Ürün: ${x.urunler}`))
             .catch(err => console.error(`[KolayBi][ERP aktarım][Şirket ${companyId}]`, err.message));
         });
@@ -319,12 +316,7 @@ function install({ app, poolPromise, sql }) {
 
 Module._load = function patchedLoad(request, parent, isMain) {
   const loaded = originalLoad.apply(this, arguments);
-
-  if (
-    request === './kolaybi' &&
-    parent?.filename &&
-    parent.filename.endsWith('server.js')
-  ) {
+  if (request === './kolaybi' && parent?.filename && parent.filename.endsWith('server.js')) {
     return function wrappedRegisterKolaybi(args) {
       const result = loaded(args);
       install(args);
@@ -333,7 +325,6 @@ Module._load = function patchedLoad(request, parent, isMain) {
       return result;
     };
   }
-
   return loaded;
 };
 
