@@ -36,26 +36,58 @@ BEGIN
 END;
 
 /* Mevcut final RLS policy varsa yeni tabloya da aynı şirket filtresini uygula. */
-IF OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation', N'P') IS NOT NULL
-   AND OBJECT_ID(N'dbo.fn_CompanyIsolationPredicate', N'IF') IS NOT NULL
+IF EXISTS
+(
+    SELECT 1 FROM sys.security_policies
+    WHERE name = N'SecurityPolicy_CompanyIsolation'
+      AND schema_id = SCHEMA_ID(N'dbo')
+)
+AND OBJECT_ID(N'dbo.fn_CompanyIsolationPredicate', N'IF') IS NOT NULL
 BEGIN
     BEGIN TRY
-        ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
-        ADD FILTER PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
-            ON dbo.KolaybiRawData;
+        IF NOT EXISTS
+        (
+            SELECT 1 FROM sys.security_predicates p
+            WHERE p.object_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
+              AND p.target_object_id = OBJECT_ID(N'dbo.KolaybiRawData')
+              AND p.predicate_type = 0
+        )
+        BEGIN
+            ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
+            ADD FILTER PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
+                ON dbo.KolaybiRawData;
+        END;
 
-        ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
-        ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
-            ON dbo.KolaybiRawData AFTER INSERT;
+        IF NOT EXISTS
+        (
+            SELECT 1 FROM sys.security_predicates p
+            WHERE p.object_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
+              AND p.target_object_id = OBJECT_ID(N'dbo.KolaybiRawData')
+              AND p.predicate_type = 1
+              AND p.operation = 4
+        )
+        BEGIN
+            ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
+            ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
+                ON dbo.KolaybiRawData AFTER INSERT;
+        END;
 
-        ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
-        ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
-            ON dbo.KolaybiRawData AFTER UPDATE;
+        IF NOT EXISTS
+        (
+            SELECT 1 FROM sys.security_predicates p
+            WHERE p.object_id = OBJECT_ID(N'dbo.SecurityPolicy_CompanyIsolation')
+              AND p.target_object_id = OBJECT_ID(N'dbo.KolaybiRawData')
+              AND p.predicate_type = 1
+              AND p.operation = 2
+        )
+        BEGIN
+            ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation
+            ADD BLOCK PREDICATE dbo.fn_CompanyIsolationPredicate(CompanyId)
+                ON dbo.KolaybiRawData AFTER UPDATE;
+        END;
     END TRY
     BEGIN CATCH
-        /* Migration tekrar çalıştırılırsa predicate zaten mevcut olabilir. */
-        IF ERROR_NUMBER() NOT IN (33276, 33277)
-            THROW;
+        THROW;
     END CATCH;
 END;
 
