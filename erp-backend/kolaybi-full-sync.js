@@ -1,7 +1,9 @@
+const Module = require('module');
 const { storage } = require('./company-context-hook');
 
 const COMPANY_IDS = new Set([1, 2, 3]);
 const DEFAULT_BASE_URL = 'https://ofis-api.kolaybi.com';
+const originalLoad = Module._load;
 
 const ENDPOINTS = [
   ['companies', '/kolaybi/v1/companies', {}],
@@ -100,7 +102,6 @@ async function syncAll({ poolPromise, sql, companyId }) {
     }
   }
 
-  // Her carinin tüm cari hareketlerini ayrıca al.
   try {
     const associates = await getJson(api, '/kolaybi/v1/associates', {});
     for (const associate of Array.isArray(associates?.data) ? associates.data : []) {
@@ -120,12 +121,10 @@ async function syncAll({ poolPromise, sql, companyId }) {
     result.errors.push(`associate_transactions: ${err.message}`);
   }
 
-  // e-Belge/e-Fatura kayıtlarını şirket bazında mümkün olan iki yönde al.
   for (const direction of ['inbound', 'outbound']) {
     try {
-      const companyIdFromKolaybi = null;
       const response = await getJson(api, '/kolaybi/v1/e_document/invoices', {
-        company_id: companyIdFromKolaybi || companyId,
+        company_id: companyId,
         direction
       });
       const rows = Array.isArray(response?.data) ? response.data : [];
@@ -139,13 +138,9 @@ async function syncAll({ poolPromise, sql, companyId }) {
   return result;
 }
 
-function install() {
-  if (global.__alyaKolaybiFullSyncInstalled) return;
-  global.__alyaKolaybiFullSyncInstalled = true;
-  const app = global.__alyaErpApp;
-  const poolPromise = global.__alyaErpPoolPromise;
-  const sql = global.__alyaErpSql;
-  if (!app || !poolPromise || !sql) return;
+function install({ app, poolPromise, sql }) {
+  if (app.__alyaKolaybiFullSyncInstalled) return;
+  app.__alyaKolaybiFullSyncInstalled = true;
 
   app.post('/api/kolaybi/full-senkronize', async (req, res) => {
     const companyId = Number(storage.getStore()?.companyId || req.headers['x-company-id'] || 1);
@@ -157,6 +152,37 @@ function install() {
       res.status(500).json({ success: false, CompanyId: companyId, error: err.message });
     }
   });
+
+  const autoSync = async () => {
+    try {
+      const pool = await poolPromise;
+      const companies = await pool.request().query(`SELECT CompanyId FROM dbo.Sirketler WHERE IsActive=1 ORDER BY CompanyId`);
+      for (const row of companies.recordset) {
+        const companyId = Number(row.CompanyId);
+        if (!COMPANY_IDS.has(companyId)) continue;
+        storage.run({ companyId }, () => syncAll({ poolPromise, sql, companyId })
+          .then(x => console.log(`[KolayBi][FULL][Şirket ${companyId}]`, x.sources, x.errors.length ? x.errors : 'OK'))
+          .catch(err => console.error(`[KolayBi][FULL][Şirket ${companyId}]`, err.message)));
+      }
+    } catch (err) {
+      console.error('[KolayBi][FULL] otomatik senkronizasyon:', err.message);
+    }
+  };
+
+  setTimeout(autoSync, 30000);
+  setInterval(autoSync, 5 * 60 * 1000);
 }
+
+Module._load = function patchedLoad(request, parent, isMain) {
+  const loaded = originalLoad.apply(this, arguments);
+  if (request === './kolaybi' && parent?.filename && parent.filename.endsWith('server.js')) {
+    return function wrappedRegisterKolaybi(args) {
+      const result = loaded(args);
+      install(args);
+      return result;
+    };
+  }
+  return loaded;
+};
 
 module.exports = { syncAll, install };
