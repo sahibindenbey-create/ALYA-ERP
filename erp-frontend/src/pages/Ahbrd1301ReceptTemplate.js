@@ -22,7 +22,7 @@ const RAW={
  AKSESUAR:[['Plastik tabla',0,'Adet','Fason baskı'],['Silikon',0,'Adet','9 cm kesim'],['6/8 mm demir',0,'Adet','Tabla üzerine'],['Plastik başlık',0,'Adet','Fason/tedarik']],
  PAKET:[['Ön etiket',0,'Adet','Paketleme'],['Koli',0,'Adet','Paketleme']]
 };
-const norm=v=>String(v||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ö/g,'o').replace(/ç/g,'c').replace(/[×x*.,;:/\\()\[\]_-]+/g,' ').replace(/\s+/g,' ').trim();
+const norm=v=>String(v||'').toLocaleLowerCase('tr-TR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ı/g,'i').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ö/g,'o').replace(/ç/g,'c').replace(/[×x*.,;:/\\()[\]_-]+/g,' ').replace(/\s+/g,' ').trim();
 const ALIAS={'Alüminyum levha H1050 1250x2500x1 mm':['aluminyum','h1050','1250 2500','levha','sac'],'20x40x1 mm kutu profil 221 cm':['20 40','kutu profil','221'],'254 cm yuvarlak profil 1 mm':['254','yuvarlak profil'],'Kurt ağzı kademe demiri':['kurt agzi','kademe'],'Plastik ayak parçası':['plastik','ayak'],'Plastik tabla':['plastik','tabla'],'Plastik başlık':['plastik','baslik'],'Kanal sacı':['kanal','sac'],'Göbek civata':['gobek','civata'],'Ön etiket':['etiket'],'Koli':['koli']};
 function scoreProduct(p,aliases,target){
  const text=norm(`${p.UrunKodu||''} ${p.UrunAdi||''}`);

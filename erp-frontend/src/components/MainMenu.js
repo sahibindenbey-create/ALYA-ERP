@@ -13,14 +13,12 @@ const ACTIVE_MODULES = [
 ];
 
 const MainMenu = () => {
-  const [activeGroup, setActiveGroup] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const navigate = useNavigate();
   const user = getCurrentUser();
 
   const handleHomeClick = () => {
-    setActiveGroup(null);
     setSearchTerm("");
     setCategoryFilter("all");
   };
