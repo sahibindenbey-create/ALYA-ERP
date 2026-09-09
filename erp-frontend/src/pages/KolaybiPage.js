@@ -4,6 +4,17 @@ import "./KolaybiPage.css";
 
 const API_URL = "http://localhost:5000/api";
 
+const formatTurkeyDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(date);
+};
+
 const KolaybiPage = () => {
   const [ayarlar, setAyarlar] = useState({ Channel: "", BaseUrl: "https://ofis-sandbox-api.kolaybi.com", ApiKeyTanimli: false, SonSenkronTarihi: null });
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -58,8 +69,18 @@ const KolaybiPage = () => {
     setSenkronYukleniyor(true);
     setSenkronSonuc(null);
     try {
-      const res = await axios.post(`${API_URL}/kolaybi/senkronize-et`);
-      setSenkronSonuc(res.data);
+      // Bu endpoint yalnızca raw senkron kaydı değil, gerçek Faturalar/FaturaDetay
+      // tablolarına aktarım yapan yeni fatura senkronizasyonudur.
+      const res = await axios.post(`${API_URL}/kolaybi/fatura-senkronize`);
+      const data = res.data || {};
+      setSenkronSonuc({
+        hata: data.success === false ? (data.error || "Fatura senkronizasyonu başarısız.") : null,
+        eklenen: Number(data.created || 0),
+        guncellenen: Number(data.updated || 0),
+        atlanan: Number(data.skipped || 0),
+        hatali: Number(data.errors || 0),
+        detaylar: data.details || data.detaylar || [],
+      });
       fetchAyarlar();
     } catch (err) {
       setSenkronSonuc({ hata: err.response?.data?.error || err.message });
@@ -120,7 +141,7 @@ const KolaybiPage = () => {
           Cari bulunamazsa otomatik yeni cari kartı oluşturulur. Zaten aktarılmış faturalar tekrar eklenmez, atlanır.
         </p>
         {ayarlar.SonSenkronTarihi && (
-          <div className="klb-son-senkron">Son senkronizasyon: {new Date(ayarlar.SonSenkronTarihi).toLocaleString("tr-TR")}</div>
+          <div className="klb-son-senkron">Son senkronizasyon: {formatTurkeyDateTime(ayarlar.SonSenkronTarihi)}</div>
         )}
         <button className="klb-sync-btn" onClick={senkronizeEt} disabled={senkronYukleniyor || !ayarlar.ApiKeyTanimli}>
           {senkronYukleniyor ? "Senkronize Ediliyor..." : "🔄 Faturaları Çek"}
@@ -131,13 +152,14 @@ const KolaybiPage = () => {
           senkronSonuc.hata ? (
             <div className="klb-sonuc-kutu hata">❌ {senkronSonuc.hata}</div>
           ) : (
-            <div className="klb-sonuc-kutu basarili">
+            <div className={`klb-sonuc-kutu ${senkronSonuc.hatali > 0 ? "hata" : "basarili"}`}>
               <div>✅ <strong>{senkronSonuc.eklenen}</strong> yeni fatura eklendi</div>
-              <div>⏭️ <strong>{senkronSonuc.atlanan}</strong> fatura zaten mevcuttu, atlandı</div>
+              <div>🔄 <strong>{senkronSonuc.guncellenen}</strong> mevcut fatura güncellendi</div>
+              <div>⏭️ <strong>{senkronSonuc.atlanan}</strong> fatura atlandı</div>
               {senkronSonuc.hatali > 0 && <div>⚠️ <strong>{senkronSonuc.hatali}</strong> faturada hata oluştu</div>}
               {senkronSonuc.detaylar?.length > 0 && (
                 <ul className="klb-hata-liste">
-                  {senkronSonuc.detaylar.map((d, i) => <li key={i}>{d}</li>)}
+                  {senkronSonuc.detaylar.map((d, i) => <li key={i}>{typeof d === "string" ? d : JSON.stringify(d)}</li>)}
                 </ul>
               )}
             </div>
