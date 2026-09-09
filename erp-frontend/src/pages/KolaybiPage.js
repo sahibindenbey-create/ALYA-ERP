@@ -7,7 +7,6 @@ const API_URL = "http://localhost:5000/api";
 const formatTurkeyDateTime = (value) => {
   if (!value) return "";
   let raw = String(value).trim();
-  // SQL datetime2 değerlerinde saat dilimi bilgisi yoksa Türkiye saati kabul et.
   if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) raw = raw.replace(" ", "T") + "+03:00";
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return String(value);
@@ -43,7 +42,7 @@ const KolaybiPage = () => {
 
   const ayarlariKaydet = async () => {
     setKaydediliyor(true);
-    try { await axios.put(`${API_URL}/kolaybi/ayarlar`,{ApiKey:apiKeyInput||undefined,Channel:channelInput,BaseUrl:baseUrlInput}); setApiKeyInput(""); setTestSonuc(null); fetchAyarlar(); alert("Ayarlar kaydedildi."); }
+    try { await axios.put(`${API_URL}/kolaybi/ayarlar`,{ApiKey:apiKeyInput||undefined,Channel:channelInput,BaseUrl:baseUrlInput}); setApiKeyInput(""); setTestSonuc(null); await fetchAyarlar(); alert("Ayarlar kaydedildi."); }
     catch(err){ alert("Kaydedilirken hata oluştu: "+(err.response?.data?.error||err.message)); }
     finally{setKaydediliyor(false);}
   };
@@ -65,8 +64,7 @@ const KolaybiPage = () => {
     try {
       const res=await axios.post(`${API_URL}/kolaybi/fatura-senkronize`); const data=res.data||{};
       setSenkronSonuc({hata:data.success===false?(data.error||"Fatura senkronizasyonu başarısız."):null,eklenen:Number(data.created||0),guncellenen:Number(data.updated||0),atlanan:Number(data.skipped||0),hatali:Number(data.errors||0),detaylar:data.details||data.detaylar||[]});
-      if (data.success !== false) setLastSyncNow();
-      fetchAyarlar();
+      if (data.success !== false) { await fetchAyarlar(); setLastSyncNow(); }
     } catch(err){setSenkronSonuc({hata:err.response?.data?.error||err.message});}
     finally{setSenkronYukleniyor(false);}
   };
@@ -77,7 +75,7 @@ const KolaybiPage = () => {
     try {
       const res=await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`); const data=res.data||{};
       setIrsaliyeSonuc({hata:data.success===false?(data.error||"İrsaliye senkronizasyonu başarısız."):null,eklenen:Number(data.created||0),guncellenen:Number(data.updated||0),atlanan:Number(data.skipped||0),hatali:Number(data.errors||0)});
-      if (data.success !== false) setLastSyncNow();
+      if (data.success !== false) { await fetchAyarlar(); setLastSyncNow(); }
     } catch(err){setIrsaliyeSonuc({hata:err.response?.data?.error||err.message});}
     finally{setIrsaliyeYukleniyor(false);}
   };
