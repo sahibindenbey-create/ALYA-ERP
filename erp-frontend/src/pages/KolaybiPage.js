@@ -6,9 +6,16 @@ const API_URL = "http://localhost:5000/api";
 
 const formatTurkeyDateTime = (value) => {
   if (!value) return "";
-  const date = new Date(value);
+  let raw = String(value).trim();
+  // SQL datetime2 değerlerinde saat dilimi bilgisi yoksa Türkiye saati kabul et.
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) raw = raw.replace(" ", "T") + "+03:00";
+  const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "short", timeStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
+    dateStyle: "short",
+    timeStyle: "medium"
+  }).format(date);
 };
 
 const KolaybiPage = () => {
@@ -25,8 +32,12 @@ const KolaybiPage = () => {
   const [kaydediliyor, setKaydediliyor] = useState(false);
 
   const fetchAyarlar = async () => {
-    try { const res=await axios.get(`${API_URL}/kolaybi/ayarlar`); setAyarlar(res.data); setChannelInput(res.data.Channel||""); setBaseUrlInput(res.data.BaseUrl||"https://ofis-sandbox-api.kolaybi.com"); }
-    catch(err){ console.error(err); }
+    try {
+      const res=await axios.get(`${API_URL}/kolaybi/ayarlar`);
+      setAyarlar(res.data);
+      setChannelInput(res.data.Channel||"");
+      setBaseUrlInput(res.data.BaseUrl||"https://ofis-sandbox-api.kolaybi.com");
+    } catch(err){ console.error(err); }
   };
   useEffect(()=>{fetchAyarlar();},[]);
 
@@ -44,12 +55,17 @@ const KolaybiPage = () => {
     finally{setTestYukleniyor(false);}
   };
 
+  const setLastSyncNow = () => {
+    setAyarlar(prev => ({ ...prev, SonSenkronTarihi: new Date().toISOString() }));
+  };
+
   const senkronizeEt = async () => {
     if(!window.confirm("KolayBi'deki tüm satış ve alış faturaları çekilip sisteme aktarılacak. Devam edilsin mi?")) return;
     setSenkronYukleniyor(true); setSenkronSonuc(null);
     try {
       const res=await axios.post(`${API_URL}/kolaybi/fatura-senkronize`); const data=res.data||{};
       setSenkronSonuc({hata:data.success===false?(data.error||"Fatura senkronizasyonu başarısız."):null,eklenen:Number(data.created||0),guncellenen:Number(data.updated||0),atlanan:Number(data.skipped||0),hatali:Number(data.errors||0),detaylar:data.details||data.detaylar||[]});
+      if (data.success !== false) setLastSyncNow();
       fetchAyarlar();
     } catch(err){setSenkronSonuc({hata:err.response?.data?.error||err.message});}
     finally{setSenkronYukleniyor(false);}
@@ -61,6 +77,7 @@ const KolaybiPage = () => {
     try {
       const res=await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`); const data=res.data||{};
       setIrsaliyeSonuc({hata:data.success===false?(data.error||"İrsaliye senkronizasyonu başarısız."):null,eklenen:Number(data.created||0),guncellenen:Number(data.updated||0),atlanan:Number(data.skipped||0),hatali:Number(data.errors||0)});
+      if (data.success !== false) setLastSyncNow();
     } catch(err){setIrsaliyeSonuc({hata:err.response?.data?.error||err.message});}
     finally{setIrsaliyeYukleniyor(false);}
   };
