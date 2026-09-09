@@ -27,12 +27,13 @@ const idOf = (row, fallback) => String(
 async function getApi(pool, sql, companyId) {
   const r = await pool.request()
     .input('CompanyId', sql.Int, companyId)
-    .query(`SELECT TOP 1 ApiKey, Channel, BaseUrl, AccessToken, TokenGecerlilik FROM dbo.KolaybiAyarlar WHERE CompanyId=@CompanyId AND IsActive=1 ORDER BY Id DESC`);
+    .query(`SELECT TOP 1 ApiKey, Channel, BaseUrl, AccessToken, TokenGecerlilik, KolaybiCompanyId FROM dbo.KolaybiAyarlar WHERE CompanyId=@CompanyId AND IsActive=1 ORDER BY Id DESC`);
   const a = r.recordset[0];
   if (!a?.ApiKey || !a?.Channel) throw new Error(`Şirket ${companyId} için KolayBi API ayarı eksik.`);
   const baseUrl = a.BaseUrl || DEFAULT_BASE_URL;
+  const kolaybiCompanyId = a.KolaybiCompanyId || null;
   if (a.AccessToken && a.TokenGecerlilik && new Date(a.TokenGecerlilik) > new Date()) {
-    return { token: a.AccessToken, channel: a.Channel, baseUrl };
+    return { token: a.AccessToken, channel: a.Channel, baseUrl, kolaybiCompanyId };
   }
   const response = await fetch(`${baseUrl}/kolaybi/v1/access_token`, {
     method: 'POST',
@@ -48,7 +49,7 @@ async function getApi(pool, sql, companyId) {
     .input('AccessToken', sql.NVarChar, token)
     .input('TokenGecerlilik', sql.DateTime2, new Date(Date.now() + 23 * 60 * 60 * 1000))
     .query(`UPDATE dbo.KolaybiAyarlar SET AccessToken=@AccessToken, TokenGecerlilik=@TokenGecerlilik, UpdatedAt=SYSDATETIME() WHERE CompanyId=@CompanyId AND IsActive=1`);
-  return { token, channel: a.Channel, baseUrl };
+  return { token, channel: a.Channel, baseUrl, kolaybiCompanyId };
 }
 
 async function getJson(api, path, params = {}) {
@@ -88,7 +89,7 @@ async function saveRaw(pool, sql, companyId, entityType, rows) {
 async function syncAll({ poolPromise, sql, companyId }) {
   const pool = await poolPromise;
   const api = await getApi(pool, sql, companyId);
-  const result = { CompanyId: companyId, sources: {}, errors: [] };
+  const result = { CompanyId: companyId, KolaybiCompanyId: api.kolaybiCompanyId, sources: {}, errors: [] };
 
   for (const [name, path, params] of ENDPOINTS) {
     try {
@@ -121,18 +122,22 @@ async function syncAll({ poolPromise, sql, companyId }) {
     result.errors.push(`associate_transactions: ${err.message}`);
   }
 
-  for (const direction of ['inbound', 'outbound']) {
-    try {
-      const response = await getJson(api, '/kolaybi/v1/e_document/invoices', {
-        company_id: companyId,
-        direction
-      });
-      const rows = Array.isArray(response?.data) ? response.data : [];
-      result.sources[`e_document_${direction}`] = await saveRaw(pool, sql, companyId, `e_document_${direction}`, rows);
-    } catch (err) {
-      result.sources[`e_document_${direction}`] = 0;
-      result.errors.push(`e_document_${direction}: ${err.message}`);
+  if (api.kolaybiCompanyId) {
+    for (const direction of ['inbound', 'outbound']) {
+      try {
+        const response = await getJson(api, '/kolaybi/v1/e_document/invoices', {
+          company_id: api.kolaybiCompanyId,
+          direction
+        });
+        const rows = Array.isArray(response?.data) ? response.data : [];
+        result.sources[`e_document_${direction}`] = await saveRaw(pool, sql, companyId, `e_document_${direction}`, rows);
+      } catch (err) {
+        result.sources[`e_document_${direction}`] = 0;
+        result.errors.push(`e_document_${direction}: ${err.message}`);
+      }
     }
+  } else {
+    result.errors.push('e_document: KolaybiCompanyId ayarlarda tanımlı değil.');
   }
 
   return result;
