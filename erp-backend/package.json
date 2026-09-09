@@ -4,8 +4,8 @@
   "description": "ALYA ERP backend",
   "main": "server.js",
   "scripts": {
-    "start": "node -r ./company-context-hook.js server.js",
-    "dev": "node -r ./company-context-hook.js server.js",
+    "start": "node -r ./company-context-hook.js -r ./kolaybi-erp-sync.js server.js",
+    "dev": "node -r ./company-context-hook.js -r ./kolaybi-erp-sync.js server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
