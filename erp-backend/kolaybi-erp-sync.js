@@ -317,9 +317,6 @@ function install({ app, poolPromise, sql }) {
   setInterval(autoSync, 60 * 1000);
 }
 
-// server.js require('./kolaybi') çağrısını yakalayıp gerçek aktarım katmanlarını
-// aynı app/pool üzerinde kuruyoruz. Böylece büyük kolaybi.js dosyasını
-// yeniden yazmak zorunda kalmadan mevcut entegrasyon korunur.
 Module._load = function patchedLoad(request, parent, isMain) {
   const loaded = originalLoad.apply(this, arguments);
 
@@ -340,4 +337,4 @@ Module._load = function patchedLoad(request, parent, isMain) {
   return loaded;
 };
 
-module.exports = { syncRealData };
+module.exports = { syncRealData, install };
