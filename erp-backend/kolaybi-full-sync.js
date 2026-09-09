@@ -1,5 +1,7 @@
 const Module = require('module');
 const { storage } = require('./company-context-hook');
+const { syncRealData } = require('./kolaybi-erp-sync');
+const { syncInvoices } = require('./kolaybi-fatura-sync');
 
 const COMPANY_IDS = new Set([1, 2, 3]);
 const DEFAULT_BASE_URL = 'https://ofis-api.kolaybi.com';
@@ -93,7 +95,6 @@ async function syncAssociateDetails(pool, sql, api, companyId, associates, resul
   for (const associate of Array.isArray(associates) ? associates : []) {
     const associateId = associate?.id;
     if (associateId === undefined || associateId === null) continue;
-
     try {
       const detail = await getJson(api, `/kolaybi/v1/associates/${associateId}`);
       const row = detail?.data ?? detail;
@@ -101,7 +102,6 @@ async function syncAssociateDetails(pool, sql, api, companyId, associates, resul
     } catch (err) {
       result.errors.push(`associate_detail/${associateId}: ${err.message}`);
     }
-
     try {
       const response = await getJson(api, `/kolaybi/v1/associates/${associateId}/transactions`);
       const data = response?.data?.transactionables || response?.data || [];
@@ -111,7 +111,6 @@ async function syncAssociateDetails(pool, sql, api, companyId, associates, resul
     } catch (err) {
       result.errors.push(`associate_transactions/${associateId}: ${err.message}`);
     }
-
     await sleep(100);
   }
 }
@@ -120,7 +119,6 @@ async function syncInvoiceDetails(pool, sql, api, companyId, invoices, result) {
   for (const invoice of Array.isArray(invoices) ? invoices : []) {
     const documentId = invoice?.commercial_doc_id ?? invoice?.document_id ?? invoice?.id;
     if (documentId === undefined || documentId === null) continue;
-
     try {
       const detail = await getJson(api, `/kolaybi/v1/invoices/${documentId}`, { include_draft: true });
       const row = detail?.data ?? detail;
@@ -128,7 +126,6 @@ async function syncInvoiceDetails(pool, sql, api, companyId, invoices, result) {
     } catch (err) {
       result.errors.push(`invoice_detail/${documentId}: ${err.message}`);
     }
-
     await sleep(100);
   }
 }
@@ -174,10 +171,10 @@ async function syncProductStock(pool, sql, api, companyId, products, result) {
   }
 }
 
-async function syncAll({ poolPromise, sql, companyId }) {
+async function syncAll({ app, poolPromise, sql, companyId }) {
   const pool = await poolPromise;
   const api = await getApi(pool, sql, companyId);
-  const result = { CompanyId: companyId, KolaybiCompanyId: api.kolaybiCompanyId, sources: {}, errors: [] };
+  const result = { CompanyId: companyId, KolaybiCompanyId: api.kolaybiCompanyId, sources: {}, erp: {}, errors: [] };
   let allAssociates = [];
   let allInvoices = [];
   let allProducts = [];
@@ -222,6 +219,19 @@ async function syncAll({ poolPromise, sql, companyId }) {
     result.errors.push('e_document: KolaybiCompanyId ayarlarda tanımlı değil.');
   }
 
+  // Ham veri toplandıktan sonra aynı şirket context'i içinde gerçek ERP tablolarını da güncelle.
+  try {
+    result.erp.cariUrun = await syncRealData({ app, poolPromise, sql, companyId });
+  } catch (err) {
+    result.errors.push(`erp_cari_urun: ${err.message}`);
+  }
+
+  try {
+    result.erp.faturalar = await syncInvoices({ poolPromise, sql, companyId });
+  } catch (err) {
+    result.errors.push(`erp_fatura: ${err.message}`);
+  }
+
   return result;
 }
 
@@ -233,7 +243,7 @@ function install({ app, poolPromise, sql }) {
     const companyId = Number(storage.getStore()?.companyId || req.headers['x-company-id'] || 1);
     if (!COMPANY_IDS.has(companyId)) return res.status(400).json({ success: false, error: 'Geçersiz CompanyId', CompanyId: companyId });
     try {
-      const result = await storage.run({ companyId }, () => syncAll({ poolPromise, sql, companyId }));
+      const result = await storage.run({ companyId }, () => syncAll({ app, poolPromise, sql, companyId }));
       res.json({ success: true, ...result });
     } catch (err) {
       res.status(500).json({ success: false, CompanyId: companyId, error: err.message });
@@ -247,8 +257,8 @@ function install({ app, poolPromise, sql }) {
       for (const row of companies.recordset) {
         const companyId = Number(row.CompanyId);
         if (!COMPANY_IDS.has(companyId)) continue;
-        storage.run({ companyId }, () => syncAll({ poolPromise, sql, companyId })
-          .then(x => console.log(`[KolayBi][FULL][Şirket ${companyId}]`, x.sources, x.errors.length ? x.errors : 'OK'))
+        storage.run({ companyId }, () => syncAll({ app, poolPromise, sql, companyId })
+          .then(x => console.log(`[KolayBi][FULL][Şirket ${companyId}]`, x.sources, x.erp, x.errors.length ? x.errors : 'OK'))
           .catch(err => console.error(`[KolayBi][FULL][Şirket ${companyId}]`, err.message)));
       }
     } catch (err) {
