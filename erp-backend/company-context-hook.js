@@ -77,7 +77,22 @@ if (!Module.__alyaKolaybiAutoSyncTimerGuard) {
   Module._load = function guardedKolaybiLoad(request,parent,isMain) {
     const loaded = originalLoad.apply(this, arguments);
     if (request === './kolaybi' && parent?.filename && parent.filename.endsWith('server.js') && typeof loaded === 'function') {
-      return function guardedRegisterKolaybi(args) { return withoutTimers(() => loaded(args)); };
+      return function guardedRegisterKolaybi(args) {
+        const result = withoutTimers(() => loaded(args));
+        try {
+          const { install: installErp } = require('./kolaybi-erp-sync');
+          const { install: installInvoice } = require('./kolaybi-fatura-sync');
+          const { install: installWaybill } = require('./kolaybi-waybill-sync');
+          const { install: installFull } = require('./kolaybi-full-sync');
+          installErp(args);
+          installInvoice(args);
+          installWaybill(args);
+          installFull(args);
+        } catch (err) {
+          console.error('[ALYA] KolayBi senkronizasyon rotaları yüklenemedi:', err.message);
+        }
+        return result;
+      };
     }
     return loaded;
   };
