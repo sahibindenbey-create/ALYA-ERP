@@ -32,12 +32,13 @@ BEGIN
     BaseUrl NVARCHAR(500) NOT NULL CONSTRAINT DF_KolaybiAyarlar_BaseUrl DEFAULT 'https://ofis-api.kolaybi.com',
     AccessToken NVARCHAR(MAX) NULL,
     TokenGecerlilik DATETIME2 NULL,
-    KolaybiCompanyId INT NULL,
+    KolaybiCompanyId NVARCHAR(100) NULL,
     SonSenkronTarihi DATETIME2 NULL,
     SonSenkronDurumu NVARCHAR(30) NULL,
     SonSenkronMesaji NVARCHAR(1000) NULL,
-    CreatedDate DATETIME2 NOT NULL CONSTRAINT DF_KolaybiAyarlar_CreatedDate DEFAULT SYSDATETIME(),
-    UpdatedDate DATETIME2 NOT NULL CONSTRAINT DF_KolaybiAyarlar_UpdatedDate DEFAULT SYSDATETIME(),
+    IsActive BIT NOT NULL CONSTRAINT DF_KolaybiAyarlar_IsActive DEFAULT 1,
+    CreatedAt DATETIME2 NOT NULL CONSTRAINT DF_KolaybiAyarlar_CreatedAt DEFAULT SYSDATETIME(),
+    UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_KolaybiAyarlar_UpdatedAt DEFAULT SYSDATETIME(),
     CONSTRAINT UQ_KolaybiAyarlar_Company UNIQUE (CompanyId),
     CONSTRAINT FK_KolaybiAyarlar_Sirket FOREIGN KEY (CompanyId) REFERENCES dbo.Sirketler(CompanyId)
   );
@@ -47,19 +48,23 @@ BEGIN
   IF COL_LENGTH('dbo.KolaybiAyarlar','CompanyId') IS NULL
     ALTER TABLE dbo.KolaybiAyarlar ADD CompanyId INT NULL;
   IF COL_LENGTH('dbo.KolaybiAyarlar','KolaybiCompanyId') IS NULL
-    ALTER TABLE dbo.KolaybiAyarlar ADD KolaybiCompanyId INT NULL;
+    ALTER TABLE dbo.KolaybiAyarlar ADD KolaybiCompanyId NVARCHAR(100) NULL;
   IF COL_LENGTH('dbo.KolaybiAyarlar','SonSenkronDurumu') IS NULL
     ALTER TABLE dbo.KolaybiAyarlar ADD SonSenkronDurumu NVARCHAR(30) NULL;
   IF COL_LENGTH('dbo.KolaybiAyarlar','SonSenkronMesaji') IS NULL
     ALTER TABLE dbo.KolaybiAyarlar ADD SonSenkronMesaji NVARCHAR(1000) NULL;
-  IF COL_LENGTH('dbo.KolaybiAyarlar','UpdatedDate') IS NULL
-    ALTER TABLE dbo.KolaybiAyarlar ADD UpdatedDate DATETIME2 NULL;
+  IF COL_LENGTH('dbo.KolaybiAyarlar','IsActive') IS NULL
+    ALTER TABLE dbo.KolaybiAyarlar ADD IsActive BIT NOT NULL CONSTRAINT DF_KolaybiAyarlar_IsActive DEFAULT 1;
+  IF COL_LENGTH('dbo.KolaybiAyarlar','CreatedAt') IS NULL
+    ALTER TABLE dbo.KolaybiAyarlar ADD CreatedAt DATETIME2 NULL;
+  IF COL_LENGTH('dbo.KolaybiAyarlar','UpdatedAt') IS NULL
+    ALTER TABLE dbo.KolaybiAyarlar ADD UpdatedAt DATETIME2 NULL;
 END;
 
 /* Eski tek hesaplı kaydı Şirket 1'e taşı. */
 IF EXISTS (SELECT 1 FROM dbo.KolaybiAyarlar WHERE CompanyId IS NULL)
 BEGIN
-  UPDATE dbo.KolaybiAyarlar SET CompanyId = 1, UpdatedDate = SYSDATETIME() WHERE CompanyId IS NULL;
+  UPDATE dbo.KolaybiAyarlar SET CompanyId = 1, UpdatedAt = SYSDATETIME() WHERE CompanyId IS NULL;
 END;
 
 /* Eksik şirket bağlantı kayıtlarını oluştur. API anahtarları boş bırakılır. */
