@@ -76,9 +76,15 @@ if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
 module.exports = { storage, normalizeCompanyId };
 
 // KolayBi -> ERP gerçek veri aktarım katmanı server.js yüklenmeden önce hazır olsun.
-// Bu modül, mevcut kolaybi.js dosyasını değiştirmeden onu güvenli biçimde sarar.
 try {
   require('./kolaybi-erp-sync');
 } catch (err) {
   console.error('[ALYA] KolayBi ERP aktarım katmanı yüklenemedi:', err.message);
+}
+
+// KolayBi -> ERP fatura aktarım katmanı server.js yüklenmeden önce hazır olsun.
+try {
+  require('./kolaybi-fatura-sync');
+} catch (err) {
+  console.error('[ALYA] KolayBi fatura aktarım katmanı yüklenemedi:', err.message);
 }
