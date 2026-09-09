@@ -8,6 +8,8 @@
 
 const Module = require('module');
 const { storage } = require('./company-context-hook');
+const { install: installInvoiceSync } = require('./kolaybi-fatura-sync');
+const { install: installWaybillSync } = require('./kolaybi-waybill-sync');
 
 const COMPANY_IDS = new Set([1, 2, 3]);
 const DEFAULT_BASE_URL = 'https://ofis-api.kolaybi.com';
@@ -315,7 +317,7 @@ function install({ app, poolPromise, sql }) {
   setInterval(autoSync, 60 * 1000);
 }
 
-// server.js require('./kolaybi') çağrısını yakalayıp gerçek aktarım katmanını
+// server.js require('./kolaybi') çağrısını yakalayıp gerçek aktarım katmanlarını
 // aynı app/pool üzerinde kuruyoruz. Böylece büyük kolaybi.js dosyasını
 // yeniden yazmak zorunda kalmadan mevcut entegrasyon korunur.
 Module._load = function patchedLoad(request, parent, isMain) {
@@ -329,6 +331,8 @@ Module._load = function patchedLoad(request, parent, isMain) {
     return function wrappedRegisterKolaybi(args) {
       const result = loaded(args);
       install(args);
+      installInvoiceSync(args);
+      installWaybillSync(args);
       return result;
     };
   }
