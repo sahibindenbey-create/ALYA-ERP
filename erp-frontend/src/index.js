@@ -8,21 +8,9 @@ import './professional-modules.css';
 import './layout-fixes.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-
-// Tüm Axios isteklerine aktif şirketi otomatik ekle.
-// Böylece mevcut modüllerin tek tek değiştirilmesine gerek kalmaz.
-axios.interceptors.request.use((config) => {
-  const companyId = localStorage.getItem('selectedCompanyId') || '1';
-  config.headers = config.headers || {};
-  config.headers['X-Company-Id'] = companyId;
-  return config;
-});
-
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-
+import {getAuthToken,logoutUser} from './auth';
+axios.interceptors.request.use(config=>{const companyId=localStorage.getItem('selectedCompanyId')||'1';const token=getAuthToken();config.headers=config.headers||{};config.headers['X-Company-Id']=companyId;if(token)config.headers.Authorization=`Bearer ${token}`;return config;});
+axios.interceptors.response.use(response=>response,error=>{if(error.response?.status===401&&!String(error.config?.url||'').includes('/auth/login')){logoutUser();if(window.location.pathname!=='/login')window.location.assign('/login');}return Promise.reject(error);});
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<React.StrictMode><App/></React.StrictMode>);
 reportWebVitals();
