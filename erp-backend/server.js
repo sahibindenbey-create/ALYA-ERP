@@ -1624,6 +1624,32 @@ app.post('/api/siparisler/toplu-import', async (req, res) => {
    İRSALİYE MODÜLÜ (Alış / Satış)
    ========================================================= */
 
+// Panel Özet'teki "Son İşlemler" tablosu için: sipariş, fatura ve irsaliyeyi
+// tek bir akışta, tarihe göre birleştirir.
+app.get('/api/son-islemler', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT TOP 12 * FROM (
+        SELECT SiparisKodu AS Kod, N'Sipariş' AS Modul, SiparisTarihi AS Tarih, CariAdi, Durum, ToplamTutar AS Tutar, SiparisYonu AS Yon
+        FROM Siparisler
+        UNION ALL
+        SELECT FaturaKodu, N'Fatura', FaturaTarihi, CariAdi, Durum, GenelToplam, Yon
+        FROM Faturalar WHERE IsActive = 1
+        UNION ALL
+        SELECT IrsaliyeKodu, N'İrsaliye', IrsaliyeTarihi, CariAdi, NULL, ToplamTutar, Yon
+        FROM Irsaliyeler WHERE IsActive = 1
+      ) x
+      WHERE Tarih IS NOT NULL
+      ORDER BY Tarih DESC
+    `);
+    res.json(result.recordset);
+  } catch (err) {
+    console.error('Hata:', err);
+    res.status(500).json({ error: 'Son işlemler alınamadı', detail: err.message });
+  }
+});
+
 app.get('/api/irsaliyeler', async (req, res) => {
   try {
     const pool = await poolPromise;

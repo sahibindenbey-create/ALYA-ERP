@@ -81,7 +81,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media print {
-  .db-sidebar, .db-topbar, .erp-toolbar, .db-quick-grid, .db-greeting, button { display: none !important; }
+  .db-sidebar, .db-topbar, .db-modules, .erp-toolbar, .db-quick-grid, .db-greeting, button { display: none !important; }
   .db-layout, .db-main { display: block !important; }
   .db-content { max-width: none !important; padding: 0 !important; }
   body { background: #fff !important; }

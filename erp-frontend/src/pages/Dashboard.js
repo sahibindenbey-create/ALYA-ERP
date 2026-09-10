@@ -27,6 +27,16 @@ import { logoutUser, getCurrentUser } from "../auth";
 import CompanySelector from "../components/CompanySelector";
 import "./Dashboard.css";
 
+const MODULE_TABS = [
+  { label: "Genel Bakış", to: "/dashboard" },
+  { label: "Satış", to: "/dashboard/siparis-listesi" },
+  { label: "Satın Alma", to: "/dashboard/faturalar/alis" },
+  { label: "Stok", to: "/dashboard/urun-listesi" },
+  { label: "Üretim", to: "/dashboard/receteler" },
+  { label: "Finans", to: "/dashboard/finans" },
+  { label: "Raporlama", to: "/dashboard/raporlar" },
+];
+
 const NAV_GROUPS = [
   {
     title: "GENEL BAKIŞ",
@@ -429,6 +439,18 @@ function Dashboard() {
           </div>
         </header>
 
+        <div className="db-modules">
+          {MODULE_TABS.map((m) => (
+            <button
+              key={m.to}
+              className={`db-module ${location.pathname === m.to || (m.to !== "/dashboard" && location.pathname.startsWith(m.to)) ? "active" : ""}`}
+              onClick={() => navigate(m.to)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
         <div className="db-content">
           {isMainDashboard ? (
             <DashboardHome user={user} navigate={navigate} />
@@ -445,6 +467,7 @@ function DashboardHome({ user, navigate }) {
   const today = new Date().toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const [stats, setStats] = useState({ cariler: null, urunler: null, siparisler: null });
   const [trend, setTrend] = useState([]);
+  const [sonIslemler, setSonIslemler] = useState(null);
 
   useEffect(() => {
     const API_URL = "http://localhost:5000/api";
@@ -455,6 +478,7 @@ function DashboardHome({ user, navigate }) {
     ]).then(([cariler, urunler, siparisler]) => setStats({ cariler, urunler, siparisler }));
 
     axios.get(`${API_URL}/raporlar/aylik-trend`).then(r => setTrend(r.data)).catch(() => setTrend([]));
+    axios.get(`${API_URL}/son-islemler`).then(r => setSonIslemler(r.data)).catch(() => setSonIslemler([]));
   }, []);
 
   const maxTutar = Math.max(1, ...trend.map(t => Math.max(t.satis, t.alis)));
@@ -518,6 +542,38 @@ function DashboardHome({ user, navigate }) {
         </>
       )}
 
+      <div className="db-section-title">Son İşlemler</div>
+      <div className="erp-card" style={{ marginBottom: 24, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th>İşlem No</th><th>Tarih</th><th>Modül</th><th>Cari</th><th>Yön</th><th>Durum</th><th className="numeric">Tutar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sonIslemler === null && (
+                <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-secondary)" }}>Yükleniyor...</td></tr>
+              )}
+              {sonIslemler?.length === 0 && (
+                <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-secondary)" }}>Henüz işlem yok</td></tr>
+              )}
+              {sonIslemler?.map((row, i) => (
+                <tr key={i}>
+                  <td style={{ fontFamily: "Consolas, monospace", color: "#245fb4", fontWeight: 700 }}>{row.Kod}</td>
+                  <td>{row.Tarih ? new Date(row.Tarih).toLocaleDateString("tr-TR") : "-"}</td>
+                  <td>{row.Modul}</td>
+                  <td>{row.CariAdi || "-"}</td>
+                  <td>{row.Yon || "-"}</td>
+                  <td>{row.Durum ? <span className={`erp-badge ${durumRengi(row.Durum)}`}>{row.Durum}</span> : "-"}</td>
+                  <td className="numeric">{Number(row.Tutar || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ₺</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="db-section-title">Hızlı Erişim</div>
       <div className="db-quick-grid">
         <QuickCard icon={<PeopleIcon />} title="Cari Listesi" desc="Kayıtlı müşteri / tedarikçileri görüntüle" onClick={() => navigate("/dashboard/cari-listesi")} />
@@ -548,6 +604,14 @@ function DashboardHome({ user, navigate }) {
       </div>
     </div>
   );
+}
+
+function durumRengi(durum) {
+  const d = String(durum || "").toLocaleLowerCase("tr-TR");
+  if (d.includes("tamam") || (d.includes("onay") && d.includes("land"))) return "green";
+  if (d.includes("iptal") || d.includes("red")) return "red";
+  if (d.includes("bekl") || d.includes("onay")) return "blue";
+  return "orange";
 }
 
 function QuickCard({ icon, title, desc, onClick }) {

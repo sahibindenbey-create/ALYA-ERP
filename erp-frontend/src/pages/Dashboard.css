@@ -99,6 +99,12 @@
 }
 .db-logout:hover { background: var(--sidebar-bg-hover); border-color: #61708d; color: #fff; }
 
+/* MODULE TABS */
+.db-modules { display: flex; align-items: center; gap: 7px; padding: 0 30px; height: 44px; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; position: sticky; top: 68px; z-index: 15; }
+.db-module { height: 28px; border: 1px solid transparent; border-radius: 7px; background: var(--surface-soft); color: #4d5869; padding: 0 11px; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+.db-module:hover { background: #eef1f5; }
+.db-module.active { background: var(--accent-light); border-color: var(--accent-border); color: #1859b8; }
+
 /* MAIN */
 .db-main { flex: 1; min-width: 0; background: var(--bg-page); }
 .db-topbar {
