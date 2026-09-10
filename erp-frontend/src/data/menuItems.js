@@ -1,5 +1,19 @@
 const menuItems = [
   {
+    group: "KolayBi Entegrasyonu",
+    items: [
+      { name: "Bağlantı & Senkronizasyon", path: "kolaybi", icon: "🔗" },
+      { name: "Faturalar", path: "kolaybi/faturalar", icon: "🧾" },
+      { name: "İrsaliyeler", path: "kolaybi/irsaliyeler", icon: "🚚" },
+      { name: "Banka Hesapları", path: "kolaybi/banka-hesaplari", icon: "🏦" },
+      { name: "Kasalar", path: "kolaybi/kasalar", icon: "💰" },
+      { name: "Kredi Kartları", path: "kolaybi/kredi-kartlari", icon: "💳" },
+      { name: "Online Banka Hesapları", path: "kolaybi/online-banka-hesaplari", icon: "🌐" },
+      { name: "Çekler", path: "kolaybi/cekler", icon: "📄" },
+      { name: "Senetler", path: "kolaybi/senetler", icon: "📜" },
+    ],
+  },
+  {
     group: "Uygulamalar",
     items: [
       { name: "Cari Listesi", path: "cari-listesi", icon: "👥" },
@@ -90,18 +104,6 @@ const menuItems = [
       { name: "GDPR", path: "gdpr", icon: "🔒" },
       { name: "Watalogy", path: "watalogy", icon: "📊" },
       { name: "Protein", path: "protein", icon: "🥩" },
-    ],
-  },
-  {
-    group: "KolayBi Entegrasyonu",
-    items: [
-      { name: "Bağlantı & Senkronizasyon", path: "kolaybi", icon: "🔗" },
-      { name: "Banka Hesapları", path: "kolaybi/banka-hesaplari", icon: "🏦" },
-      { name: "Kasalar", path: "kolaybi/kasalar", icon: "💰" },
-      { name: "Kredi Kartları", path: "kolaybi/kredi-kartlari", icon: "💳" },
-      { name: "Online Banka Hesapları", path: "kolaybi/online-banka-hesaplari", icon: "🌐" },
-      { name: "Çekler", path: "kolaybi/cekler", icon: "📄" },
-      { name: "Senetler", path: "kolaybi/senetler", icon: "📜" },
     ],
   },
   {

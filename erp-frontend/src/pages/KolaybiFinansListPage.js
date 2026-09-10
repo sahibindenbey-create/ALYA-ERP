@@ -144,4 +144,21 @@ export const cekSenetColumns = [
   { key: "tutar", label: "Tutar", render: (r) => formatTutar(r.tutar, r.paraBirimi) }
 ];
 
+export const faturaColumns = [
+  { key: "FaturaKodu", label: "Fatura No" },
+  { key: "Yon", label: "Yön" },
+  { key: "CariAdi", label: "Cari" },
+  { key: "FaturaTarihi", label: "Tarih", render: (r) => r.FaturaTarihi ? formatTurkeyDateTime(r.FaturaTarihi) : "-" },
+  { key: "GenelToplam", label: "Genel Toplam", render: (r) => formatTutar(r.GenelToplam, "TRY") },
+  { key: "Durum", label: "Durum" }
+];
+
+export const irsaliyeColumns = [
+  { key: "IrsaliyeKodu", label: "İrsaliye No" },
+  { key: "Yon", label: "Yön" },
+  { key: "CariAdi", label: "Cari" },
+  { key: "IrsaliyeTarihi", label: "Tarih", render: (r) => r.IrsaliyeTarihi ? formatTurkeyDateTime(r.IrsaliyeTarihi) : "-" },
+  { key: "ToplamTutar", label: "Toplam Tutar", render: (r) => formatTutar(r.ToplamTutar, "TRY") }
+];
+
 export default KolaybiFinansListPage;

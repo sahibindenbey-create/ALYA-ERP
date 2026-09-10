@@ -80,7 +80,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
             </button>
             <h2>Applications</h2>
             <div className="popup-grid">
-              {menuItems[0].items.map((item, idx) => (
+              {(menuItems.find((g) => g.group === "Uygulamalar")?.items || menuItems[0].items).map((item, idx) => (
                 <Link
                   to={`/${item.path}`}
                   key={idx}

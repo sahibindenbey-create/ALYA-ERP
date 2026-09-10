@@ -25,6 +25,8 @@ import KolaybiKrediKartlariPage from "./pages/KolaybiKrediKartlariPage";
 import KolaybiOnlineBankaHesaplariPage from "./pages/KolaybiOnlineBankaHesaplariPage";
 import KolaybiCeklerPage from "./pages/KolaybiCeklerPage";
 import KolaybiSenetlerPage from "./pages/KolaybiSenetlerPage";
+import KolaybiFaturalarPage from "./pages/KolaybiFaturalarPage";
+import KolaybiIrsaliyelerPage from "./pages/KolaybiIrsaliyelerPage";
 import FinansPage from "./pages/FinansPage";
 import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
@@ -63,6 +65,8 @@ function App() {
           <Route path="kolaybi/online-banka-hesaplari" element={<KolaybiOnlineBankaHesaplariPage />} />
           <Route path="kolaybi/cekler" element={<KolaybiCeklerPage />} />
           <Route path="kolaybi/senetler" element={<KolaybiSenetlerPage />} />
+          <Route path="kolaybi/faturalar" element={<KolaybiFaturalarPage />} />
+          <Route path="kolaybi/irsaliyeler" element={<KolaybiIrsaliyelerPage />} />
           <Route path="platform-import" element={<PlatformImportPage />} />
           <Route path="platform-tumu" element={<TumPlatformlarPage />} />
           <Route path="ihracat" element={<IhracatPage />} />

@@ -72,6 +72,32 @@ async function readRaw(pool, sql, companyId, entityType) {
   return { rows, sonSenkron };
 }
 
+async function readFaturalar(pool, sql, companyId) {
+  const result = await pool.request()
+    .input('CompanyId', sql.Int, companyId)
+    .query(`
+      SELECT FaturaId, FaturaKodu, Yon, FaturaTarihi, VadeTarihi, CariKodu, CariAdi,
+             OdemeSekli, AraToplam, KdvToplam, GenelToplam, Durum, UpdatedAt
+      FROM dbo.Faturalar
+      WHERE CompanyId = @CompanyId AND IsActive = 1
+      ORDER BY FaturaId DESC
+    `);
+  return result.recordset;
+}
+
+async function readIrsaliyeler(pool, sql, companyId) {
+  const result = await pool.request()
+    .input('CompanyId', sql.Int, companyId)
+    .query(`
+      SELECT IrsaliyeId, IrsaliyeKodu, Yon, IrsaliyeTarihi, CariKodu, CariAdi,
+             ToplamTutar, UpdatedAt
+      FROM dbo.Irsaliyeler
+      WHERE CompanyId = @CompanyId AND IsActive = 1
+      ORDER BY IrsaliyeId DESC
+    `);
+  return result.recordset;
+}
+
 function install({ app, poolPromise, sql }) {
   if (app.__alyaKolaybiFinansInstalled) return;
   app.__alyaKolaybiFinansInstalled = true;
@@ -123,6 +149,30 @@ function install({ app, poolPromise, sql }) {
   app.get('/api/kolaybi/finans/senetler', listEndpoint('bonds'));
   // Ham veri: type alanı beklenenden farklı çıkarsa teşhis için kullanılır.
   app.get('/api/kolaybi/finans/vault-ham', vaultEndpoint(null));
+
+  app.get('/api/kolaybi/finans/faturalar', async (req, res) => {
+    const companyId = companyIdOf(req);
+    if (!COMPANY_IDS.has(companyId)) return res.status(400).json({ success: false, error: 'Geçersiz CompanyId' });
+    try {
+      const pool = await poolPromise;
+      const kayitlar = await readFaturalar(pool, sql, companyId);
+      res.json({ success: true, CompanyId: companyId, kayitlar });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/kolaybi/finans/irsaliyeler', async (req, res) => {
+    const companyId = companyIdOf(req);
+    if (!COMPANY_IDS.has(companyId)) return res.status(400).json({ success: false, error: 'Geçersiz CompanyId' });
+    try {
+      const pool = await poolPromise;
+      const kayitlar = await readIrsaliyeler(pool, sql, companyId);
+      res.json({ success: true, CompanyId: companyId, kayitlar });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
 }
 
 module.exports = { install };
