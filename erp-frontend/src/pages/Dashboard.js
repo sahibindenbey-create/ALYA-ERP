@@ -35,15 +35,20 @@ const NAV_GROUPS = [
   {
     title: "KOLAYBI ENTEGRASYONU",
     items: [
-      { to: "/dashboard/kolaybi", label: "Bağlantı & Senkronizasyon", icon: <SyncAltIcon fontSize="small" />, exact: true },
-      { to: "/dashboard/kolaybi/faturalar", label: "Faturalar", icon: <ReceiptLongIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/irsaliyeler", label: "İrsaliyeler", icon: <LocalShippingIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/banka-hesaplari", label: "Banka Hesapları", icon: <AccountBalanceIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/kasalar", label: "Kasalar", icon: <AccountBalanceIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/kredi-kartlari", label: "Kredi Kartları", icon: <AccountBalanceIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/online-banka-hesaplari", label: "Online Banka Hesapları", icon: <AccountBalanceIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/cekler", label: "Çekler", icon: <ReceiptLongIcon fontSize="small" /> },
-      { to: "/dashboard/kolaybi/senetler", label: "Senetler", icon: <ReceiptLongIcon fontSize="small" /> },
+      {
+        label: "Bağlantı & Senkronizasyon", icon: <SyncAltIcon fontSize="small" />, base: "/dashboard/kolaybi",
+        children: [
+          { to: "/dashboard/kolaybi", label: "Genel Ayarlar", icon: <SyncAltIcon fontSize="small" />, exact: true },
+          { to: "/dashboard/kolaybi/faturalar", label: "Faturalar", icon: <ReceiptLongIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/irsaliyeler", label: "İrsaliyeler", icon: <LocalShippingIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/banka-hesaplari", label: "Banka Hesapları", icon: <AccountBalanceIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/kasalar", label: "Kasalar", icon: <AccountBalanceIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/kredi-kartlari", label: "Kredi Kartları", icon: <AccountBalanceIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/online-banka-hesaplari", label: "Online Banka Hesapları", icon: <AccountBalanceIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/cekler", label: "Çekler", icon: <ReceiptLongIcon fontSize="small" /> },
+          { to: "/dashboard/kolaybi/senetler", label: "Senetler", icon: <ReceiptLongIcon fontSize="small" /> },
+        ],
+      },
     ],
   },
   {
