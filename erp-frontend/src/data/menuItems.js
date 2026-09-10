@@ -93,6 +93,18 @@ const menuItems = [
     ],
   },
   {
+    group: "KolayBi Entegrasyonu",
+    items: [
+      { name: "Bağlantı & Senkronizasyon", path: "kolaybi", icon: "🔗" },
+      { name: "Banka Hesapları", path: "kolaybi/banka-hesaplari", icon: "🏦" },
+      { name: "Kasalar", path: "kolaybi/kasalar", icon: "💰" },
+      { name: "Kredi Kartları", path: "kolaybi/kredi-kartlari", icon: "💳" },
+      { name: "Online Banka Hesapları", path: "kolaybi/online-banka-hesaplari", icon: "🌐" },
+      { name: "Çekler", path: "kolaybi/cekler", icon: "📄" },
+      { name: "Senetler", path: "kolaybi/senetler", icon: "📜" },
+    ],
+  },
+  {
     group: "Sistem",
     items: [
       { name: "Genel Ayarlar", path: "genel-ayarlari", icon: "⚙️" },

@@ -19,6 +19,12 @@ import FinansalRaporlarPage from "./pages/FinansalRaporlarPage";
 import UretimMaliyetiPage from "./pages/UretimMaliyetiPage";
 import IhracatPage from "./pages/IhracatPage";
 import KolaybiPage from "./pages/KolaybiPage";
+import KolaybiBankaHesaplariPage from "./pages/KolaybiBankaHesaplariPage";
+import KolaybiKasalarPage from "./pages/KolaybiKasalarPage";
+import KolaybiKrediKartlariPage from "./pages/KolaybiKrediKartlariPage";
+import KolaybiOnlineBankaHesaplariPage from "./pages/KolaybiOnlineBankaHesaplariPage";
+import KolaybiCeklerPage from "./pages/KolaybiCeklerPage";
+import KolaybiSenetlerPage from "./pages/KolaybiSenetlerPage";
 import FinansPage from "./pages/FinansPage";
 import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
@@ -51,6 +57,12 @@ function App() {
           <Route path="finans" element={<FinansPage section="hareketler" />} />
           <Route path="finans/hesaplar" element={<FinansPage section="hesaplar" />} />
           <Route path="kolaybi" element={<KolaybiPage />} />
+          <Route path="kolaybi/banka-hesaplari" element={<KolaybiBankaHesaplariPage />} />
+          <Route path="kolaybi/kasalar" element={<KolaybiKasalarPage />} />
+          <Route path="kolaybi/kredi-kartlari" element={<KolaybiKrediKartlariPage />} />
+          <Route path="kolaybi/online-banka-hesaplari" element={<KolaybiOnlineBankaHesaplariPage />} />
+          <Route path="kolaybi/cekler" element={<KolaybiCeklerPage />} />
+          <Route path="kolaybi/senetler" element={<KolaybiSenetlerPage />} />
           <Route path="platform-import" element={<PlatformImportPage />} />
           <Route path="platform-tumu" element={<TumPlatformlarPage />} />
           <Route path="ihracat" element={<IhracatPage />} />

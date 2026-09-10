@@ -58,11 +58,13 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       const { install: installInvoice } = require('./kolaybi-fatura-sync');
       const { install: installWaybill } = require('./kolaybi-waybill-sync');
       const { install: installFull } = require('./kolaybi-full-sync');
+      const { install: installFinans } = require('./kolaybi-finans');
       const deps = { app: this, poolPromise, sql };
       installErp(deps);
       installInvoice(deps);
       installWaybill(deps);
       installFull(deps);
+      installFinans(deps);
       this.__alyaKolaybiRoutesInstalled = true;
     }
     return originalListen.apply(this, args);
