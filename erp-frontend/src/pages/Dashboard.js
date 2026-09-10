@@ -33,6 +33,20 @@ const NAV_GROUPS = [
     items: [{ to: "/dashboard", label: "Panel Özet", icon: <DashboardIcon fontSize="small" />, exact: true }],
   },
   {
+    title: "KOLAYBI ENTEGRASYONU",
+    items: [
+      { to: "/dashboard/kolaybi", label: "Bağlantı & Senkronizasyon", icon: <SyncAltIcon fontSize="small" />, exact: true },
+      { to: "/dashboard/kolaybi/faturalar", label: "Faturalar", icon: <ReceiptLongIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/irsaliyeler", label: "İrsaliyeler", icon: <LocalShippingIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/banka-hesaplari", label: "Banka Hesapları", icon: <AccountBalanceIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/kasalar", label: "Kasalar", icon: <AccountBalanceIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/kredi-kartlari", label: "Kredi Kartları", icon: <AccountBalanceIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/online-banka-hesaplari", label: "Online Banka Hesapları", icon: <AccountBalanceIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/cekler", label: "Çekler", icon: <ReceiptLongIcon fontSize="small" /> },
+      { to: "/dashboard/kolaybi/senetler", label: "Senetler", icon: <ReceiptLongIcon fontSize="small" /> },
+    ],
+  },
+  {
     title: "SATIŞ / SATINALMA",
     items: [
       {
@@ -57,7 +71,6 @@ const NAV_GROUPS = [
           { to: "/dashboard/faturalar/liste", label: "Fatura Listesi", icon: <ListAltIcon fontSize="small" /> },
           { to: "/dashboard/faturalar/satis", label: "Satış Faturaları", icon: <ReceiptLongIcon fontSize="small" /> },
           { to: "/dashboard/faturalar/alis", label: "Alış Faturaları", icon: <ReceiptLongIcon fontSize="small" /> },
-          { to: "/dashboard/kolaybi", label: "KolayBi Entegrasyonu", icon: <SyncAltIcon fontSize="small" /> },
         ],
       },
       {
@@ -136,6 +149,14 @@ const PAGE_TITLES = {
   "/dashboard/faturalar/satis": "Satış Faturaları",
   "/dashboard/faturalar/alis": "Alış Faturaları",
   "/dashboard/kolaybi": "KolayBi Entegrasyonu",
+  "/dashboard/kolaybi/faturalar": "KolayBi Faturaları",
+  "/dashboard/kolaybi/irsaliyeler": "KolayBi İrsaliyeleri",
+  "/dashboard/kolaybi/banka-hesaplari": "KolayBi Banka Hesapları",
+  "/dashboard/kolaybi/kasalar": "KolayBi Kasalar",
+  "/dashboard/kolaybi/kredi-kartlari": "KolayBi Kredi Kartları",
+  "/dashboard/kolaybi/online-banka-hesaplari": "KolayBi Online Banka Hesapları",
+  "/dashboard/kolaybi/cekler": "KolayBi Çekler",
+  "/dashboard/kolaybi/senetler": "KolayBi Senetler",
   "/dashboard/finans": "Finans (Kasa/Banka)",
   "/dashboard/ihracat": "İhracat Modülü",
   "/dashboard/finans/hesaplar": "Banka Hesapları",
