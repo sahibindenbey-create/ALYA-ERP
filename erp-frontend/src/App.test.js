@@ -1,8 +1,16 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
+import menuItems from "./data/menuItems";
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+test("kritik ERP modülleri menü kataloğunda bulunur", () => {
+  const paths = menuItems.flatMap((group) =>
+    group.items.map((item) => item.path),
+  );
+  expect(paths).toEqual(
+    expect.arrayContaining([
+      "cari-listesi",
+      "satis",
+      "uretim",
+      "muhasebe-islemleri",
+      "butce",
+    ]),
+  );
 });

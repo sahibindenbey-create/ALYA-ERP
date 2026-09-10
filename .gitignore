@@ -27,6 +27,10 @@ dist/
 # ZIP
 *.zip
 
+# Local project backups
+ALYA ERP YEDEK*/
+ALYA-LOCAL-GECICI-*/
+
 # Windows
 Thumbs.db
 .DS_Store

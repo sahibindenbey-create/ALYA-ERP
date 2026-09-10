@@ -3,17 +3,20 @@ const express = require('express');
 const sql = require('mssql');
 
 const storage = new AsyncLocalStorage();
-const COMPANY_IDS = new Set([1, 2, 3]);
+
+function parseCompanyId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
 
 function normalizeCompanyId(value) {
-  const id = Number(value);
-  return COMPANY_IDS.has(id) ? id : 1;
+  return parseCompanyId(value) ?? 1;
 }
 
 function getRequestedCompanyId(req) {
   const raw = req.headers['x-company-id'] ?? req.query?.companyId ?? null;
   if (raw === null || raw === undefined || raw === '') return 1;
-  return Number(raw);
+  return parseCompanyId(raw);
 }
 
 const originalUse = express.application.use;
@@ -22,8 +25,8 @@ if (!express.application.__alyaCompanyContextPatched) {
     if (!this.__alyaCompanyContextInstalled) {
       const contextMiddleware = (req, res, next) => {
         const companyId = getRequestedCompanyId(req);
-        if (!COMPANY_IDS.has(companyId)) {
-          return res.status(400).json({ success: false, error: 'Geçersiz CompanyId', CompanyId: companyId });
+        if (companyId === null) {
+          return res.status(400).json({ success: false, error: 'Geçersiz CompanyId' });
         }
         storage.run({ companyId }, next);
       };
@@ -72,4 +75,4 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
   express.application.__alyaKolaybiRoutesPatched = true;
 }
 
-module.exports = { storage, normalizeCompanyId };
+module.exports = { storage, normalizeCompanyId, parseCompanyId };
