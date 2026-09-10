@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node -r ./company-context-hook.js server.js",
     "dev": "node -r ./company-context-hook.js server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
