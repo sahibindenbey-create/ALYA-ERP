@@ -1,28 +1,44 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import axios from 'axios';
-import './index.css';
-import './theme.css';
-import './professional-ui.css';
-import './professional-modules.css';
-import './layout-fixes.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import axios from "axios";
+import "./index.css";
+import "./theme.css";
+import "./professional-ui.css";
+import "./professional-modules.css";
+import "./layout-fixes.css";
+import App from "./App";
+import reportWebVitals from "./reportWebVitals";
+import { getAuthToken, logoutUser } from "./auth";
 
-// Tüm Axios isteklerine aktif şirketi otomatik ekle.
-// Böylece mevcut modüllerin tek tek değiştirilmesine gerek kalmaz.
 axios.interceptors.request.use((config) => {
-  const companyId = localStorage.getItem('selectedCompanyId') || '1';
+  const companyId = localStorage.getItem("selectedCompanyId") || "1";
+  const token = getAuthToken();
   config.headers = config.headers || {};
-  config.headers['X-Company-Id'] = companyId;
+  config.headers["X-Company-Id"] = companyId;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (
+      error.response?.status === 401 &&
+      !String(error.config?.url || "").includes("/auth/login")
+    ) {
+      logoutUser();
+      if (window.location.pathname !== "/login")
+        window.location.assign("/login");
+    }
+    return Promise.reject(error);
+  },
+);
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 
 reportWebVitals();
