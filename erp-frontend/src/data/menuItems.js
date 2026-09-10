@@ -1,122 +1,237 @@
-const menuItems = [
-  {
-    group: "KolayBi Entegrasyonu",
-    items: [
-      { name: "Bağlantı & Senkronizasyon", path: "kolaybi", icon: "🔗" },
-      { name: "Faturalar", path: "kolaybi/faturalar", icon: "🧾" },
-      { name: "İrsaliyeler", path: "kolaybi/irsaliyeler", icon: "🚚" },
-      { name: "Banka Hesapları", path: "kolaybi/banka-hesaplari", icon: "🏦" },
-      { name: "Kasalar", path: "kolaybi/kasalar", icon: "💰" },
-      { name: "Kredi Kartları", path: "kolaybi/kredi-kartlari", icon: "💳" },
-      { name: "Online Banka Hesapları", path: "kolaybi/online-banka-hesaplari", icon: "🌐" },
-      { name: "Çekler", path: "kolaybi/cekler", icon: "📄" },
-      { name: "Senetler", path: "kolaybi/senetler", icon: "📜" },
-    ],
-  },
-  {
-    group: "Uygulamalar",
-    items: [
-      { name: "Cari Listesi", path: "cari-listesi", icon: "👥" },
-      { name: "Cari Kart Giriş", path: "cari-giris", icon: "👤" },
-      { name: "Sipariş Listesi", path: "siparis-listesi", icon: "📋" },
-      { name: "Yeni Sipariş Girişi", path: "siparis-giris", icon: "🧾" },
-      { name: "İrsaliye", path: "irsaliye", icon: "🚚" },
-      { name: "Satış Faturaları", path: "faturalar/satis", icon: "💰" },
-      { name: "Alış Faturaları", path: "faturalar/alis", icon: "🧾" },
-      { name: "Finans (Kasa/Banka)", path: "finans", icon: "🏦" },
-      { name: "Personel", path: "personel", icon: "🧑‍💼" },
-      { name: "Platform Siparişleri", path: "platform-import", icon: "🔗" },
-      { name: "Ürün Listesi", path: "urun-listesi", icon: "📦" },
-      { name: "Ürün Kart Giriş", path: "urun-giris", icon: "➕" },
-      { name: "Üretim Reçeteleri", path: "receteler", icon: "🧪" },
-      { name: "Teklif Talepleri", path: "teklif-talepleri", icon: "💬" },
-      { name: "Fason Takip", path: "fason", icon: "🏭" },
-      { name: "Tüm Kayıtlar", path: "kayitlar", icon: "🗂️" },
-      { name: "Satış", path: "satis", icon: "💰" },
-      { name: "Satınalma", path: "satinalma", icon: "🛒" },
-      { name: "Sevkiyat-Lojistik", path: "sevkiyat-lojistik", icon: "🚚" },
-      { name: "Nakit Yönetimi", path: "nakit-yonetimi", icon: "💵" },
-      { name: "Anlaşmalar-Koşullar", path: "anlasmalar-kosullar", icon: "📝" },
-      { name: "Kasa", path: "kasa", icon: "🏦" },
-      { name: "Banka", path: "banka", icon: "🏛️" },
-      { name: "Fatura", path: "fatura", icon: "📄" },
-      { name: "Çek-Senet", path: "cek-senet", icon: "💳" },
-      { name: "Muhasebe İşlemleri", path: "muhasebe-islemleri", icon: "📊" },
-      { name: "Cari", path: "cari", icon: "📇" },
-      { name: "Risk ve Teminat", path: "risk-teminat", icon: "⚠️" },
-      { name: "Borç Alacak Yönetimi", path: "borc-alacak-yonetimi", icon: "💸" },
-      { name: "Üretim Planlama", path: "uretim-planlama", icon: "🏭" },
-      { name: "E-Devlet", path: "e-devlet", icon: "🖥️" },
-      { name: "Sabit Kıymet", path: "sabit-kimyet", icon: "💎" },
-      { name: "Üretim", path: "uretim", icon: "⚙️" },
-      { name: "Menkul Kıymet", path: "menkul-kimyet", icon: "💰" },
-      { name: "Muhasebe Tabloları", path: "muhasebe-tablolari", icon: "📋" },
-      { name: "Mali Denetim", path: "mali-denetim", icon: "🔍" },
-      { name: "Bütçe", path: "butce", icon: "📊" },
-      { name: "Masraf ve Gelir İşlemleri", path: "masraf-gelir-islemleri", icon: "💳" },
-      { name: "Kredi", path: "kredi", icon: "🏦" },
-      { name: "Defterler", path: "defterler", icon: "📚" },
-      { name: "Değerleme ve Reeskont", path: "degerleme-reeskont", icon: "💹" },
-      { name: "Maliyet Muhasebesi", path: "maliyet-muhasebesi", icon: "⚙️" },
-      { name: "Fiyat Yönetimi", path: "fiyat-yonetimi", icon: "💲" },
-      { name: "Maliyet", path: "maliyet", icon: "⚙️" },
-      { name: "Depo ve Alan Planlama", path: "depo-alan-planlama", icon: "🏬" },
-      { name: "Dış Ticaret", path: "dis-ticaret", icon: "🌐" },
-      { name: "Promosyon Yönetimi", path: "promosyon-yonetimi", icon: "🎁" },
-      { name: "Kalite Kontrol-Garanti", path: "kalite-kontrol-garanti", icon: "✅" },
-      { name: "Üretim Tasarımı", path: "uretim-tasarimi", icon: "🛠️" },
-      { name: "İçerik Yönetimi", path: "icerik-yonetimi", icon: "📄" },
-      { name: "Servis", path: "servis", icon: "🔧" },
-      { name: "Pazarlama", path: "pazarlama", icon: "📣" },
-      { name: "Call Center", path: "call-center", icon: "☎️" },
-      { name: "Satış Gücü Planlama", path: "satis-gucu-planlama", icon: "📈" },
-      { name: "Satış Fırsatları", path: "satis-firsatlari", icon: "🎯" },
-      { name: "Fiziki Varlıklar", path: "fiziki-varliklar", icon: "🏢" },
-      { name: "Motorlu Taşıt Yönetimi", path: "motorlu-tasit-yonetimi", icon: "🚗" },
-      { name: "Tamir-Bakım", path: "tamir-bakim", icon: "🔧" },
-      { name: "Proje Yönetimi", path: "proje-yonetimi", icon: "📌" },
-      { name: "Rapor", path: "rapor", icon: "📊" },
-      { name: "Ajanda", path: "ajanda", icon: "📅" },
-      { name: "İletişim", path: "iletisim", icon: "✉️" },
-      { name: "Dijital Arşiv", path: "dijital-arsiv", icon: "🗄️" },
-      { name: "Organizasyon Planlama", path: "organizasyon-planlama", icon: "🗂️" },
-      { name: "Bordro ve Puantaj", path: "bordro-puantaj", icon: "🧾" },
-      { name: "Şemalar", path: "semalar", icon: "📊" },
-      { name: "Rol Planlama", path: "rol-planlama", icon: "🎛️" },
-      { name: "İşe Alım", path: "ise-alim", icon: "📝" },
-      { name: "Çalışan Bilgileri", path: "calisan-bilgileri", icon: "👤" },
-      { name: "Performans", path: "performans", icon: "📈" },
-      { name: "Ücret Yönetimi ve Özlük", path: "ucret-yonetimi-ozluk", icon: "💰" },
-      { name: "Eğitim", path: "egitim", icon: "🎓" },
-      { name: "Devam ve Kontrol", path: "devam-kontrol", icon: "✔️" },
-      { name: "Sağlık ve Güvenlik İşlemleri", path: "saglik-guvenlik-islemleri", icon: "⚕️" },
-      { name: "Bildirgeler", path: "bildirgeler", icon: "📣" },
-      { name: "Disiplin ve Diğer İşlemler", path: "disiplin-diger-islemler", icon: "⚖️" },
-    ],
-  },
-  {
-    group: "Eklentiler",
-    items: [
-      { name: "Geri Dönüşüm", path: "geri-donusum", icon: "♻️" },
-      { name: "Abone Yönetimi", path: "abone-yonetimi", icon: "🧾" },
-      { name: "Multi Level Marketing", path: "multi-level-marketing", icon: "🌐" },
-      { name: "Perakende", path: "perakende", icon: "🏪" },
-      { name: "GDPR", path: "gdpr", icon: "🔒" },
-      { name: "Watalogy", path: "watalogy", icon: "📊" },
-      { name: "Protein", path: "protein", icon: "🥩" },
-    ],
-  },
-  {
-    group: "Sistem",
-    items: [
-      { name: "Genel Ayarlar", path: "genel-ayarlari", icon: "⚙️" },
-      { name: "İş Süreçleri", path: "is-surecleri", icon: "📋" },
-      { name: "WorkDev", path: "workdev", icon: "💻" },
-      { name: "Dönem ve Bakım İşlemleri", path: "donem-bakim-islemleri", icon: "🗓️" },
-      { name: "Kullanıcı Yetki Yönetimi", path: "kullanici-yetki-yonetimi", icon: "🛡️" },
-      { name: "Aktarımlar", path: "aktarimlar", icon: "🔄" },
-    ],
-  },
+const STATUS={"🟢":"ready","🟡":"partial","🔴":"planned"};
+const ROUTES={Dashboard:"","Şirket Seçimi":"sirket-secimi","3 Şirket Yönetimi":"sirket-yonetimi",Kullanıcı:"kullanicilar","Cari Kart":"cari-giris","Cari Form":"cari-giris","Cari Listesi":"cari-listesi","Ürün Kartı":"urun-giris","Ürün Formu":"urun-giris","Ürün Dosyaları":"urun-giris","Ürün Kodu":"urun-giris",Birim:"urun-giris",KDV:"urun-giris","Stok Paneli":"urun-stoklar","Stok Hareketleri":"urun-stoklar",Depo:"depo-alan-planlama",Teklif:"teklif/liste","Teklif Talepleri":"teklif-talepleri",Sipariş:"siparis-listesi","Yeni Sipariş":"siparis-giris",Numune:"numuneler","Satış Operasyon Merkezi":"satis-operasyon","Sipariş Rezervasyonu":"satis-operasyon","Sipariş → Üretim":"uretim-mrp","Sipariş → Satın Alma":"satinalma-operasyon","Sipariş → Sevkiyat":"satis-operasyon","Sipariş → İrsaliye":"satis-operasyon","Sipariş → Fatura":"satis-operasyon","Satın Alma Operasyon Merkezi":"satinalma-operasyon","Mal Kabul":"satinalma-operasyon","İrsaliye Formu":"irsaliye","Satış İrsaliyesi":"irsaliye","Alış İrsaliyesi":"irsaliye","Fatura Formu":"faturalar/satis","Fatura Listesi":"faturalar/liste","KolayBi Faturaları":"kolaybi/faturalar","Satış Faturası":"faturalar/satis","Alış Faturası":"faturalar/alis","Finans":"finans","Finansal Raporlar":"raporlar","Finans Operasyon Merkezi":"finans-operasyon","Bütçe ve Nakit Tahmini":"butce","Sabit Kıymet":"sabit-kimyet",Amortisman:"sabit-kimyet","Banka Hesapları":"finans/hesaplar",Kasalar:"kolaybi/kasalar",Çekler:"kolaybi/cekler",Senetler:"kolaybi/senetler","Kredi Kartları":"kolaybi/kredi-kartlari","Ürün Reçetesi":"receteler","Reçete Yönetimi":"receteler","Alt Reçete":"receteler","Reçete Ağacı":"receteler",BOM:"receteler","BOM Excel Import":"receteler",Üretim:"uretim-yurutme","Gerçek Üretim":"uretim-yurutme","Üretim Maliyeti":"uretim-maliyeti","Maliyet ve Stok Değerleme":"maliyet-degerleme","Kalite Kontrol":"kalite-kontrol","Üretim Emri":"uretim-yurutme","İş Emri":"uretim-yurutme","Malzeme İhtiyaç":"uretim-mrp",MRP:"uretim-mrp","Hammadde Rezervasyonu":"uretim-mrp","Üretim Sarfı":"uretim-yurutme",Fire:"uretim-yurutme","Yarı Mamul":"uretim-yurutme",Fason:"fason","Fason İş":"fason","Potansiyel Müşteri":"pazarlama",Fırsatlar:"satis-firsatlari",Görüşmeler:"call-center",Ziyaretler:"iletisim",Aktiviteler:"iletisim",Görevler:"iletisim",Kampanyalar:"pazarlama","Satış Pipeline":"satis-gucu-planlama",Trendyol:"platform-tumu","Platform Import":"platform-import","Tüm Platformlar":"platform-tumu","Platform Siparişleri":"platform-siparisleri","Personel Kartı":"personel","Personel Formu":"personel",İzin:"personel",Puantaj:"personel","Bordro Hesaplama":"personel","Üretim Maliyet":"uretim-maliyeti",Şirketler:"kolaybi","Şirket Ayarları":"kolaybi",Cari:"kolaybi",Ürün:"kolaybi",Fatura:"kolaybi/faturalar",İrsaliye:"kolaybi/irsaliyeler",Banka:"kolaybi/banka-hesaplari",Kasa:"kolaybi/kasalar",Çek:"kolaybi/cekler",Senet:"kolaybi/senetler","Online Senkronizasyon":"kolaybi/online-banka-hesaplari","Kullanıcı Yönetimi":"kullanicilar","İşlem Logları":"kayitlar",Audit:"kayitlar"};
+const slug=s=>s.toLocaleLowerCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+const G=(group,icon,rows,adminOnly=false)=>({group,icon,adminOnly,items:rows.trim().split("\n").map(row=>{const mark=row.slice(0,2),name=row.slice(2).trim();return{name,path:Object.prototype.hasOwnProperty.call(ROUTES,name)?ROUTES[name]:slug(name),icon,status:STATUS[mark]||"planned"}})});
+const menuItems=[
+G("Ana Panel","🏠",`🟢 Dashboard
+🟢 Şirket Seçimi
+🟢 3 Şirket Yönetimi
+🟢 Kullanıcı
+🟡 Genel KPI'lar
+🟡 Satış Özeti
+🟡 Stok Özeti
+🟡 Finans Özeti
+🟡 Cari Bakiye
+🟡 Bekleyen Siparişler
+🟡 Kritik Stoklar
+🔴 Yönetici Dashboard`),
+G("Cari","👥",`🟢 Cari Kart
+🟢 Cari Form
+🟢 Cari Evrak Yönetimi
+🟢 Cari Listesi
+🟡 Cari Hareketleri
+🟡 Cari Ekstre
+🟡 Borç / Alacak
+🟡 Bakiye
+🟡 Risk Limiti
+🟡 Vade Takibi
+🟡 Cari Mutabakat
+🟡 Cari Belgeler
+🔴 Cari Raporları`),
+G("Ürün","📦",`🟢 Ürün Kartı
+🟢 Ürün Formu
+🟢 Ürün Dosyaları
+🟢 Ürün Kodu
+🟢 Birim
+🟢 KDV
+🟡 Ürün Grupları
+🟡 Kategoriler
+🟡 Marka
+🟡 Barkod
+🟡 Ürün Resmi
+🟡 Alış Fiyatı
+🟡 Satış Fiyatı
+🟡 Fiyat Listeleri
+🔴 Ürün Analizleri`),
+G("Stok","🏬",`🟢 Stok Paneli
+🟢 Stok Hareketleri
+🟢 Depo
+🟡 Stok Giriş
+🟡 Stok Çıkış
+🟡 Depolar Arası Transfer
+🟡 Sayım
+🟡 Sayım Fişi
+🟡 Rezervasyon
+🟡 Kritik Stok
+🟡 Minimum Stok
+🟡 Maksimum Stok
+🟡 Satılabilir Stok
+🟡 Rezerve Stok
+🟡 Üretim Bekleyen
+🟡 Stok Raporları`),
+G("Satış","🛍️",`🟢 Teklif
+🟢 Teklif Talepleri
+🟢 Sipariş
+🟢 Yeni Sipariş
+🟢 Numune
+🟢 Satış Operasyon Merkezi
+🟡 Sipariş Onayı
+🟡 Sipariş Rezervasyonu
+🟡 Sipariş → Üretim
+🟡 Sipariş → Satın Alma
+🟡 Sipariş → Sevkiyat
+🟡 Sipariş → İrsaliye
+🟡 Sipariş → Fatura
+🟡 İade
+🟡 Değişim
+🟡 Satış Kanalı
+🟢 Trendyol
+🟢 Pazaryeri Altyapısı
+🟡 Satış Raporları`),
+G("Satın Alma","🛒",`🟡 Satın Alma Operasyon Merkezi
+🔴 Satın Alma Talebi
+🔴 İç Talep
+🔴 Tedarikçi Teklifi
+🔴 Teklif Karşılaştırma
+🔴 Satın Alma Siparişi
+🟡 Mal Kabul
+🟡 Alış İrsaliyesi
+🟡 Alış Faturası
+🟡 Alış İadesi
+🔴 Tedarikçi Fiyatları
+🔴 Satın Alma Raporları`),
+G("İrsaliye","🚚",`🟢 İrsaliye Formu
+🟢 Satış İrsaliyesi
+🟡 Alış İrsaliyesi
+🟡 İade İrsaliyesi
+🟡 Siparişten İrsaliye
+🟡 İrsaliyeden Fatura
+🟡 Stok Hareketi
+🟡 e-İrsaliye`),
+G("Fatura","🧾",`🟢 Fatura Formu
+🟢 Fatura Listesi
+🟢 KolayBi Faturaları
+🟡 Satış Faturası
+🟡 Alış Faturası
+🟡 İade Faturası
+🟡 Sipariş → Fatura
+🟡 İrsaliye → Fatura
+🟡 Cari Hareketi
+🟡 Stok Hareketi
+🟡 Muhasebe Hareketi
+🟡 e-Fatura / e-Arşiv`),
+G("Finans","💰",`🟢 Finans
+🟢 Finansal Raporlar
+🟢 Finans Operasyon Merkezi
+🟢 Bütçe ve Nakit Tahmini
+🟢 Sabit Kıymet
+🟢 Amortisman
+🟢 Banka Hesapları
+🟢 Kasalar
+🟢 Çekler
+🟢 Senetler
+🟢 Kredi Kartları
+🟡 Tahsilat
+🟡 Ödeme
+🟡 Havale
+🟡 EFT
+🟡 Banka Hareketleri
+🟡 Kasa Hareketleri
+🟡 Çek Portföyü
+🟡 Senet Portföyü
+🔴 Finansal Planlama`),
+G("Üretim","🏭",`🟢 Ürün Reçetesi
+🟢 Reçete Yönetimi
+🟢 Alt Reçete
+🟢 Reçete Ağacı
+🟢 BOM
+🟢 BOM Excel Import
+🟢 Üretim
+🟢 Gerçek Üretim
+🟢 Üretim Maliyeti
+🟢 Maliyet ve Stok Değerleme
+🟢 Kalite Kontrol
+🟡 Üretim Emri
+🟡 İş Emri
+🟡 Üretim Planlama
+🟡 Malzeme İhtiyaç
+🟡 MRP
+🟡 Hammadde Rezervasyonu
+🟡 Üretim Sarfı
+🟡 Fire
+🟡 Yarı Mamul
+🟡 Fason
+🔴 Kapasite Planlama`),
+G("Fason","🤝",`🟢 Fason İş
+🟡 Fason Tedarikçi
+🟡 Fason Sipariş
+🟡 Fasona Gönderilen
+🟡 Fason Sarf
+🟡 Fason Üretim
+🟡 Fason Gelen
+🔴 Fason Maliyet`),
+G("CRM","🎯",`🟢 Potansiyel Müşteri
+🟢 Fırsatlar
+🟡 Teklifler
+🟢 Görüşmeler
+🟡 Ziyaretler
+🟢 Aktiviteler
+🟢 Görevler
+🟢 Kampanyalar
+🟢 Satış Pipeline
+🔴 CRM Raporları`),
+G("Pazaryerleri","🌐",`🟢 Trendyol
+🟢 Platform Import
+🟢 Tüm Platformlar
+🟢 Platform Siparişleri
+🟡 Hepsiburada
+🟡 N11
+🟡 Amazon
+🟡 Pazarama
+🟡 ÇiçekSepeti`),
+G("Personel / İK","🧑‍💼",`🟢 Personel Kartı
+🟢 Personel Formu
+🟡 Departman
+🟡 Görev
+🟡 İzin
+🟡 Puantaj
+🟡 Avans
+🟢 Bordro Hesaplama
+🟡 Mesai
+🔴 Performans
+🔴 Eğitim`),
+G("Raporlama","📊",`🟢 Finansal Raporlar
+🟡 Cari Raporları
+🟡 Satış Raporları
+🟡 Sipariş Raporları
+🟡 Stok Raporları
+🟡 Üretim Raporları
+🟢 Üretim Maliyet
+🟡 Satın Alma Raporları
+🟡 Kârlılık
+🟡 Ürün Kârlılığı
+🟡 Müşteri Kârlılığı
+🟡 Yönetici Dashboard`),
+G("KolayBi Entegrasyonu","🔗",`🟢 Şirketler
+🟢 Şirket Ayarları
+🟢 Cari
+🟢 Ürün
+🟢 Fatura
+🟢 İrsaliye
+🟢 Finans
+🟢 Banka
+🟢 Kasa
+🟢 Çek
+🟢 Senet
+🟡 Online Senkronizasyon
+🟡 Çift Kayıt Engelleme
+🟡 Hata Logları
+🟡 Tam Çift Yönlü Entegrasyon`),
+G("Sistem Yönetimi","⚙️",`🟢 Şirketler
+🟢 Şirket Seçimi
+🟢 CompanyId
+🟢 Company Isolation
+🟢 RLS
+🟢 Kullanıcı Yönetimi
+🟡 Rol
+🟡 Yetki
+🟡 Departman
+🟡 İşlem Logları
+🟡 Audit
+🟡 Numara Serileri
+🟡 Parametreler
+🟡 Entegrasyon Ayarları`,true)
 ];
-
+export const STATUS_META={ready:{label:"Aktif",symbol:"🟢"},partial:{label:"Geliştiriliyor",symbol:"🟡"},planned:{label:"Planlandı",symbol:"🔴"}};
+export const flattenMenuItems=(groups=menuItems)=>groups.flatMap(group=>group.items.map(entry=>({...entry,group:group.group,groupIcon:group.icon})));
 export default menuItems;
