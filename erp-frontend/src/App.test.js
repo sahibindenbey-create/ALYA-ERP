@@ -1,16 +1,1 @@
-import menuItems from "./data/menuItems";
-
-test("kritik ERP modülleri menü kataloğunda bulunur", () => {
-  const paths = menuItems.flatMap((group) =>
-    group.items.map((item) => item.path),
-  );
-  expect(paths).toEqual(
-    expect.arrayContaining([
-      "cari-listesi",
-      "satis",
-      "uretim",
-      "muhasebe-islemleri",
-      "butce",
-    ]),
-  );
-});
+import menuItems from"./data/menuItems";test("kritik ERP modülleri menü kataloğunda bulunur",()=>{const paths=menuItems.flatMap(group=>group.items.map(item=>item.path));expect(paths).toEqual(expect.arrayContaining(["cari-listesi","satis","uretim","muhasebe-islemleri","butce","sabit-kimyet"]));});
