@@ -118,6 +118,15 @@
 .db-breadcrumb { font-size: .84rem; color: var(--text-secondary); }
 .db-breadcrumb span { margin: 0 7px; color: #b7bfcb; }
 .db-breadcrumb strong { color: var(--text-primary); font-weight: 750; }
+.db-topbar-search { position: relative; margin-left: 28px; flex: 1; max-width: 380px; display: flex; align-items: center; gap: 8px; height: 38px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); padding: 0 11px; }
+.db-topbar-search input { flex: 1; border: 0; outline: 0; background: transparent; font-size: .8rem; color: var(--text-primary); }
+.db-topbar-search kbd { font-size: .65rem; border: 1px solid var(--border); background: #fff; border-radius: 5px; padding: 2px 6px; color: #798395; font-family: inherit; }
+.db-search-results { position: absolute; top: 44px; left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: 9px; box-shadow: 0 16px 40px rgba(16,24,40,.16); overflow: hidden; z-index: 60; }
+.db-search-result { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 13px; cursor: pointer; font-size: .8rem; }
+.db-search-result:hover { background: var(--accent-light); }
+.db-search-result-label { font-weight: 700; color: var(--text-primary); }
+.db-search-result-group { font-size: .66rem; color: var(--text-secondary); }
+.db-search-empty { padding: 14px; text-align: center; font-size: .78rem; color: var(--text-secondary); }
 .db-topbar-right { display: flex; align-items: center; gap: 12px; }
 .db-icon-btn {
   background: #fff;

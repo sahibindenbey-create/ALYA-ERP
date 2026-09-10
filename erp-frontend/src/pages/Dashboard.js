@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, Outlet, Link, useLocation } from "react-router-dom";
 import axios from "axios";
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -209,9 +209,55 @@ function Dashboard() {
 
   const toggleGroup = (label) => setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
 
-  const navGroups = user?.role === "Yönetici" ? [...NAV_GROUPS, YONETIM_GROUP] : NAV_GROUPS;
+  const navGroups = useMemo(
+    () => (user?.role === "Yönetici" ? [...NAV_GROUPS, YONETIM_GROUP] : NAV_GROUPS),
+    [user?.role]
+  );
 
   // --- Bildirimler (kritik stok, vadesi geçmiş fatura, süresi dolan teklif) ---
+  // --- Menü arama (Ctrl+K) ---
+  const searchInputRef = useRef(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const searchIndex = useMemo(() => {
+    const flat = [];
+    navGroups.forEach((group) => {
+      group.items.forEach((item) => {
+        if (item.children) {
+          item.children.forEach((child) => flat.push({ label: child.label, to: child.to, group: group.title }));
+        } else {
+          flat.push({ label: item.label, to: item.to, group: group.title });
+        }
+      });
+    });
+    return flat;
+  }, [navGroups]);
+
+  const searchResults = useMemo(() => {
+    const q = searchTerm.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return [];
+    return searchIndex.filter((r) => r.label.toLocaleLowerCase("tr-TR").includes(q)).slice(0, 8);
+  }, [searchTerm, searchIndex]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const goToSearchResult = (to) => {
+    setSearchTerm("");
+    setSearchOpen(false);
+    navigate(to);
+  };
+
   const [bildirimler, setBildirimler] = useState(null);
   const [bildirimAcik, setBildirimAcik] = useState(false);
 
@@ -303,6 +349,28 @@ function Dashboard() {
         <header className="db-topbar">
           <div className="db-breadcrumb">
             ERP Sistemi <span>/</span> <strong>{pageTitle}</strong>
+          </div>
+          <div className="db-topbar-search">
+            <input
+              ref={searchInputRef}
+              placeholder="Menü, sayfa ara..."
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+            />
+            <kbd>Ctrl K</kbd>
+            {searchOpen && searchTerm.trim() && (
+              <div className="db-search-results">
+                {searchResults.length === 0 && <div className="db-search-empty">Sonuç bulunamadı</div>}
+                {searchResults.map((r) => (
+                  <div key={r.to} className="db-search-result" onMouseDown={() => goToSearchResult(r.to)}>
+                    <span className="db-search-result-label">{r.label}</span>
+                    <span className="db-search-result-group">{r.group}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="db-topbar-right">
             <CompanySelector />
