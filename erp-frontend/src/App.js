@@ -27,6 +27,13 @@ import KolaybiCeklerPage from "./pages/KolaybiCeklerPage";
 import KolaybiSenetlerPage from "./pages/KolaybiSenetlerPage";
 import KolaybiFaturalarPage from "./pages/KolaybiFaturalarPage";
 import KolaybiIrsaliyelerPage from "./pages/KolaybiIrsaliyelerPage";
+import SalesFlowPanel from "./pages/SalesFlowPanel";
+import FinanceFlowPanel from "./pages/FinanceFlowPanel";
+import MrpFlowPanel from "./pages/MrpFlowPanel";
+import ProcurementFlowPanel from "./pages/ProcurementFlowPanel";
+import QualityFlowPanel from "./pages/QualityFlowPanel";
+import ProductionExecutionPanel from "./pages/ProductionExecutionPanel";
+import CostingFlowPanel from "./pages/CostingFlowPanel";
 import FinansPage from "./pages/FinansPage";
 import TeklifTalepleriPage from "./pages/TeklifTalepleriPage";
 import ModulePlaceholder from "./pages/ModulePlaceholder";
@@ -65,6 +72,13 @@ function App() {
           <Route path="kolaybi/online-banka-hesaplari" element={<KolaybiOnlineBankaHesaplariPage />} />
           <Route path="kolaybi/cekler" element={<KolaybiCeklerPage />} />
           <Route path="kolaybi/senetler" element={<KolaybiSenetlerPage />} />
+          <Route path="satis-operasyon" element={<SalesFlowPanel />} />
+          <Route path="finans-operasyon" element={<FinanceFlowPanel />} />
+          <Route path="uretim-mrp" element={<MrpFlowPanel />} />
+          <Route path="satinalma-operasyon" element={<ProcurementFlowPanel />} />
+          <Route path="kalite-kontrol" element={<QualityFlowPanel />} />
+          <Route path="uretim-yurutme" element={<ProductionExecutionPanel />} />
+          <Route path="maliyet-degerleme" element={<CostingFlowPanel />} />
           <Route path="kolaybi/faturalar" element={<KolaybiFaturalarPage />} />
           <Route path="kolaybi/irsaliyeler" element={<KolaybiIrsaliyelerPage />} />
           <Route path="platform-import" element={<PlatformImportPage />} />

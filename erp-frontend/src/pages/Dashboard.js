@@ -106,6 +106,18 @@ const NAV_GROUPS = [
     ],
   },
   {
+    title: "AKIŞ OPERASYONLARI",
+    items: [
+      { to: "/dashboard/satis-operasyon", label: "Satış → Rezervasyon → Sevkiyat", icon: <LocalShippingIcon fontSize="small" /> },
+      { to: "/dashboard/finans-operasyon", label: "Fatura → Tahsilat → Muhasebe", icon: <AccountBalanceIcon fontSize="small" /> },
+      { to: "/dashboard/uretim-mrp", label: "Üretim İhtiyacı (MRP)", icon: <CalculateIcon fontSize="small" /> },
+      { to: "/dashboard/satinalma-operasyon", label: "Satınalma → Mal Kabul", icon: <ShoppingCartIcon fontSize="small" /> },
+      { to: "/dashboard/kalite-kontrol", label: "Kalite Kontrol → İade", icon: <ScienceIcon fontSize="small" /> },
+      { to: "/dashboard/uretim-yurutme", label: "Üretim Yürütme", icon: <FactoryIcon fontSize="small" /> },
+      { to: "/dashboard/maliyet-degerleme", label: "Maliyet & Stok Değerleme", icon: <AssessmentIcon fontSize="small" /> },
+    ],
+  },
+  {
     title: "OPERASYON",
     items: [
       {
@@ -172,6 +184,13 @@ const PAGE_TITLES = {
   "/dashboard/kolaybi/online-banka-hesaplari": "KolayBi Online Banka Hesapları",
   "/dashboard/kolaybi/cekler": "KolayBi Çekler",
   "/dashboard/kolaybi/senetler": "KolayBi Senetler",
+  "/dashboard/satis-operasyon": "Satış → Rezervasyon → Sevkiyat",
+  "/dashboard/finans-operasyon": "Fatura → Tahsilat → Muhasebe",
+  "/dashboard/uretim-mrp": "Üretim İhtiyacı (MRP)",
+  "/dashboard/satinalma-operasyon": "Satınalma → Mal Kabul",
+  "/dashboard/kalite-kontrol": "Kalite Kontrol → İade",
+  "/dashboard/uretim-yurutme": "Üretim Yürütme",
+  "/dashboard/maliyet-degerleme": "Maliyet & Stok Değerleme",
   "/dashboard/finans": "Finans (Kasa/Banka)",
   "/dashboard/ihracat": "İhracat Modülü",
   "/dashboard/finans/hesaplar": "Banka Hesapları",

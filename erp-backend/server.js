@@ -3323,6 +3323,15 @@ registerTrendyol({ app, poolPromise, sql });
 registerTrendyolExtra({ app, poolPromise, sql });
 registerKolaybi({ app, poolPromise, sql });
 
+// Faz 2-8: satış → finans → üretim/MRP → satınalma → kalite → üretim yürütme → maliyet zinciri
+require('./core/salesFlowRoutes')(app, poolPromise, sql);
+require('./core/financeFlowRoutes')(app, poolPromise, sql);
+require('./core/mrpFlowRoutes')(app, poolPromise, sql);
+require('./core/procurementFlowRoutes')(app, poolPromise, sql);
+require('./core/qualityFlowRoutes')(app, poolPromise, sql);
+require('./core/productionExecutionRoutes')(app, poolPromise, sql);
+require('./core/costingFlowRoutes')(app, poolPromise, sql);
+
 app.listen(PORT, () => {
   console.log(`Server ${PORT} portunda calisiyor`);
 });
