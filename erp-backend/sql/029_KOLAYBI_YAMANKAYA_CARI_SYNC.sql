@@ -5,6 +5,9 @@ IF DB_NAME()<>N'myERP' PRINT N'Uyarı: Migration myERP dışında çalıştırı
 IF OBJECT_ID(N'dbo.Sirketler',N'U') IS NULL THROW 52901,N'Önce şirket altyapısını kurun.',1;
 IF OBJECT_ID(N'dbo.CariListesi',N'U') IS NULL THROW 52902,N'dbo.CariListesi bulunamadı.',1;
 IF OBJECT_ID(N'dbo.KolaybiAyarlar',N'U') IS NULL OR COL_LENGTH(N'dbo.KolaybiAyarlar',N'LastConnectionTestAt') IS NULL THROW 52903,N'Önce 028_KOLAYBI_YAMANKAYA_LIVE.sql migrationını çalıştırın.',1;
+/* Eski myERP kurulumlarında CariForm ve API tarafından kullanılan Notlar alanı bulunmayabiliyor. */
+IF COL_LENGTH(N'dbo.CariListesi',N'Notlar') IS NULL
+ EXEC sys.sp_executesql N'ALTER TABLE dbo.CariListesi ADD Notlar NVARCHAR(1000) NULL;';
 IF OBJECT_ID(N'dbo.KolaybiCariEslemeleri',N'U') IS NULL
 EXEC sys.sp_executesql N'CREATE TABLE dbo.KolaybiCariEslemeleri(
  MappingId BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_KolaybiCariEslemeleri PRIMARY KEY,
