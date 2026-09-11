@@ -1,12 +1,15 @@
-# Faz 18 — Yamankaya KolayBi Canlı Pilot
+# Faz 18 — Yamankaya KolayBi canlı pilotu
 
-1. `028_KOLAYBI_YAMANKAYA_LIVE.sql` dosyasını `myERP` üzerinde çalıştırın.
-2. `erp-backend/.env` içine gerçek değerleri ekleyin:
+## Sıra
+1. `028_KOLAYBI_YAMANKAYA_LIVE.sql`
+2. `029_KOLAYBI_YAMANKAYA_CARI_SYNC.sql`
+3. `030_KOLAYBI_FULL_MIRROR.sql`
 
-```env
-KOLAYBI_YAMANKAYA_API_KEY=...
-KOLAYBI_YAMANKAYA_CHANNEL=...
-KOLAYBI_YAMANKAYA_BASE_URL=https://ofis-api.kolaybi.com
-```
+API bilgileri yalnız `erp-backend/.env` dosyasında tutulur. Canlı pilot sadece CompanyId 2 Yamankaya için çalışır.
 
-API anahtarını GitHub'a, ekran görüntüsüne veya sohbete eklemeyin. Sunucuyu yeniden başlatın; Yamankaya şirketini seçip KolayBi ekranından önce bağlantı testi, sonra yalnız önizleme yapın. Bağlantı etkinleştirilmeden veri senkronizasyonu başlatmayın.
+## Veri akışı
+- Cari planı ve cari aktarımı `CariListesi` ile kontrollü eşleme yapar.
+- Tam veri aynası; şirket, kullanıcı, cari, ürün, proforma, sipariş, dört fatura türü, kasa/banka ve erişilebilen hareket yanıtlarını `KolaybiRawMirror` tablosunda tam JSON olarak saklar.
+- Desteklenmeyen veya yetki verilmeyen API kaynakları tüm çalışmayı bozmaz; çalışma `PARTIAL` olur ve kaynak hataları özetlenir.
+- Ham ayna doğrulandıktan sonra ürün ve belge verileri ALYA iş tablolarına ayrı idempotent dönüşüm adımlarıyla alınır.
+- Gerçek API anahtarı, Channel ve access token hiçbir migration veya GitHub dosyasında bulunmaz.
