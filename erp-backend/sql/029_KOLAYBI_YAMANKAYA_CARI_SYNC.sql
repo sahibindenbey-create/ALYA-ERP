@@ -5,7 +5,11 @@ IF DB_NAME()<>N'myERP' PRINT N'Uyarı: Migration myERP dışında çalıştırı
 IF OBJECT_ID(N'dbo.Sirketler',N'U') IS NULL THROW 52901,N'Önce şirket altyapısını kurun.',1;
 IF OBJECT_ID(N'dbo.CariListesi',N'U') IS NULL THROW 52902,N'dbo.CariListesi bulunamadı.',1;
 IF OBJECT_ID(N'dbo.KolaybiAyarlar',N'U') IS NULL OR COL_LENGTH(N'dbo.KolaybiAyarlar',N'LastConnectionTestAt') IS NULL THROW 52903,N'Önce 028_KOLAYBI_YAMANKAYA_LIVE.sql migrationını çalıştırın.',1;
+/* Farklı tarihlerde kurulmuş myERP şemalarını cari aktarım sözleşmesiyle eşitle. */
 IF COL_LENGTH(N'dbo.CariListesi',N'Notlar') IS NULL EXEC sys.sp_executesql N'ALTER TABLE dbo.CariListesi ADD Notlar NVARCHAR(1000) NULL;';
+IF COL_LENGTH(N'dbo.KolaybiAyarlar',N'SonSenkronTarihi') IS NULL EXEC sys.sp_executesql N'ALTER TABLE dbo.KolaybiAyarlar ADD SonSenkronTarihi DATETIME2(3) NULL;';
+IF COL_LENGTH(N'dbo.KolaybiAyarlar',N'SonSenkronDurumu') IS NULL EXEC sys.sp_executesql N'ALTER TABLE dbo.KolaybiAyarlar ADD SonSenkronDurumu NVARCHAR(30) NULL;';
+IF COL_LENGTH(N'dbo.KolaybiAyarlar',N'SonSenkronMesaji') IS NULL EXEC sys.sp_executesql N'ALTER TABLE dbo.KolaybiAyarlar ADD SonSenkronMesaji NVARCHAR(1000) NULL;';
 IF OBJECT_ID(N'dbo.KolaybiCariEslemeleri',N'U') IS NULL
 EXEC sys.sp_executesql N'CREATE TABLE dbo.KolaybiCariEslemeleri(
  MappingId BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_KolaybiCariEslemeleri PRIMARY KEY,
