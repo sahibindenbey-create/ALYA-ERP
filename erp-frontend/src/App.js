@@ -10,6 +10,7 @@ import FasonPage from "./pages/FasonPage";
 import KullaniciYonetimi from "./pages/KullaniciYonetimi";
 import IrsaliyeForm from "./pages/IrsaliyeForm";
 import FaturaForm from "./pages/FaturaForm";
+import InvoiceListPage from "./pages/InvoiceListPage";
 import PersonelForm from "./pages/PersonelForm";
 import PlatformImportPage from "./pages/PlatformImportPage";
 import TumPlatformlarPage from "./pages/TumPlatformlarPage";
@@ -62,7 +63,7 @@ function App() {
           <Route path="numuneler" element={<NumunelerPage />} />
           <Route path="faturalar/satis" element={<FaturaForm defaultYon="Satış" mode="tam" />} />
           <Route path="faturalar/alis" element={<FaturaForm defaultYon="Alış" mode="tam" />} />
-          <Route path="faturalar/liste" element={<FaturaForm mode="liste" />} />
+          <Route path="faturalar/liste" element={<InvoiceListPage />} />
           <Route path="finans" element={<FinansPage section="hareketler" />} />
           <Route path="finans/hesaplar" element={<FinansPage section="hesaplar" />} />
           <Route path="kolaybi" element={<KolaybiPage />} />
@@ -106,7 +107,7 @@ function App() {
           <Route path="nakit-yonetimi" element={<FinansPage section="hareketler" />} />
           <Route path="kasa" element={<FinansPage section="hareketler" />} />
           <Route path="banka" element={<FinansPage section="hesaplar" />} />
-          <Route path="fatura" element={<FaturaForm mode="liste" />} />
+          <Route path="fatura" element={<InvoiceListPage />} />
           <Route path="cari" element={<CariForm mode="liste" />} />
           <Route path="uretim-planlama" element={<ReceteYonetimPage />} />
           <Route path="uretim" element={<ReceteYonetimPage />} />
@@ -123,7 +124,7 @@ function App() {
         <Route path="/cari-kart" element={<Navigate to="/dashboard/cari-giris" replace />} />
         <Route path="/dashboard/cari-yonetimi" element={<Navigate to="/dashboard/cari-listesi" replace />} />
         <Route path="/dashboard/siparis-yonetimi" element={<Navigate to="/dashboard/siparis-giris" replace />} />
-        <Route path="/dashboard/faturalar" element={<Navigate to="/dashboard/faturalar/satis" replace />} />
+        <Route path="/dashboard/faturalar" element={<Navigate to="/dashboard/faturalar/liste" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
