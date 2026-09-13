@@ -12,6 +12,7 @@ import "./tableSortEnhancer";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { getAuthToken, logoutUser } from "./auth";
+import { startOperationalAutoRefresh } from "./kolaybiOperationalAutoRefresh";
 
 axios.interceptors.request.use((config) => {
   const companyId = localStorage.getItem("selectedCompanyId") || "1";
@@ -36,6 +37,8 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+startOperationalAutoRefresh();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
