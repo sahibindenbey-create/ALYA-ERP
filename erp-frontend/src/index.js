@@ -7,6 +7,8 @@ import "./professional-ui.css";
 import "./professional-modules.css";
 import "./layout-fixes.css";
 import "./pages/DashboardCompact.css";
+import "./list-density-fixes.css";
+import "./tableSortEnhancer";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { getAuthToken, logoutUser } from "./auth";
