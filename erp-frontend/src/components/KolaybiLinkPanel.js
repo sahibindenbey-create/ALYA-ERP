@@ -45,7 +45,7 @@ export default function KolaybiLinkPanel({ enabled }) {
           <button className="activate" disabled={!plan || busy} onClick={run}>{busy === "run" ? "Bağlanıyor…" : "VERİLERİ BİRBİRİNE BAĞLA"}</button>
         </div>
       </div>
-      {error && <div className="klive-error">{/KolaybiLinkRuns|CariId/i.test(error) ? "035_KOLAYBI_RELATION_RECONCILIATION.sql migrationını çalıştırın." : error}</div>}
+      {error && <div className="klive-error">{/KolaybiLinkRuns|CariId/i.test(error) && <><b>035_KOLAYBI_RELATION_RECONCILIATION.sql migrationını kontrol edin.</b><br /></>}Teknik hata: {error}</div>}
       {message && <div className="klive-success">{message}</div>}
       {plan && <div className="klive-table"><table><thead><tr><th>İlişki</th><th>Toplam</th><th>Bağlı</th><th>Eşleşmeyen</th></tr></thead><tbody>{Object.entries(plan).map(([key, value]) => <tr key={key}><td>{key}</td><td>{value.total}</td><td>{value.linked}</td><td>{Math.max(0, value.total - value.linked)}</td></tr>)}</tbody></table></div>}
     </article>
