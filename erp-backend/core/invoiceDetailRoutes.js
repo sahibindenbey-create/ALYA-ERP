@@ -13,10 +13,8 @@ module.exports=function registerInvoiceWorkspace(app,poolPromise,sql){
   };
 
   router.get('/',requirePermission('erp.read'),async(req,res)=>{
-    try{
-      const result=await query(req,[],`SELECT * FROM dbo.Faturalar WHERE CompanyId=@CompanyId AND IsActive=1 ORDER BY FaturaId DESC;`);
-      return res.json(result.recordsets?.[0]||[]);
-    }catch(error){return res.status(500).json({success:false,error:'Fatura listesi alınamadı.',detail:error.message})}
+    try{const result=await query(req,[],`SELECT * FROM dbo.Faturalar WHERE CompanyId=@CompanyId AND IsActive=1 ORDER BY FaturaId DESC;`);return res.json(result.recordsets?.[0]||[])}
+    catch(error){return res.status(500).json({success:false,error:'Fatura listesi alınamadı.',detail:error.message})}
   });
 
   router.get('/:id/detay',requirePermission('erp.read'),async(req,res)=>{
@@ -42,4 +40,5 @@ module.exports=function registerInvoiceWorkspace(app,poolPromise,sql){
   });
 
   app.use('/api/invoice-workspace',router);
+  app.use('/api/faturalar',router);
 };
