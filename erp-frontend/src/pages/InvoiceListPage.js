@@ -1,0 +1,112 @@
+import React,{useEffect,useMemo,useState}from"react";
+import axios from"axios";
+import ExportToolbar from"../components/ExportToolbar";
+import"./InvoiceListPage.css";
+
+const API_URL=process.env.REACT_APP_API_URL||"http://localhost:5000/api";
+const money=(value,currency="TRY")=>new Intl.NumberFormat("tr-TR",{style:"currency",currency:currency||"TRY",maximumFractionDigits:2}).format(Number(value||0));
+const date=value=>value?new Date(value).toLocaleDateString("tr-TR"):"—";
+const initialFilters={search:"",yon:"Hepsi",durum:"Hepsi",start:"",end:"",min:"",max:""};
+
+export default function InvoiceListPage(){
+  const[faturalar,setFaturalar]=useState([]);
+  const[filters,setFilters]=useState(initialFilters);
+  const[loading,setLoading]=useState(true);
+  const[error,setError]=useState("");
+  const[selected,setSelected]=useState(null);
+  const[detailLoading,setDetailLoading]=useState(false);
+  const[detailError,setDetailError]=useState("");
+  const[page,setPage]=useState(1);
+  const[pageSize,setPageSize]=useState(25);
+
+  const load=async()=>{
+    setLoading(true);setError("");
+    try{const response=await axios.get(`${API_URL}/faturalar`);setFaturalar(Array.isArray(response.data)?response.data:[])}
+    catch(err){setError(err.response?.data?.detail||err.response?.data?.error||err.message)}
+    finally{setLoading(false)}
+  };
+
+  useEffect(()=>{load()},[]);
+
+  const filtered=useMemo(()=>{
+    const q=filters.search.trim().toLocaleLowerCase("tr-TR");
+    return faturalar.filter(f=>{
+      const haystack=`${f.FaturaKodu||""} ${f.CariKodu||""} ${f.CariAdi||""}`.toLocaleLowerCase("tr-TR");
+      const invoiceDate=f.FaturaTarihi?String(f.FaturaTarihi).slice(0,10):"";
+      const total=Number(f.GenelToplam||0);
+      return(!q||haystack.includes(q))
+        &&(filters.yon==="Hepsi"||f.Yon===filters.yon)
+        &&(filters.durum==="Hepsi"||(f.Durum||"Bekliyor")===filters.durum)
+        &&(!filters.start||invoiceDate>=filters.start)
+        &&(!filters.end||invoiceDate<=filters.end)
+        &&(filters.min===""||total>=Number(filters.min))
+        &&(filters.max===""||total<=Number(filters.max));
+    })
+  },[faturalar,filters]);
+
+  useEffect(()=>{setPage(1)},[filters,pageSize]);
+  const pageCount=Math.max(1,Math.ceil(filtered.length/pageSize));
+  const visible=filtered.slice((page-1)*pageSize,page*pageSize);
+  const totalAmount=filtered.reduce((sum,f)=>sum+Number(f.GenelToplam||0),0);
+
+  const updateFilter=(key,value)=>setFilters(current=>({...current,[key]:value}));
+  const resetFilters=()=>setFilters(initialFilters);
+
+  const openDetail=async invoice=>{
+    setSelected(null);setDetailError("");setDetailLoading(true);
+    try{const response=await axios.get(`${API_URL}/faturalar/${invoice.FaturaId}/detay`);setSelected(response.data)}
+    catch(err){setDetailError(err.response?.data?.detail||err.response?.data?.error||err.message)}
+    finally{setDetailLoading(false)}
+  };
+
+  const changeStatus=async(invoice,status)=>{
+    try{await axios.put(`${API_URL}/faturalar/${invoice.FaturaId}/durum`,{Durum:status});setFaturalar(rows=>rows.map(row=>row.FaturaId===invoice.FaturaId?{...row,Durum:status}:row))}
+    catch(err){window.alert(`Durum güncellenemedi: ${err.response?.data?.detail||err.message}`)}
+  };
+
+  const removeInvoice=async invoice=>{
+    if(!window.confirm(`${invoice.FaturaKodu} numaralı faturayı pasife almak istiyor musunuz?`))return;
+    try{await axios.delete(`${API_URL}/faturalar/${invoice.FaturaId}`);setFaturalar(rows=>rows.filter(row=>row.FaturaId!==invoice.FaturaId));if(selected?.FaturaId===invoice.FaturaId)setSelected(null)}
+    catch(err){window.alert(`Fatura silinemedi: ${err.response?.data?.detail||err.message}`)}
+  };
+
+  const columns=[
+    {key:"FaturaKodu",label:"Fatura No"},{key:"Yon",label:"Yön"},{key:"CariKodu",label:"Cari Kodu"},
+    {key:"CariAdi",label:"Cari"},{key:"FaturaTarihi",label:"Tarih"},{key:"VadeTarihi",label:"Vade"},
+    {key:"GenelToplam",label:"Genel Toplam"},{key:"Durum",label:"Durum"}
+  ];
+
+  return <div className="invoice-list-page">
+    <section className="invoice-list-header">
+      <div><span className="invoice-eyebrow">FATURA YÖNETİMİ</span><h1>Fatura Listesi</h1><p>Faturaları filtreleyin, açın ve ürün/hizmet satırlarını inceleyin.</p></div>
+      <button type="button" className="invoice-refresh" onClick={load}>Yenile</button>
+    </section>
+
+    <section className="invoice-summary">
+      <div><span>Filtrelenen kayıt</span><strong>{filtered.length.toLocaleString("tr-TR")}</strong></div>
+      <div><span>Toplam tutar</span><strong>{money(totalAmount)}</strong></div>
+      <div><span>Satış</span><strong>{filtered.filter(f=>f.Yon==="Satış").length.toLocaleString("tr-TR")}</strong></div>
+      <div><span>Alış</span><strong>{filtered.filter(f=>f.Yon==="Alış").length.toLocaleString("tr-TR")}</strong></div>
+    </section>
+
+    <section className="invoice-filters">
+      <div className="invoice-filter invoice-search"><label>Arama</label><input value={filters.search} onChange={e=>updateFilter("search",e.target.value)} placeholder="Fatura no, cari kodu veya cari adı"/></div>
+      <div className="invoice-filter"><label>Yön</label><select value={filters.yon} onChange={e=>updateFilter("yon",e.target.value)}><option>Hepsi</option><option>Satış</option><option>Alış</option></select></div>
+      <div className="invoice-filter"><label>Durum</label><select value={filters.durum} onChange={e=>updateFilter("durum",e.target.value)}><option>Hepsi</option><option>Bekliyor</option><option>Ödendi</option><option>Gecikti</option></select></div>
+      <div className="invoice-filter"><label>Başlangıç</label><input type="date" value={filters.start} onChange={e=>updateFilter("start",e.target.value)}/></div>
+      <div className="invoice-filter"><label>Bitiş</label><input type="date" value={filters.end} onChange={e=>updateFilter("end",e.target.value)}/></div>
+      <div className="invoice-filter"><label>En az tutar</label><input type="number" min="0" value={filters.min} onChange={e=>updateFilter("min",e.target.value)} placeholder="0"/></div>
+      <div className="invoice-filter"><label>En çok tutar</label><input type="number" min="0" value={filters.max} onChange={e=>updateFilter("max",e.target.value)} placeholder="Sınırsız"/></div>
+      <button type="button" className="invoice-reset" onClick={resetFilters}>Filtreleri Temizle</button>
+    </section>
+
+    <section className="invoice-table-card">
+      <div className="invoice-table-toolbar"><ExportToolbar data={filtered} columns={columns} filename="fatura-listesi"/><label>Sayfa başına<select value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}><option value="25">25</option><option value="50">50</option><option value="100">100</option></select></label></div>
+      {error&&<div className="invoice-error">Faturalar yüklenemedi: {error}</div>}
+      {loading?<div className="invoice-loading">Faturalar yükleniyor…</div>:<div className="invoice-table-scroll"><table><thead><tr><th>Fatura No</th><th>Yön</th><th>Cari</th><th>Tarih</th><th>Vade</th><th>Toplam</th><th>Durum</th><th>İşlem</th></tr></thead><tbody>{visible.map(f=><tr key={f.FaturaId} onDoubleClick={()=>openDetail(f)}><td><button type="button" className="invoice-code" onClick={()=>openDetail(f)}>{f.FaturaKodu||`#${f.FaturaId}`}</button></td><td><span className={`invoice-badge ${f.Yon==="Alış"?"purchase":"sale"}`}>{f.Yon||"—"}</span></td><td><strong>{f.CariAdi||"—"}</strong><small>{f.CariKodu||""}</small></td><td>{date(f.FaturaTarihi)}</td><td>{date(f.VadeTarihi)}</td><td className="invoice-amount">{money(f.GenelToplam,f.ParaBirimi||"TRY")}</td><td><select value={f.Durum||"Bekliyor"} onClick={e=>e.stopPropagation()} onChange={e=>changeStatus(f,e.target.value)}><option>Bekliyor</option><option>Ödendi</option><option>Gecikti</option></select></td><td><div className="invoice-actions"><button type="button" onClick={()=>openDetail(f)}>Görüntüle</button><button type="button" className="danger" onClick={()=>removeInvoice(f)}>Sil</button></div></td></tr>)}{!visible.length&&<tr><td colSpan="8" className="invoice-empty">Filtrelere uygun fatura bulunamadı.</td></tr>}</tbody></table></div>}
+      <div className="invoice-pagination"><span>{filtered.length?`${(page-1)*pageSize+1}-${Math.min(page*pageSize,filtered.length)} / ${filtered.length}`:"0 kayıt"}</span><div><button type="button" disabled={page<=1} onClick={()=>setPage(value=>Math.max(1,value-1))}>Önceki</button><strong>{page} / {pageCount}</strong><button type="button" disabled={page>=pageCount} onClick={()=>setPage(value=>Math.min(pageCount,value+1))}>Sonraki</button></div></div>
+    </section>
+
+    {(detailLoading||detailError||selected)&&<div className="invoice-drawer-backdrop" onMouseDown={()=>{setSelected(null);setDetailError("");setDetailLoading(false)}}><aside className="invoice-drawer" onMouseDown={e=>e.stopPropagation()}><button type="button" className="invoice-drawer-close" onClick={()=>{setSelected(null);setDetailError("")}}>×</button>{detailLoading&&<div className="invoice-loading">Fatura içeriği yükleniyor…</div>}{detailError&&<div className="invoice-error">Fatura içeriği açılamadı: {detailError}</div>}{selected&&<><div className="invoice-detail-title"><span>{selected.Yon||"Fatura"}</span><h2>{selected.FaturaKodu||`Fatura #${selected.FaturaId}`}</h2><p>{selected.CariAdi||"Cari bilgisi yok"}</p></div><div className="invoice-detail-grid"><div><span>Fatura tarihi</span><strong>{date(selected.FaturaTarihi)}</strong></div><div><span>Vade tarihi</span><strong>{date(selected.VadeTarihi)}</strong></div><div><span>Cari kodu</span><strong>{selected.CariKodu||"—"}</strong></div><div><span>Ödeme şekli</span><strong>{selected.OdemeSekli||"—"}</strong></div><div><span>Durum</span><strong>{selected.Durum||"Bekliyor"}</strong></div><div><span>Para birimi</span><strong>{selected.ParaBirimi||"TRY"}</strong></div></div><h3>Ürün / Hizmet Satırları ({selected.items?.length||0})</h3><div className="invoice-detail-lines"><table><thead><tr><th>Kod</th><th>Ürün / Hizmet</th><th>Miktar</th><th>Birim Fiyat</th><th>KDV</th><th>Satır Toplamı</th></tr></thead><tbody>{(selected.items||[]).map((line,index)=><tr key={line.FaturaDetayId||`${line.UrunKodu}-${index}`}><td>{line.UrunKodu||"—"}</td><td>{line.UrunAdi||"—"}</td><td>{Number(line.Miktar||0).toLocaleString("tr-TR")} {line.Birim||""}</td><td>{money(line.BirimFiyat,selected.ParaBirimi||"TRY")}</td><td>%{Number(line.KdvOrani||0)}<small>{money(line.KdvTutari,selected.ParaBirimi||"TRY")}</small></td><td>{money(line.SatirToplam||Number(line.Miktar||0)*Number(line.BirimFiyat||0),selected.ParaBirimi||"TRY")}</td></tr>)}{!selected.items?.length&&<tr><td colSpan="6" className="invoice-empty">Bu faturaya ait ürün/hizmet satırı bulunamadı.</td></tr>}</tbody></table></div><div className="invoice-detail-totals"><div><span>Ara toplam</span><strong>{money(selected.AraToplam,selected.ParaBirimi||"TRY")}</strong></div><div><span>KDV</span><strong>{money(selected.KdvToplam,selected.ParaBirimi||"TRY")}</strong></div><div className="grand"><span>Genel toplam</span><strong>{money(selected.GenelToplam,selected.ParaBirimi||"TRY")}</strong></div></div></>}</aside></div>}
+  </div>
+}
