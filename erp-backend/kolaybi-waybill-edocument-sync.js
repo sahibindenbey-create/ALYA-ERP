@@ -80,22 +80,48 @@ async function syncEDocumentWaybills({poolPromise,sql,companyId}) {
   try {
     const pool = await poolPromise;
     const api = await getApi(pool,sql,companyId);
-    const result = { CompanyId:companyId, KolaybiCompanyId:api.kolaybiCompanyId, received:0, created:0, updated:0, skipped:0, errors:0, sourceCounts:{inbound:0,outbound:0} };
+    const result = {
+      CompanyId:companyId,
+      KolaybiCompanyId:api.kolaybiCompanyId,
+      received:0, created:0, updated:0, skipped:0, errors:0,
+      sourceCounts:{inbound:0,outbound:0},
+      diagnostics:{availableCompanies:[], companyIdMatch:null}
+    };
+
+    // Önce tokenın erişebildiği gerçek KolayBi şirketlerini kontrol et.
+    // ALYA CompanyId ile KolayBi company_id aynı olmak zorunda değildir.
+    try {
+      const companiesResponse = await getJson(api,'/kolaybi/v1/companies');
+      const companies = rowsOf(companiesResponse);
+      result.diagnostics.availableCompanies = companies.map(c => ({
+        id: c?.id ?? c?.company_id ?? c?.companyId ?? null,
+        name: c?.name ?? c?.company_name ?? c?.title ?? null
+      }));
+      result.diagnostics.companyIdMatch = result.diagnostics.availableCompanies.some(c => String(c.id) === String(api.kolaybiCompanyId));
+    } catch (e) {
+      result.diagnostics.companiesError = e.message;
+    }
+
     for (const direction of ['outbound','inbound']) {
-      const response = await getJson(api,'/kolaybi/v1/e_document/waybills',{company_id:api.kolaybiCompanyId,direction});
-      const rows = rowsOf(response);
-      result.sourceCounts[direction] = rows.length;
-      result.received += rows.length;
-      for (const row of rows) {
-        try {
-          const r = await upsert(pool,sql,companyId,row,direction);
-          result.created += r.created || 0;
-          result.updated += r.updated || 0;
-          result.skipped += r.skipped || 0;
-        } catch (e) {
-          result.errors++;
-          console.error(`[KolayBi][E-İrsaliye][Şirket ${companyId}]`,e.message);
+      try {
+        const response = await getJson(api,'/kolaybi/v1/e_document/waybills',{company_id:api.kolaybiCompanyId,direction});
+        const rows = rowsOf(response);
+        result.sourceCounts[direction] = rows.length;
+        result.received += rows.length;
+        for (const row of rows) {
+          try {
+            const r = await upsert(pool,sql,companyId,row,direction);
+            result.created += r.created || 0;
+            result.updated += r.updated || 0;
+            result.skipped += r.skipped || 0;
+          } catch (e) {
+            result.errors++;
+            console.error(`[KolayBi][E-İrsaliye][Şirket ${companyId}]`,e.message);
+          }
         }
+      } catch (e) {
+        result.errors++;
+        result.diagnostics[`${direction}Error`] = e.message;
       }
     }
     return result;
