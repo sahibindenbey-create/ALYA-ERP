@@ -44,6 +44,16 @@ async function apiJson(api, path, params={}) {
   return response.json();
 }
 
+function responseRows(response) {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  if (Array.isArray(response?.data?.items)) return response.data.items;
+  if (Array.isArray(response?.data?.results)) return response.data.results;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.results)) return response.results;
+  return [];
+}
+
 function code(row) {
   const header = row?.header || {};
   return text(pick(header,['serial_no','waybill_number','document_number','number','code']))
@@ -130,10 +140,11 @@ async function syncWaybills({poolPromise,sql,companyId}) {
   try {
     const pool=await poolPromise;
     const api=await getToken(pool,sql,companyId);
-    const totals={CompanyId:companyId,received:0,created:0,updated:0,skipped:0,errors:0};
+    const totals={CompanyId:companyId,received:0,created:0,updated:0,skipped:0,errors:0,sourceCounts:{sale_waybill:0,purchase_waybill:0}};
     for(const type of ['sale_waybill','purchase_waybill']){
       const response=await apiJson(api,'/kolaybi/v1/invoices',{type,has_products:true});
-      const rows=Array.isArray(response?.data)?response.data:[];
+      const rows=responseRows(response);
+      totals.sourceCounts[type]=rows.length;
       totals.received += rows.length;
       for(const row of rows){
         try {
