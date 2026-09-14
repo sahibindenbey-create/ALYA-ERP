@@ -9,42 +9,9 @@ import "./layout-fixes.css";
 import "./pages/DashboardCompact.css";
 import "./list-density-fixes.css";
 import "./tableSortEnhancer";
+import "./entityDetailEnhancer";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { getAuthToken, logoutUser } from "./auth";
 import { startOperationalAutoRefresh } from "./kolaybiOperationalAutoRefresh";
-
-axios.interceptors.request.use((config) => {
-  const companyId = localStorage.getItem("selectedCompanyId") || "1";
-  const token = getAuthToken();
-  config.headers = config.headers || {};
-  config.headers["X-Company-Id"] = companyId;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-axios.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (
-      error.response?.status === 401 &&
-      !String(error.config?.url || "").includes("/auth/login")
-    ) {
-      logoutUser();
-      if (window.location.pathname !== "/login")
-        window.location.assign("/login");
-    }
-    return Promise.reject(error);
-  },
-);
-
-startOperationalAutoRefresh();
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
-
-reportWebVitals();
+axios.interceptors.request.use((config)=>{const companyId=localStorage.getItem("selectedCompanyId")||"1",token=getAuthToken();config.headers=config.headers||{};config.headers["X-Company-Id"]=companyId;if(token)config.headers.Authorization=`Bearer ${token}`;return config});axios.interceptors.response.use(response=>response,error=>{if(error.response?.status===401&&!String(error.config?.url||"").includes("/auth/login")){logoutUser();if(window.location.pathname!=="/login")window.location.assign("/login")}return Promise.reject(error)});startOperationalAutoRefresh();const root=ReactDOM.createRoot(document.getElementById("root"));root.render(<React.StrictMode><App/></React.StrictMode>);reportWebVitals();
