@@ -34,11 +34,24 @@ const IrsaliyeListPage = () => {
     setSyncing(true);
     setSyncMessage("");
     try {
-      const res = await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`);
-      const data = res.data || {};
-      const source = data.sourceCounts || {};
+      const legacyRes = await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`);
+      const legacy = legacyRes.data || {};
+      const legacySource = legacy.sourceCounts || {};
+
+      const eRes = await axios.post(`${API_URL}/kolaybi/e-irsaliye-senkronize`);
+      const eData = eRes.data || {};
+      const eSource = eData.sourceCounts || {};
+
+      const received = Number(legacy.received || 0) + Number(eData.received || 0);
+      const sales = Number(legacySource.sale_waybill || 0) + Number(eSource.outbound || 0);
+      const purchases = Number(legacySource.purchase_waybill || 0) + Number(eSource.inbound || 0);
+      const created = Number(legacy.created || 0) + Number(eData.created || 0);
+      const updated = Number(legacy.updated || 0) + Number(eData.updated || 0);
+      const skipped = Number(legacy.skipped || 0) + Number(eData.skipped || 0);
+      const errors = Number(legacy.errors || 0) + Number(eData.errors || 0);
+
       setSyncMessage(
-        `KolayBi senkronizasyonu tamamlandı. KolayBi'den gelen: ${Number(data.received || 0)} | Satış: ${Number(source.sale_waybill || 0)} | Alış: ${Number(source.purchase_waybill || 0)} | Yeni: ${Number(data.created || 0)} | Güncellenen: ${Number(data.updated || 0)} | Atlanan: ${Number(data.skipped || 0)} | Hatalı: ${Number(data.errors || 0)}.`
+        `KolayBi senkronizasyonu tamamlandı. KolayBi'den gelen: ${received} | Satış: ${sales} | Alış: ${purchases} | Yeni: ${created} | Güncellenen: ${updated} | Atlanan: ${skipped} | Hatalı: ${errors}.`
       );
       await fetchList();
     } catch (err) {
@@ -85,12 +98,7 @@ const IrsaliyeListPage = () => {
           <p style={{ margin: "6px 0 0", color: "#777" }}>Alış ve satış irsaliyelerini ayrı ayrı takip edin.</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={handleKolaybiSync}
-            disabled={syncing}
-            style={{ fontWeight: 700 }}
-          >
+          <button type="button" onClick={handleKolaybiSync} disabled={syncing} style={{ fontWeight: 700 }}>
             {syncing ? "⏳ KolayBi'den Çekiliyor..." : "🔄 KolayBi'den İrsaliyeleri Çek"}
           </button>
           <button type="button" onClick={() => navigate("/dashboard/irsaliyeler/satis")}>🚚 Yeni Satış İrsaliyesi</button>
@@ -106,12 +114,7 @@ const IrsaliyeListPage = () => {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["Tümü", "Satış", "Alış"].map(item => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setFilter(item)}
-            style={{ fontWeight: filter === item ? 700 : 400 }}
-          >
+          <button key={item} type="button" onClick={() => setFilter(item)} style={{ fontWeight: filter === item ? 700 : 400 }}>
             {item === "Tümü" ? "📋 Tümü" : item === "Satış" ? "🚚 Satış İrsaliyeleri" : "📥 Alış İrsaliyeleri"}
             {item !== "Tümü" && ` (${irsaliyeler.filter(i => i.Yon === item).length})`}
           </button>
@@ -130,9 +133,7 @@ const IrsaliyeListPage = () => {
         {loading ? <p style={{ color: "#888" }}>Yükleniyor...</p> : (
           <div style={{ overflowX: "auto", marginTop: 14 }}>
             <table className="irs-table">
-              <thead>
-                <tr><th>Kod</th><th>Yön</th><th>Cari</th><th>Tarih</th><th>Toplam</th><th>İşlem</th></tr>
-              </thead>
+              <thead><tr><th>Kod</th><th>Yön</th><th>Cari</th><th>Tarih</th><th>Toplam</th><th>İşlem</th></tr></thead>
               <tbody>
                 {filtered.map(i => (
                   <tr key={i.IrsaliyeId}>
