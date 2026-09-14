@@ -36,8 +36,9 @@ const IrsaliyeListPage = () => {
     try {
       const res = await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`);
       const data = res.data || {};
+      const source = data.sourceCounts || {};
       setSyncMessage(
-        `KolayBi senkronizasyonu tamamlandı. ${Number(data.created || 0)} yeni, ${Number(data.updated || 0)} güncellenen, ${Number(data.skipped || 0)} atlanan, ${Number(data.errors || 0)} hatalı kayıt.`
+        `KolayBi senkronizasyonu tamamlandı. KolayBi'den gelen: ${Number(data.received || 0)} | Satış: ${Number(source.sale_waybill || 0)} | Alış: ${Number(source.purchase_waybill || 0)} | Yeni: ${Number(data.created || 0)} | Güncellenen: ${Number(data.updated || 0)} | Atlanan: ${Number(data.skipped || 0)} | Hatalı: ${Number(data.errors || 0)}.`
       );
       await fetchList();
     } catch (err) {
