@@ -7,6 +7,8 @@
   - API Key / Channel değiştirilmez. Token yine 16203 dönerse kullanılan
     API Key veya Channel test hesabına aittir ve KolayBi canlı bilgileriyle
     değiştirilmelidir.
+  - KolaybiAyarlar.Id bazı eski kurulumlarda IDENTITY değildir. Bu nedenle
+    eksik kayıt eklenirken Id kolonu şemaya göre otomatik ele alınır.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -23,10 +25,33 @@ IF NOT EXISTS (
     SELECT 1 FROM dbo.KolaybiAyarlar WHERE CompanyId = 2 AND IsActive = 1
 )
 BEGIN
-    INSERT INTO dbo.KolaybiAyarlar
-        (CompanyId, BaseUrl, KolaybiCompanyId, IsActive)
-    VALUES
-        (2, N'https://ofis-api.kolaybi.com', N'18558', 1);
+    /*
+      Eski KolaybiAyarlar tablolarında Id NOT NULL olup IDENTITY olmayan
+      kurulumlar bulunabiliyor. IDENTITY durumuna göre uygun INSERT çalıştırılır.
+    */
+    DECLARE @IdIsIdentity BIT = 0;
+    DECLARE @NewId INT;
+    DECLARE @InsertSql NVARCHAR(MAX);
+
+    SELECT @IdIsIdentity = CONVERT(BIT, COLUMNPROPERTY(OBJECT_ID(N'dbo.KolaybiAyarlar'), N'Id', 'IsIdentity'));
+
+    IF @IdIsIdentity = 1
+    BEGIN
+        INSERT INTO dbo.KolaybiAyarlar
+            (CompanyId, BaseUrl, KolaybiCompanyId, IsActive)
+        VALUES
+            (2, N'https://ofis-api.kolaybi.com', N'18558', 1);
+    END
+    ELSE
+    BEGIN
+        SELECT @NewId = ISNULL(MAX(Id), 0) + 1
+        FROM dbo.KolaybiAyarlar WITH (UPDLOCK, HOLDLOCK);
+
+        INSERT INTO dbo.KolaybiAyarlar
+            (Id, CompanyId, BaseUrl, KolaybiCompanyId, IsActive)
+        VALUES
+            (@NewId, 2, N'https://ofis-api.kolaybi.com', N'18558', 1);
+    END;
 END
 ELSE
 BEGIN
