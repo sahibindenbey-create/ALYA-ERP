@@ -12,8 +12,8 @@ const emptyForm = {
 };
 const emptyEntry = { urunKodu: "", urunAdi: "", miktar: "", birim: "Adet", birimFiyat: "" };
 
-const IrsaliyeForm = () => {
-  const [form, setForm] = useState(emptyForm);
+const IrsaliyeForm = ({ defaultYon = "Satış" }) => {
+  const [form, setForm] = useState(() => ({ ...emptyForm, yon: defaultYon }));
   const [entry, setEntry] = useState(emptyEntry);
   const [items, setItems] = useState([]);
   const [cariler, setCariler] = useState([]);
