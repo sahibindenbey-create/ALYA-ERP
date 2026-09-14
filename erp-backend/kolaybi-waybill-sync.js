@@ -44,19 +44,54 @@ async function apiJson(api, path, params={}) {
   return response.json();
 }
 
-function code(row) { return text(pick(row,['document_number','waybill_number','serial_no','number','code'])) || (pick(row,['id','document_id']) ? `KB-IRS-${pick(row,['id','document_id'])}` : null); }
-function date(row) { const d = new Date(pick(row,['shipment_date','issue_date','document_date','date','created_at'],new Date())); return Number.isNaN(d.getTime()) ? new Date() : d; }
-function direction(type,row) { const raw=String(pick(row,['type','invoice_type'],type)).toLowerCase(); return raw.includes('purchase') || raw.includes('alış') ? 'Alış' : 'Satış'; }
-function associate(row) { const a=row?.associate||row?.customer||row?.supplier||row?.client||{}; return {code:text(typeof a==='string'?a:pick(a,['code','associate_code','customer_code','supplier_code','id'])),name:text(typeof a==='string'?null:pick(a,['name','title','company_name','trade_name','full_name']))}; }
-function items(row) { const x=row?.products||row?.items||row?.lines||row?.details||row?.invoice_items||[]; return Array.isArray(x)?x:[]; }
-function itemCode(i) { const p=i?.product||i?.stock||{}; return text(typeof p==='string'?p:pick(p,['code','sku','product_code','stock_code','id','product_id'])) || text(pick(i,['product_code','stock_code','sku','code','product_id'])) || 'KB-URUN'; }
-function itemName(i) { const p=i?.product||i?.stock||{}; return text(typeof p==='string'?p:pick(p,['name','title','product_name','description'])) || text(pick(i,['product_name','name','description','title'])) || 'KolayBi Ürün'; }
+function code(row) {
+  const header = row?.header || {};
+  return text(pick(header,['serial_no','waybill_number','document_number','number','code']))
+    || text(pick(row,['document_number','waybill_number','serial_no','number','code']))
+    || (pick(row,['commercial_doc_id','id','document_id','waybill_id']) ? `KB-IRS-${pick(row,['commercial_doc_id','id','document_id','waybill_id'])}` : null);
+}
+function date(row) {
+  const header = row?.header || {};
+  const d = new Date(pick(header,['shipment_date','issue_date','document_date','date'],pick(row,['shipment_date','issue_date','document_date','date','created_at'],new Date())));
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+function direction(type,row) {
+  const raw = String(pick(row?.commercial_doc_type || {},['value','key','description'],pick(row,['type','invoice_type'],type))).toLowerCase();
+  return raw.includes('purchase') || raw.includes('alış') || raw.includes('alis') ? 'Alış' : 'Satış';
+}
+function associate(row) {
+  const header = row?.header || {};
+  const a = header.associate || row?.associate || row?.customer || row?.supplier || row?.client || {};
+  return {
+    code: text(typeof a==='string' ? a : pick(a,['code','associate_code','customer_code','supplier_code','id','identity_no'])),
+    name: text(typeof a==='string' ? null : pick(a,['full_name','name','title','company_name','trade_name']))
+  };
+}
+function items(row) {
+  const x = row?.lines || row?.products || row?.items || row?.details || row?.invoice_items || [];
+  return Array.isArray(x) ? x : [];
+}
+function itemCode(i) {
+  const p=i?.product||i?.stock||{};
+  return text(typeof p==='string'?p:pick(p,['code','sku','product_code','stock_code','id','product_id']))
+    || text(pick(i,['product_code','stock_code','sku','code','product_id'])) || 'KB-URUN';
+}
+function itemName(i) {
+  const p=i?.product||i?.stock||{};
+  return text(typeof p==='string'?p:pick(p,['name','title','product_name','description']))
+    || text(pick(i,['product_name','name','description','title'])) || 'KolayBi Ürün';
+}
 
 async function upsertWaybill(pool,sql,companyId,type,row) {
-  const externalId=text(pick(row,['id','document_id','commercial_doc_id','waybill_id','uuid']));
-  const documentCode=code(row); if(!externalId||!documentCode) return {skipped:1};
-  const car=associate(row); const yon=direction(type,row); const list=items(row);
-  const total=num(pick(row,['grand_total','total','total_amount','amount'],list.reduce((s,i)=>s+num(pick(i,['grand_total','total','line_total','amount'],num(pick(i,['quantity','qty'],1))*num(pick(i,['unit_price','price'],0)))),0)));
+  const externalId=text(pick(row,['commercial_doc_id','id','document_id','waybill_id','uuid']));
+  const documentCode=code(row);
+  if(!externalId || !documentCode) return {skipped:1};
+
+  const car=associate(row);
+  const yon=direction(type,row);
+  const list=items(row);
+  const totalBlock=row?.total || {};
+  const total=num(pick(totalBlock,['grand_total','total_amount','amount'],pick(row,['grand_total','total','total_amount','amount'],0)));
 
   const existing=await pool.request().input('CompanyId',sql.Int,companyId).input('IrsaliyeKodu',sql.NVarChar,documentCode)
     .query(`SELECT TOP 1 IrsaliyeId FROM dbo.Irsaliyeler WHERE CompanyId=@CompanyId AND IrsaliyeKodu=@IrsaliyeKodu ORDER BY IrsaliyeId DESC`);
@@ -65,17 +100,19 @@ async function upsertWaybill(pool,sql,companyId,type,row) {
     id=existing.recordset[0].IrsaliyeId;
     await pool.request().input('IrsaliyeId',sql.Int,id).input('Yon',sql.NVarChar,yon).input('IrsaliyeTarihi',sql.DateTime2,date(row))
       .input('CariKodu',sql.NVarChar,car.code).input('CariAdi',sql.NVarChar,car.name||car.code||'KolayBi Cari')
-      .input('Notlar',sql.NVarChar,text(pick(row,['description','note','notes'])))
+      .input('Notlar',sql.NVarChar,text(pick(row?.header||{},['description','note','notes']) || pick(row,['description','note','notes'])))
       .input('ToplamTutar',sql.Decimal(18,2),total)
       .query(`UPDATE dbo.Irsaliyeler SET Yon=@Yon,IrsaliyeTarihi=@IrsaliyeTarihi,CariKodu=@CariKodu,CariAdi=@CariAdi,Notlar=@Notlar,ToplamTutar=@ToplamTutar,UpdatedAt=SYSDATETIME() WHERE IrsaliyeId=@IrsaliyeId`);
     await pool.request().input('IrsaliyeId',sql.Int,id).query('DELETE FROM dbo.IrsaliyeDetay WHERE IrsaliyeId=@IrsaliyeId');
   } else {
     const r=await pool.request().input('CompanyId',sql.Int,companyId).input('IrsaliyeKodu',sql.NVarChar,documentCode).input('Yon',sql.NVarChar,yon)
       .input('IrsaliyeTarihi',sql.DateTime2,date(row)).input('CariKodu',sql.NVarChar,car.code).input('CariAdi',sql.NVarChar,car.name||car.code||'KolayBi Cari')
-      .input('Notlar',sql.NVarChar,text(pick(row,['description','note','notes']))).input('ToplamTutar',sql.Decimal(18,2),total)
+      .input('Notlar',sql.NVarChar,text(pick(row?.header||{},['description','note','notes']) || pick(row,['description','note','notes'])))
+      .input('ToplamTutar',sql.Decimal(18,2),total)
       .query(`INSERT INTO dbo.Irsaliyeler (CompanyId,IrsaliyeKodu,Yon,IrsaliyeTarihi,CariKodu,CariAdi,Notlar,ToplamTutar,IsActive,CreatedAt,UpdatedAt) OUTPUT INSERTED.IrsaliyeId VALUES (@CompanyId,@IrsaliyeKodu,@Yon,@IrsaliyeTarihi,@CariKodu,@CariAdi,@Notlar,@ToplamTutar,1,SYSDATETIME(),SYSDATETIME())`);
     id=r.recordset[0].IrsaliyeId;
   }
+
   for(const i of list){
     const qty=num(pick(i,['quantity','qty','amount','count'],1));
     const price=num(pick(i,['unit_price','price','unit_amount'],0));
@@ -88,18 +125,45 @@ async function upsertWaybill(pool,sql,companyId,type,row) {
 }
 
 async function syncWaybills({poolPromise,sql,companyId}) {
-  if(running.has(companyId)) return {CompanyId:companyId,skipped:true}; running.add(companyId);
-  try { const pool=await poolPromise; const api=await getToken(pool,sql,companyId); const totals={CompanyId:companyId,created:0,updated:0,skipped:0,errors:0};
+  if(running.has(companyId)) return {CompanyId:companyId,skipped:true};
+  running.add(companyId);
+  try {
+    const pool=await poolPromise;
+    const api=await getToken(pool,sql,companyId);
+    const totals={CompanyId:companyId,received:0,created:0,updated:0,skipped:0,errors:0};
     for(const type of ['sale_waybill','purchase_waybill']){
-      const response=await apiJson(api,'/kolaybi/v1/invoices',{type,has_products:true}); const rows=Array.isArray(response?.data)?response.data:[];
-      for(const row of rows){try{const r=await upsertWaybill(pool,sql,companyId,type,row); totals.created+=r.created||0; totals.updated+=r.updated||0; totals.skipped+=r.skipped||0;}catch(e){totals.errors++;console.error(`[KolayBi][İrsaliye][Şirket ${companyId}]`,e.message);}}
+      const response=await apiJson(api,'/kolaybi/v1/invoices',{type,has_products:true});
+      const rows=Array.isArray(response?.data)?response.data:[];
+      totals.received += rows.length;
+      for(const row of rows){
+        try {
+          const r=await upsertWaybill(pool,sql,companyId,type,row);
+          totals.created+=r.created||0;
+          totals.updated+=r.updated||0;
+          totals.skipped+=r.skipped||0;
+        } catch(e) {
+          totals.errors++;
+          console.error(`[KolayBi][İrsaliye][Şirket ${companyId}]`,e.message);
+        }
+      }
     }
     return totals;
   } finally { running.delete(companyId); }
 }
 
 function install({app,poolPromise,sql}){
-  if(app.__alyaKolaybiWaybillSyncInstalled) return; app.__alyaKolaybiWaybillSyncInstalled=true;
-  app.post('/api/kolaybi/irsaliye-senkronize',async(req,res)=>{const companyId=Number(storage.getStore()?.companyId||req.headers['x-company-id']||1);if(!COMPANY_IDS.has(companyId))return res.status(400).json({success:false,error:'Geçersiz CompanyId',CompanyId:companyId});try{const result=await storage.run({companyId},()=>syncWaybills({poolPromise,sql,companyId}));res.json({success:true,...result});}catch(e){console.error(`[KolayBi][İrsaliye][Şirket ${companyId}]`,e);res.status(500).json({success:false,error:e.message,CompanyId:companyId});}});
+  if(app.__alyaKolaybiWaybillSyncInstalled) return;
+  app.__alyaKolaybiWaybillSyncInstalled=true;
+  app.post('/api/kolaybi/irsaliye-senkronize',async(req,res)=>{
+    const companyId=Number(storage.getStore()?.companyId||req.headers['x-company-id']||1);
+    if(!COMPANY_IDS.has(companyId)) return res.status(400).json({success:false,error:'Geçersiz CompanyId',CompanyId:companyId});
+    try {
+      const result=await storage.run({companyId},()=>syncWaybills({poolPromise,sql,companyId}));
+      res.json({success:true,...result});
+    } catch(e) {
+      console.error(`[KolayBi][İrsaliye][Şirket ${companyId}]`,e);
+      res.status(500).json({success:false,error:e.message,CompanyId:companyId});
+    }
+  });
 }
 module.exports={install,syncWaybills};
