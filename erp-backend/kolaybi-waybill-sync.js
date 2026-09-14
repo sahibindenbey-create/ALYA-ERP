@@ -17,13 +17,13 @@ const num = (v, fallback = 0) => { const n = Number(v); return Number.isFinite(n
 
 async function getToken(pool, sql, companyId) {
   const r = await pool.request().input('CompanyId', sql.Int, companyId).query(`
-    SELECT TOP 1 ApiKey, Channel, BaseUrl, AccessToken, TokenGecerlilik
+    SELECT TOP 1 ApiKey, Channel, BaseUrl, AccessToken, TokenGecerlilik, KolaybiCompanyId
     FROM dbo.KolaybiAyarlar WHERE CompanyId=@CompanyId AND IsActive=1 ORDER BY Id DESC
   `);
   const a = r.recordset[0];
   if (!a?.ApiKey || !a?.Channel) throw new Error(`Şirket ${companyId} için KolayBi ayarı eksik.`);
   const baseUrl = a.BaseUrl || DEFAULT_BASE_URL;
-  if (a.AccessToken && a.TokenGecerlilik && new Date(a.TokenGecerlilik) > new Date()) return { token:a.AccessToken, channel:a.Channel, baseUrl };
+  if (a.AccessToken && a.TokenGecerlilik && new Date(a.TokenGecerlilik) > new Date()) return { token:a.AccessToken, channel:a.Channel, baseUrl, kolaybiCompanyId:text(a.KolaybiCompanyId) };
   const response = await fetch(`${baseUrl}/kolaybi/v1/access_token`, {
     method:'POST', headers:{Channel:a.Channel,'Content-Type':'application/json'}, body:JSON.stringify({api_key:a.ApiKey})
   });
@@ -33,7 +33,7 @@ async function getToken(pool, sql, companyId) {
   await pool.request().input('CompanyId',sql.Int,companyId).input('AccessToken',sql.NVarChar,body.data)
     .input('TokenGecerlilik',sql.DateTime2,new Date(Date.now()+23*60*60*1000))
     .query(`UPDATE dbo.KolaybiAyarlar SET AccessToken=@AccessToken,TokenGecerlilik=@TokenGecerlilik,UpdatedAt=SYSDATETIME() WHERE CompanyId=@CompanyId AND IsActive=1`);
-  return { token:body.data, channel:a.Channel, baseUrl };
+  return { token:body.data, channel:a.Channel, baseUrl, kolaybiCompanyId:text(a.KolaybiCompanyId) };
 }
 
 async function apiJson(api, path, params={}) {
@@ -162,9 +162,55 @@ async function syncWaybills({poolPromise,sql,companyId}) {
   } finally { running.delete(companyId); }
 }
 
+async function diagnoseWaybills({poolPromise,sql,companyId}) {
+  const pool=await poolPromise;
+  const api=await getToken(pool,sql,companyId);
+  const companiesResponse=await apiJson(api,'/kolaybi/v1/companies');
+  const companies=responseRows(companiesResponse).map(c => ({
+    company_id:c?.company_id ?? c?.id ?? null,
+    company_name:c?.company_name ?? c?.name ?? null,
+    identity_no:c?.identity_no ?? null,
+    is_activated:c?.is_activated ?? null
+  }));
+  const counts={};
+  for(const type of ['sale_waybill','purchase_waybill','sale_invoice','purchase_invoice']){
+    try {
+      const response=await apiJson(api,'/kolaybi/v1/invoices',{type,has_products:false});
+      counts[type]={count:responseRows(response).length,status:'OK'};
+    } catch(e) {
+      counts[type]={count:null,status:'ERROR',error:e.message};
+    }
+  }
+  const eDocument={};
+  if(api.kolaybiCompanyId) {
+    for(const direction of ['outbound','inbound']) {
+      try {
+        const response=await apiJson(api,'/kolaybi/v1/e_document/invoices',{company_id:api.kolaybiCompanyId,direction,document_type:'SEVK'});
+        eDocument[direction]={company_id:api.kolaybiCompanyId,count:responseRows(response).length,status:'OK'};
+      } catch(e) {
+        eDocument[direction]={company_id:api.kolaybiCompanyId,count:null,status:'ERROR',error:e.message};
+      }
+    }
+  } else {
+    eDocument.status='KolaybiCompanyId tanımlı değil';
+  }
+  return {CompanyId:companyId,KolaybiCompanyId:api.kolaybiCompanyId||null,KolaybiCompanies:companies,counts,eDocument};
+}
+
 function install({app,poolPromise,sql}){
   if(app.__alyaKolaybiWaybillSyncInstalled) return;
   app.__alyaKolaybiWaybillSyncInstalled=true;
+  app.get('/api/kolaybi/irsaliye-diagnostik',async(req,res)=>{
+    const companyId=Number(storage.getStore()?.companyId||req.headers['x-company-id']||1);
+    if(!COMPANY_IDS.has(companyId)) return res.status(400).json({success:false,error:'Geçersiz CompanyId',CompanyId:companyId});
+    try {
+      const result=await storage.run({companyId},()=>diagnoseWaybills({poolPromise,sql,companyId}));
+      res.json({success:true,...result});
+    } catch(e) {
+      console.error(`[KolayBi][İrsaliye teşhis][Şirket ${companyId}]`,e);
+      res.status(500).json({success:false,error:e.message,CompanyId:companyId});
+    }
+  });
   app.post('/api/kolaybi/irsaliye-senkronize',async(req,res)=>{
     const companyId=Number(storage.getStore()?.companyId||req.headers['x-company-id']||1);
     if(!COMPANY_IDS.has(companyId)) return res.status(400).json({success:false,error:'Geçersiz CompanyId',CompanyId:companyId});
@@ -177,4 +223,4 @@ function install({app,poolPromise,sql}){
     }
   });
 }
-module.exports={install,syncWaybills};
+module.exports={install,syncWaybills,diagnoseWaybills};
