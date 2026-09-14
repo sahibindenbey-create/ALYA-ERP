@@ -12,6 +12,7 @@ const IrsaliyeListPage = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [syncDiagnostics, setSyncDiagnostics] = useState(null);
 
   const fetchList = async () => {
     setLoading(true);
@@ -33,6 +34,7 @@ const IrsaliyeListPage = () => {
   const handleKolaybiSync = async () => {
     setSyncing(true);
     setSyncMessage("");
+    setSyncDiagnostics(null);
     try {
       const legacyRes = await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`);
       const legacy = legacyRes.data || {};
@@ -41,6 +43,7 @@ const IrsaliyeListPage = () => {
       const eRes = await axios.post(`${API_URL}/kolaybi/e-irsaliye-senkronize`);
       const eData = eRes.data || {};
       const eSource = eData.sourceCounts || {};
+      const diagnostics = eData.diagnostics || {};
 
       const received = Number(legacy.received || 0) + Number(eData.received || 0);
       const sales = Number(legacySource.sale_waybill || 0) + Number(eSource.outbound || 0);
@@ -53,6 +56,15 @@ const IrsaliyeListPage = () => {
       setSyncMessage(
         `KolayBi senkronizasyonu tamamlandı. KolayBi'den gelen: ${received} | Satış: ${sales} | Alış: ${purchases} | Yeni: ${created} | Güncellenen: ${updated} | Atlanan: ${skipped} | Hatalı: ${errors}.`
       );
+      setSyncDiagnostics({
+        companyId: eData.CompanyId ?? "-",
+        kolaybiCompanyId: eData.KolaybiCompanyId ?? "-",
+        companyIdMatch: diagnostics.companyIdMatch,
+        availableCompanies: diagnostics.availableCompanies || [],
+        outboundError: diagnostics.outboundError || "",
+        inboundError: diagnostics.inboundError || "",
+        companiesError: diagnostics.companiesError || "",
+      });
       await fetchList();
     } catch (err) {
       const message = err.response?.data?.error || err.message || "Bilinmeyen hata";
@@ -109,6 +121,23 @@ const IrsaliyeListPage = () => {
       {syncMessage && (
         <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "#f4f7fb", border: "1px solid #d9e2f0" }}>
           {syncMessage}
+        </div>
+      )}
+
+      {syncDiagnostics && (
+        <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 8, background: "#fffaf0", border: "1px solid #ead9ad", fontSize: 13 }}>
+          <strong>KolayBi bağlantı teşhisi</strong>
+          <div style={{ marginTop: 7, lineHeight: 1.7 }}>
+            <div>ALYA CompanyId: <strong>{syncDiagnostics.companyId}</strong></div>
+            <div>KolayBi CompanyId: <strong>{syncDiagnostics.kolaybiCompanyId}</strong></div>
+            <div>Eşleşme: <strong>{syncDiagnostics.companyIdMatch === true ? "EVET" : syncDiagnostics.companyIdMatch === false ? "HAYIR" : "BELİRLENEMEDİ"}</strong></div>
+            {syncDiagnostics.availableCompanies.length > 0 && (
+              <div>Tokenın gördüğü KolayBi şirketleri: <strong>{syncDiagnostics.availableCompanies.map(c => `${c.id} = ${c.name || "İsimsiz"}`).join(" | ")}</strong></div>
+            )}
+            {syncDiagnostics.companiesError && <div style={{ color: "#a33" }}>Şirket listesi hatası: {syncDiagnostics.companiesError}</div>}
+            {syncDiagnostics.outboundError && <div style={{ color: "#a33" }}>Satış e-İrsaliye hatası: {syncDiagnostics.outboundError}</div>}
+            {syncDiagnostics.inboundError && <div style={{ color: "#a33" }}>Alış e-İrsaliye hatası: {syncDiagnostics.inboundError}</div>}
+          </div>
         </div>
       )}
 
