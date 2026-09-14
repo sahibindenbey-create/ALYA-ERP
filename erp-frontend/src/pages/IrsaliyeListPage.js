@@ -10,6 +10,8 @@ const IrsaliyeListPage = () => {
   const [irsaliyeler, setIrsaliyeler] = useState([]);
   const [filter, setFilter] = useState("Tümü");
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
   const fetchList = async () => {
     setLoading(true);
@@ -27,6 +29,24 @@ const IrsaliyeListPage = () => {
   useEffect(() => {
     fetchList();
   }, []);
+
+  const handleKolaybiSync = async () => {
+    setSyncing(true);
+    setSyncMessage("");
+    try {
+      const res = await axios.post(`${API_URL}/kolaybi/irsaliye-senkronize`);
+      const data = res.data || {};
+      setSyncMessage(
+        `KolayBi senkronizasyonu tamamlandı. ${Number(data.created || 0)} yeni, ${Number(data.updated || 0)} güncellenen, ${Number(data.skipped || 0)} atlanan, ${Number(data.errors || 0)} hatalı kayıt.`
+      );
+      await fetchList();
+    } catch (err) {
+      const message = err.response?.data?.error || err.message || "Bilinmeyen hata";
+      setSyncMessage(`KolayBi irsaliyeleri alınamadı: ${message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const filtered = useMemo(
     () => filter === "Tümü" ? irsaliyeler : irsaliyeler.filter(i => i.Yon === filter),
@@ -63,11 +83,25 @@ const IrsaliyeListPage = () => {
           <h2 style={{ margin: 0 }}>İrsaliye Listesi</h2>
           <p style={{ margin: "6px 0 0", color: "#777" }}>Alış ve satış irsaliyelerini ayrı ayrı takip edin.</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleKolaybiSync}
+            disabled={syncing}
+            style={{ fontWeight: 700 }}
+          >
+            {syncing ? "⏳ KolayBi'den Çekiliyor..." : "🔄 KolayBi'den İrsaliyeleri Çek"}
+          </button>
           <button type="button" onClick={() => navigate("/dashboard/irsaliyeler/satis")}>🚚 Yeni Satış İrsaliyesi</button>
           <button type="button" onClick={() => navigate("/dashboard/irsaliyeler/alis")}>📥 Yeni Alış İrsaliyesi</button>
         </div>
       </div>
+
+      {syncMessage && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "#f4f7fb", border: "1px solid #d9e2f0" }}>
+          {syncMessage}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {["Tümü", "Satış", "Alış"].map(item => (
