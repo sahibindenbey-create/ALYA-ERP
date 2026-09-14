@@ -63,6 +63,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       const { install: installFull } = require('./kolaybi-full-sync');
       const { install: installFinans } = require('./kolaybi-finans');
       const { install: installEDocument } = require('./kolaybi-e-document');
+      const { install: installEDocumentWaybill } = require('./kolaybi-waybill-edocument-sync');
       const { install: installInvoiceActions } = require('./kolaybi-invoice-actions');
       const deps = { app: this, poolPromise, sql };
       installErp(deps);
@@ -71,6 +72,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       installFull(deps);
       installFinans(deps);
       installEDocument(deps);
+      installEDocumentWaybill(deps);
       installInvoiceActions(deps);
       this.__alyaKolaybiRoutesInstalled = true;
     }
