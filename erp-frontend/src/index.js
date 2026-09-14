@@ -10,6 +10,7 @@ import "./pages/DashboardCompact.css";
 import "./list-density-fixes.css";
 import "./tableSortEnhancer";
 import "./entityDetailEnhancer";
+import "./cariDetailLiveRefresh";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import { getAuthToken, logoutUser } from "./auth";
