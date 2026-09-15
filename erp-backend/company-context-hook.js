@@ -64,6 +64,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       const { install: installStockV2 } = require('./stokV2Routes');
       const { install: installUrunStok } = require('./urunStokRoutes');
       const { install: installSalesFlow } = require('./salesFlowRoutesV2');
+      const { install: installSalesInvoice } = require('./salesInvoiceRoutesV2');
       const deps = { app: this, poolPromise, sql };
       installErp(deps);
       installInvoice(deps);
@@ -76,6 +77,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       installStockV2(deps);
       installUrunStok(deps);
       installSalesFlow(deps);
+      installSalesInvoice(deps);
       this.__alyaKolaybiRoutesInstalled = true;
     }
     return originalListen.apply(this, args);
