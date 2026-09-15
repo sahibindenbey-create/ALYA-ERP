@@ -77,17 +77,27 @@ const SiparisForm = ({ mode = "giris" }) => {
     fetchSiparisGecmisi();
   }, []);
 
-  // Cari seçilince adı ve fatura adresini otomatik doldur
+  // Cari seçilince adı, fatura adresi ve sevkiyat adresini otomatik doldur
   const handleCariSecim = (cariKodu) => {
     const secilen = carilerListesi.find(c => c.CariKodu === cariKodu);
     if (secilen) {
+      const faturaIl = secilen.FaturaIl || "";
+      const faturaIlce = secilen.FaturaIlce || "";
+      const faturaAdres = secilen.FaturaAdresDetay || "";
+      const sevkiyatIl = secilen.SevkiyatIl || faturaIl;
+      const sevkiyatIlce = secilen.SevkiyatIlce || faturaIlce;
+      const sevkiyatAdres = secilen.SevkiyatAdresDetay || faturaAdres;
+
       setForm(f => ({
         ...f,
         cariKodu: secilen.CariKodu,
         cariAdi: secilen.CariAdi,
-        faturaIl: secilen.FaturaIl || f.faturaIl,
-        faturaIlce: secilen.FaturaIlce || f.faturaIlce,
-        faturaAdres: secilen.FaturaAdresDetay || f.faturaAdres
+        faturaIl,
+        faturaIlce,
+        faturaAdres,
+        sevkiyatIl,
+        sevkiyatIlce,
+        sevkiyatAdres
       }));
     } else {
       setForm(f => ({ ...f, cariKodu, cariAdi: "" }));
