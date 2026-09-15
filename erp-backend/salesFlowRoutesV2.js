@@ -258,7 +258,7 @@ function install({ app, poolPromise, sql }) {
 
       const billable = lines.map(x => ({
         ...x,
-        qty: Math.min(Number(x.Miktar || 0), Math.max(0, Number(x.SevkEdilenMiktar || x.Miktar || 0) - Number(x.FaturalananMiktar || 0)))
+        qty: Math.min(Number(x.Miktar || 0), Math.max(0, Number(x.Miktar || 0) - Number(x.FaturalananMiktar || 0)))
       })).filter(x => x.qty > 0);
       if (!billable.length) throw new Error('İrsaliyedeki tüm miktarlar zaten faturalanmış.');
 
@@ -276,6 +276,8 @@ function install({ app, poolPromise, sql }) {
       const header = (await new sql.Request(tx)
         .input('FaturaKodu',sql.NVarChar(100),code)
         .input('Yon',sql.NVarChar(50),order.SiparisYonu === 'ALIŞ' || order.SiparisYonu === 'Alış' ? 'Alış' : 'Satış')
+        .input('FaturaTarihi',sql.DateTime2,SYSUTCDATETIME())
+        .input('VadeTarihi',sql.DateTime2,order.TahsilatTarihi||null)
         .input('CariKodu',sql.NVarChar(100),order.CariKodu||null)
         .input('CariAdi',sql.NVarChar(250),order.CariAdi||null)
         .input('SiparisId',sql.Int,orderId).input('IrsaliyeId',sql.Int,waybill.IrsaliyeId)
@@ -283,7 +285,7 @@ function install({ app, poolPromise, sql }) {
         .input('AraToplam',sql.Decimal(18,2),totals.net).input('KdvToplam',sql.Decimal(18,2),totals.kdv).input('GenelToplam',sql.Decimal(18,2),totals.gross)
         .query(`INSERT dbo.Faturalar(CompanyId,FaturaKodu,Yon,FaturaTarihi,VadeTarihi,CariKodu,CariAdi,SiparisId,IrsaliyeId,OdemeSekli,AraToplam,KdvToplam,GenelToplam)
                 OUTPUT INSERTED.FaturaId
-                VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@FaturaKodu,@Yon,SYSUTCDATETIME(),@VadeTarihi,@CariKodu,@CariAdi,@SiparisId,@IrsaliyeId,@OdemeSekli,@AraToplam,@KdvToplam,@GenelToplam)`).recordset[0];
+                VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@FaturaKodu,@Yon,@FaturaTarihi,@VadeTarihi,@CariKodu,@CariAdi,@SiparisId,@IrsaliyeId,@OdemeSekli,@AraToplam,@KdvToplam,@GenelToplam)`)).recordset[0];
       const faturaId = header.FaturaId;
 
       for (const x of billable) {
