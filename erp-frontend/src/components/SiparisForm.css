@@ -125,11 +125,13 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px;
+  overflow: visible;
 }
 
 .vba-pb-labels {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(240px, 2.5fr) repeat(5, minmax(70px, 1fr)) auto;
+  gap: 6px;
   font-size: 0.68rem;
   font-weight: 700;
   color: var(--text-secondary);
@@ -138,16 +140,23 @@ textarea {
   padding: 0 2px;
 }
 
-.vba-pb-labels span { flex: 1; }
+.vba-pb-labels span { min-width: 0; }
 
 .vba-pb-inputs {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(240px, 2.5fr) repeat(5, minmax(70px, 1fr)) auto;
   gap: 6px;
   margin-top: 6px;
+  align-items: center;
+}
+
+.vba-pb-inputs > div {
+  min-width: 0;
 }
 
 .vba-pb-inputs input, .vba-pb-inputs select {
-  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--border);
   border-radius: 7px;
   height: 36px;
@@ -166,6 +175,8 @@ textarea {
   font-size: 0.85rem;
   padding: 0 16px;
   height: 36px;
+  min-width: 68px;
+  white-space: nowrap;
 }
 .vba-add-btn:hover { background: var(--accent-dark); }
 
@@ -294,4 +305,16 @@ td {
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-bottom: 4px;
+}
+
+@media (max-width: 900px) {
+  .vba-pb-inputs,
+  .vba-pb-labels {
+    grid-template-columns: minmax(200px, 2fr) repeat(5, minmax(65px, 1fr)) auto;
+    min-width: 760px;
+  }
+
+  .vba-product-bar {
+    overflow-x: auto;
+  }
 }
