@@ -150,6 +150,12 @@ const SiparisForm = ({ mode = "giris" }) => {
     .filter(s => gecmisDurumFiltre === "Hepsi" || s.Durum === gecmisDurumFiltre)
     .filter(s => (s.CariAdi || "").toLocaleLowerCase('tr-TR').includes(gecmisSearch.toLocaleLowerCase('tr-TR')) || (s.SiparisKodu || "").toLocaleLowerCase('tr-TR').includes(gecmisSearch.toLocaleLowerCase('tr-TR')));
 
+  const cariOptions = carilerListesi.map(c => ({
+    value: c.CariKodu,
+    label: c.CariAdi,
+    sublabel: `${c.CariKodu} · ${c.CariTipi === 1 ? "Müşteri" : c.CariTipi === 2 ? "Tedarikçi" : "Müşteri + Tedarikçi"}`
+  }));
+
   return (
     <div className="vba-container">
       {mode === "giris" && <>
@@ -168,9 +174,9 @@ const SiparisForm = ({ mode = "giris" }) => {
             <div className="vba-row">
               <div className="vba-f"><label>SİPARİŞ NO</label><input value={form.siparisKodu} readOnly className="vba-read" /></div>
               <div className="vba-f"><label>TARİH</label><input type="date" value={form.siparisTarihi} onChange={e=>setForm({...form, siparisTarihi:e.target.value})} /></div>
-              <div className="vba-f"><label>SİPARİŞ TİPİ</label><select value={form.siparisTipi} onChange={e=>setForm({...form, siparisTipi:e.target.value})}>{siparisTipleri.map(t=><option key={t}>{t}</option>)}</select></div>
-              <div className="vba-f"><label>SİPARİŞ VEREN</label><select value={form.siparisVeren} onChange={e=>setForm({...form, siparisVeren:e.target.value})}>{siparisVerenler.map(v=><option key={v}>{v}</option>)}</select></div>
-              <div className="vba-f"><label>MÜŞTERİ TEMSİLCİSİ</label><select value={form.musteriTemsilcisi} onChange={e=>setForm({...form, musteriTemsilcisi:e.target.value})}>{temsilciler.map(m=><option key={m}>{m}</option>)}</select></div>
+              <div className="vba-f"><label>SİPARİŞ TİPİ</label><select value={form.siparisTipi} onChange={e=>setForm({...form,siparisTipi:e.target.value})}>{siparisTipleri.map(t=><option key={t}>{t}</option>)}</select></div>
+              <div className="vba-f"><label>SİPARİŞ VEREN</label><select value={form.siparisVeren} onChange={e=>setForm({...form,siparisVeren:e.target.value})}>{siparisVerenler.map(v=><option key={v}>{v}</option>)}</select></div>
+              <div className="vba-f"><label>MÜŞTERİ TEMSİLCİSİ</label><select value={form.musteriTemsilcisi} onChange={e=>setForm({...form,musteriTemsilcisi:e.target.value})}>{temsilciler.map(m=><option key={m}>{m}</option>)}</select></div>
             </div>
             {form.siparisYonu === "Alış" && <div className="vba-row" style={{marginTop:14}}>
               <div className="vba-f"><label>TESLİMAT ŞEKLİ</label><input value={form.teslimatSekli} onChange={e=>setForm({...form,teslimatSekli:e.target.value})}/></div>
@@ -180,16 +186,16 @@ const SiparisForm = ({ mode = "giris" }) => {
             </div>}
           </div>
           <div className="vba-panel">
-            <div className="vba-row"><div className="vba-f" style={{flex:0.9}}><label>{form.siparisYonu === "Alış" ? "TEDARİKÇİ" : "MÜŞTERİ"} KODU / ADI</label><SearchableSelect options={carilerListesi.filter(c=>form.siparisYonu === "Alış" ? c.CariTipi !== 1 : c.CariTipi !== 2).map(c=>({value:c.CariKodu,label:c.CariAdi,sublabel:c.CariKodu}))} value={form.cariKodu} onChange={val=>handleCariSecim(val)} placeholder={form.siparisYonu === "Alış" ? "Tedarikçi seçin..." : "Müşteri seçin..."}/></div><div className="vba-f"><label>CARİ ADI</label><input value={form.cariAdi} onChange={e=>setForm({...form,cariAdi:e.target.value})}/></div></div>
+            <div className="vba-row"><div className="vba-f" style={{flex:0.9}}><label>{form.siparisYonu === "Alış" ? "TEDARİKÇİ" : "MÜŞTERİ"} KODU / ADI</label><SearchableSelect options={cariOptions} value={form.cariKodu} onChange={val=>handleCariSecim(val)} placeholder={form.siparisYonu === "Alış" ? "Tedarikçi seçin..." : "Müşteri seçin..."}/></div><div className="vba-f"><label>CARİ ADI</label><input value={form.cariAdi} onChange={e=>setForm({...form,cariAdi:e.target.value})}/></div></div>
             <div className="vba-address-grid">
               <div className="vba-addr-col"><label className="vba-label-sm">FATURA ADRES BİLGİLERİ</label><input placeholder="Ülke" value={form.faturaUlke} onChange={e=>setForm({...form,faturaUlke:e.target.value})}/><div className="vba-row-sm"><input placeholder="İl" value={form.faturaIl} onChange={e=>setForm({...form,faturaIl:e.target.value})}/><input placeholder="İlçe" value={form.faturaIlce} onChange={e=>setForm({...form,faturaIlce:e.target.value})}/></div><textarea placeholder="Adres Detay" value={form.faturaAdres} onChange={e=>setForm({...form,faturaAdres:e.target.value})}/></div>
               <div className="vba-addr-col"><div className="vba-row-sm" style={{justifyContent:'space-between'}}><label className="vba-label-sm">SEVKİYAT ADRES BİLGİLERİ</label><label style={{fontSize:'9px'}}><input type="checkbox" checked={adresAyni} onChange={e=>handleAdresSync(e.target.checked)}/> Fatura ile Aynı</label></div><input placeholder="Ülke" value={form.sevkiyatUlke} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatUlke:e.target.value})}/><div className="vba-row-sm"><input placeholder="İl" value={form.sevkiyatIl} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatIl:e.target.value})}/><input placeholder="İlçe" value={form.sevkiyatIlce} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatIlce:e.target.value})}/></div><textarea placeholder="Adres Detay" value={form.sevkiyatAdres} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatAdres:e.target.value})}/></div>
             </div>
           </div>
           <div className="vba-product-bar">
-            <div className="vba-pb-labels"><span style={{flex:2.5}}>ÜRÜN / HİZMET</span><span>MİKTAR</span><span>BİRİM</span><span>KOLİ İÇİ</span><span>LİSTE FİYAT</span><span>İSK %</span><span></span></div>
+            <div className="vba-pb-labels"><span>ÜRÜN / HİZMET</span><span>MİKTAR</span><span>BİRİM</span><span>KOLİ İÇİ</span><span>LİSTE FİYAT</span><span>İSK %</span><span>İŞLEM</span></div>
             <div className="vba-pb-inputs">
-              <div style={{flex:'2.5 1 0',minWidth:0}}><SearchableSelect options={urunlerListesi.map(u=>({value:u.UrunId,label:u.UrunAdi,sublabel:u.UrunKodu}))} value={urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu)?.UrunId || ""} onChange={val=>handleUrunSecim(val)} placeholder="Ürün / hizmet seçin..."/></div>
+              <div className="vba-product-select"><SearchableSelect options={urunlerListesi.map(u=>({value:u.UrunId,label:u.UrunAdi,sublabel:`${u.UrunKodu} · ${u.Tur || "Ürün"}`}))} value={urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu)?.UrunId || ""} onChange={val=>handleUrunSecim(val)} placeholder="Ürün / hizmet seçin..."/></div>
               <input style={{minWidth:0}} type="number" value={entry.miktar} onChange={e=>setEntry({...entry,miktar:e.target.value})}/>
               <select style={{minWidth:0}} value={entry.birim} onChange={e=>setEntry({...entry,birim:e.target.value})}><option>ADET</option><option>KG</option></select>
               {entry.urunTuru === "Hizmet" ? <div className="vba-service-placeholder" aria-hidden="true">—</div> : <input style={{minWidth:0}} value={entry.koliIci} readOnly title="Üründen otomatik gelir"/>}
