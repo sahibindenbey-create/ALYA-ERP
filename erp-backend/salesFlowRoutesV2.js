@@ -29,12 +29,12 @@ function install({ app, poolPromise, sql }) {
         SELECT s.SiparisId,s.SiparisKodu,s.SiparisYonu,s.SiparisTarihi,s.CariKodu,s.CariAdi,
                s.Durum,s.OnayDurumu,s.RezervasyonDurumu,s.ToplamTutar,
                SUM(d.Miktar) SiparisMiktari,SUM(d.RezerveMiktar) RezerveMiktar,
-               SUM(d.SevkEdilenMiktar) SevkEdilenMiktar,SUM(d.FaturalananMiktar) FaturalananMiktar
+               SUM(d.SevkEdilenMiktar) SevkEdilenMiktar
         FROM dbo.Siparisler s
         JOIN dbo.SiparisDetay d ON d.CompanyId=s.CompanyId AND d.SiparisId=s.SiparisId
         WHERE s.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId'))
           AND ISNULL(s.IsActive,1)=1 AND ISNULL(s.OnayDurumu,N'Onaylandı')<>N'İptal'
-          AND (d.Miktar>d.SevkEdilenMiktar OR d.SevkEdilenMiktar>d.FaturalananMiktar)
+          AND d.Miktar>d.SevkEdilenMiktar
         GROUP BY s.SiparisId,s.SiparisKodu,s.SiparisYonu,s.SiparisTarihi,s.CariKodu,s.CariAdi,
                  s.Durum,s.OnayDurumu,s.RezervasyonDurumu,s.ToplamTutar
         ORDER BY s.SiparisId DESC;
@@ -42,8 +42,7 @@ function install({ app, poolPromise, sql }) {
         SELECT d.SiparisDetayId,d.SiparisId,d.UrunId,d.UrunKodu,d.UrunAdi,d.Miktar,d.Birim,
                d.BirimFiyatKdvDahil,d.SatirToplam,d.RezerveMiktar,d.SevkEdilenMiktar,d.FaturalananMiktar
         FROM dbo.SiparisDetay d
-        WHERE d.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId'))
-          AND (d.Miktar>d.SevkEdilenMiktar OR d.SevkEdilenMiktar>d.FaturalananMiktar)
+        WHERE d.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND d.Miktar>d.SevkEdilenMiktar
         ORDER BY d.SiparisId DESC,d.SiparisDetayId;
       `);
       const orders = r.recordsets[0] || [];
@@ -110,7 +109,7 @@ function install({ app, poolPromise, sql }) {
               .query(`UPDATE dbo.StokRezervasyonlari SET Miktar=Miktar+@Q,ReferansSatirId=${Number(line.SiparisDetayId)},UpdatedAt=SYSUTCDATETIME() WHERE RezervasyonId=@Id`);
           } else {
             await new sql.Request(tx)
-              .input('UrunId',sql.Int,line.UrunId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',sql.Int,stock.LokasyonId)
+              .input('UrunId',sql.Int,line.UrunId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',stock.LokasyonId)
               .input('ReferansId',sql.NVarChar(120),String(orderId)).input('Q',sql.Decimal(18,4),take)
               .input('SatirId',sql.BigInt,line.SiparisDetayId)
               .query(`INSERT dbo.StokRezervasyonlari(CompanyId,UrunId,DepoId,LokasyonId,ReferansTipi,ReferansId,ReferansSatirId,Miktar)
@@ -217,106 +216,6 @@ function install({ app, poolPromise, sql }) {
       res.json({success:true,dispatchNo:code,IrsaliyeId:irsaliyeId});
     } catch(err) { try { await tx.rollback(); } catch(_) {} fail(res,err,err.statusCode||400); }
   });
-
-  app.post('/api/sales-flow/orders/:id/invoice', async (req, res) => {
-    const orderId = Number(req.params.id);
-    if (!Number.isInteger(orderId)) return fail(res, new Error('Geçersiz sipariş.'), 400);
-    const tx = new sql.Transaction(await poolPromise);
-    try {
-      await tx.begin();
-      const order = (await new sql.Request(tx).input('SiparisId', sql.Int, orderId).query(`
-        SELECT TOP(1) * FROM dbo.Siparisler WITH(UPDLOCK,HOLDLOCK)
-        WHERE CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND SiparisId=@SiparisId AND ISNULL(IsActive,1)=1`)).recordset[0];
-      if (!order) throw Object.assign(new Error('Sipariş bulunamadı.'), { statusCode: 404 });
-
-      const existing = (await new sql.Request(tx).input('SiparisId', sql.BigInt, orderId).query(`
-        SELECT TOP(1) HedefId FROM dbo.BelgeBaglantilari WITH(UPDLOCK,HOLDLOCK)
-        WHERE CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND KaynakTip=N'SIPARIS' AND KaynakId=@SiparisId AND HedefTip=N'FATURA'
-        ORDER BY BaglantiId DESC`)).recordset[0];
-      if (existing) {
-        await tx.rollback();
-        return res.json({ success:true, alreadyExists:true, FaturaId:existing.HedefId, invoiceNo:String(existing.HedefId) });
-      }
-
-      const waybill = (await new sql.Request(tx).input('SiparisId', sql.BigInt, orderId).query(`
-        SELECT TOP(1) HedefId AS IrsaliyeId
-        FROM dbo.BelgeBaglantilari WITH(UPDLOCK,HOLDLOCK)
-        WHERE CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND KaynakTip=N'SIPARIS' AND KaynakId=@SiparisId AND HedefTip=N'IRSALIYE'
-        ORDER BY BaglantiId DESC`)).recordset[0];
-      if (!waybill) throw new Error('Önce sipariş için irsaliye oluşturulmalıdır.');
-
-      const lines = (await new sql.Request(tx).input('IrsaliyeId', sql.Int, waybill.IrsaliyeId).query(`
-        SELECT i.IrsaliyeDetayId,i.UrunId,i.UrunKodu,i.UrunAdi,i.Miktar,i.Birim,i.BirimFiyat,
-               d.SiparisDetayId,d.Miktar AS SiparisMiktari,d.FaturalananMiktar,
-               ISNULL(u.KdvOrani,20) AS KdvOrani
-        FROM dbo.IrsaliyeDetay i WITH(UPDLOCK,HOLDLOCK)
-        LEFT JOIN dbo.SiparisDetay d ON d.CompanyId=i.CompanyId AND d.SiparisDetayId=i.SiparisDetayId
-        LEFT JOIN dbo.Urunler u ON u.CompanyId=i.CompanyId AND u.UrunId=i.UrunId
-        WHERE i.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND i.IrsaliyeId=@IrsaliyeId
-        ORDER BY i.IrsaliyeDetayId`)).recordset;
-      if (!lines.length) throw new Error('İrsaliye satırları bulunamadı.');
-
-      const billable = lines.map(x => ({
-        ...x,
-        qty: Math.min(Number(x.Miktar || 0), Math.max(0, Number(x.Miktar || 0) - Number(x.FaturalananMiktar || 0)))
-      })).filter(x => x.qty > 0);
-      if (!billable.length) throw new Error('İrsaliyedeki tüm miktarlar zaten faturalanmış.');
-
-      const code = await nextDocumentNumber({ poolPromise, sql, companyId: companyId(req), documentType:'FATURA', transaction:tx });
-      const totals = billable.reduce((a, x) => {
-        const rate = Number(x.KdvOrani || 0);
-        const grossUnit = Number(x.BirimFiyat || 0);
-        const netUnit = rate > 0 ? grossUnit / (1 + rate / 100) : grossUnit;
-        const net = netUnit * x.qty;
-        const kdv = net * rate / 100;
-        a.net += net; a.kdv += kdv; a.gross += net + kdv;
-        return a;
-      }, { net:0, kdv:0, gross:0 });
-
-      const header = (await new sql.Request(tx)
-        .input('FaturaKodu',sql.NVarChar(100),code)
-        .input('Yon',sql.NVarChar(50),order.SiparisYonu === 'ALIŞ' || order.SiparisYonu === 'Alış' ? 'Alış' : 'Satış')
-        .input('FaturaTarihi',sql.DateTime2,new Date())
-        .input('VadeTarihi',sql.DateTime2,order.TahsilatTarihi||null)
-        .input('CariKodu',sql.NVarChar(100),order.CariKodu||null)
-        .input('CariAdi',sql.NVarChar(250),order.CariAdi||null)
-        .input('SiparisId',sql.Int,orderId).input('IrsaliyeId',sql.Int,waybill.IrsaliyeId)
-        .input('OdemeSekli',sql.NVarChar(100),order.OdemeSekli||'HAVALE/EFT')
-        .input('AraToplam',sql.Decimal(18,2),totals.net).input('KdvToplam',sql.Decimal(18,2),totals.kdv).input('GenelToplam',sql.Decimal(18,2),totals.gross)
-        .query(`INSERT dbo.Faturalar(CompanyId,FaturaKodu,Yon,FaturaTarihi,VadeTarihi,CariKodu,CariAdi,SiparisId,IrsaliyeId,OdemeSekli,AraToplam,KdvToplam,GenelToplam)
-                OUTPUT INSERTED.FaturaId
-                VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@FaturaKodu,@Yon,@FaturaTarihi,@VadeTarihi,@CariKodu,@CariAdi,@SiparisId,@IrsaliyeId,@OdemeSekli,@AraToplam,@KdvToplam,@GenelToplam)`)).recordset[0];
-      const faturaId = header.FaturaId;
-
-      for (const x of billable) {
-        const rate = Number(x.KdvOrani || 0);
-        const grossUnit = Number(x.BirimFiyat || 0);
-        const netUnit = rate > 0 ? grossUnit / (1 + rate / 100) : grossUnit;
-        const net = netUnit * x.qty;
-        const kdv = net * rate / 100;
-        await new sql.Request(tx)
-          .input('FaturaId',sql.Int,faturaId).input('IrsaliyeDetayId',sql.Int,x.IrsaliyeDetayId).input('UrunId',sql.Int,x.UrunId||null)
-          .input('UrunKodu',sql.NVarChar(100),x.UrunKodu||null).input('UrunAdi',sql.NVarChar(250),x.UrunAdi||null)
-          .input('Miktar',sql.Decimal(18,2),x.qty).input('Birim',sql.NVarChar(50),x.Birim||null).input('BirimFiyat',sql.Decimal(18,2),netUnit)
-          .input('KdvOrani',sql.Decimal(9,2),rate).input('KdvTutari',sql.Decimal(18,2),kdv).input('SatirToplam',sql.Decimal(18,2),net)
-          .query(`INSERT dbo.FaturaDetay(CompanyId,FaturaId,IrsaliyeDetayId,UrunId,UrunKodu,UrunAdi,Miktar,Birim,BirimFiyat,KdvOrani,KdvTutari,SatirToplam)
-                  VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@FaturaId,@IrsaliyeDetayId,@UrunId,@UrunKodu,@UrunAdi,@Miktar,@Birim,@BirimFiyat,@KdvOrani,@KdvTutari,@SatirToplam)`);
-
-        if (x.SiparisDetayId) {
-          await new sql.Request(tx).input('Id',sql.Int,x.SiparisDetayId).input('Q',sql.Decimal(18,4),x.qty)
-            .query(`UPDATE dbo.SiparisDetay SET FaturalananMiktar=FaturalananMiktar+@Q
-                    WHERE CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND SiparisDetayId=@Id`);
-        }
-      }
-
-      await new sql.Request(tx).input('SiparisId',sql.BigInt,orderId).input('IrsaliyeId',sql.BigInt,waybill.IrsaliyeId).input('FaturaId',sql.BigInt,faturaId).query(`
-        INSERT dbo.BelgeBaglantilari(CompanyId,KaynakTip,KaynakId,HedefTip,HedefId)
-        VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),N'IRSALIYE',@IrsaliyeId,N'FATURA',@FaturaId);
-        INSERT dbo.BelgeBaglantilari(CompanyId,KaynakTip,KaynakId,HedefTip,HedefId)
-        VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),N'SIPARIS',@SiparisId,N'FATURA',@FaturaId);`);
-
-      await tx.commit();
-      res.json({ success:true, FaturaId:faturaId, invoiceNo:code, IrsaliyeId:waybill.IrsaliyeId, AraToplam:totals.net, KdvToplam:totals.kdv, GenelToplam:totals.gross });
-    } catch (err) { try { await tx.rollback(); } catch (_) {} fail(res, err, err.statusCode || 400); }
-  });
 }
+
+module.exports={install};
