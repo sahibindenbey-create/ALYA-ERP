@@ -6,9 +6,27 @@ const API = `${process.env.REACT_APP_API_URL || "http://localhost:5000/api"}/sal
 
 export default function SalesFlowPanel() {
   const [orders, setOrders] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [warehouseId, setWarehouseId] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+
+  const loadWarehouses = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/warehouses`);
+      const list = data.warehouses || [];
+      setWarehouses(list);
+      setWarehouseId((current) => {
+        if (current && list.some((x) => Number(x.DepoId) === Number(current))) return current;
+        return list.length === 1 ? String(list[0].DepoId) : "";
+      });
+    } catch (e) {
+      setWarehouses([]);
+      setWarehouseId("");
+      setError(e.response?.data?.error || e.message);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     try {
       setError("");
@@ -18,17 +36,19 @@ export default function SalesFlowPanel() {
       setError(e.response?.data?.error || e.message);
     }
   }, []);
+
   useEffect(() => {
+    loadWarehouses();
     load();
-  }, [load]);
+  }, [loadWarehouses, load]);
+
   const run = async (id, action) => {
     if (action === "reserve" && !warehouseId)
-      return setError("Rezervasyon için depo kimliği girin.");
+      return setError("Rezervasyon için çıkış deposunu seçin.");
     try {
       setBusy(`${id}-${action}`);
       setError("");
-      const body =
-        action === "reserve" ? { warehouseId: Number(warehouseId) } : {};
+      const body = action === "reserve" ? { warehouseId: Number(warehouseId) } : {};
       const { data } = await axios.post(`${API}/orders/${id}/${action}`, body);
       window.alert(
         action === "reserve"
@@ -42,7 +62,9 @@ export default function SalesFlowPanel() {
       setBusy("");
     }
   };
+
   const total = orders.reduce((a, o) => a + Number(o.ToplamTutar || 0), 0);
+
   return (
     <div className="sf-page">
       <header>
@@ -53,7 +75,9 @@ export default function SalesFlowPanel() {
         </div>
         <button onClick={load}>Yenile</button>
       </header>
+
       {error && <div className="sf-error">{error}</div>}
+
       <section className="sf-kpis">
         <article>
           <span>Açık sipariş</span>
@@ -66,27 +90,34 @@ export default function SalesFlowPanel() {
         <article>
           <span>Sevk bekleyen</span>
           <b>
-            {
-              orders.filter(
-                (o) => Number(o.SevkEdilenMiktar) < Number(o.SiparisMiktari),
-              ).length
-            }
+            {orders.filter(
+              (o) => Number(o.SevkEdilenMiktar) < Number(o.SiparisMiktari),
+            ).length}
           </b>
         </article>
       </section>
+
       <section className="sf-toolbar">
         <label>
-          Çıkış deposu kimliği{" "}
-          <input
-            type="number"
-            min="1"
+          Çıkış deposu{" "}
+          <select
             value={warehouseId}
             onChange={(e) => setWarehouseId(e.target.value)}
-            placeholder="Örn. 1"
-          />
+            disabled={!warehouses.length}
+          >
+            <option value="">
+              {warehouses.length ? "Depo seçin" : "Aktif depo bulunamadı"}
+            </option>
+            {warehouses.map((d) => (
+              <option key={d.DepoId} value={d.DepoId}>
+                {d.DepoKodu} — {d.DepoAdi}
+              </option>
+            ))}
+          </select>
         </label>
         <span>Rezervasyon uygun lokasyonlara otomatik dağıtılır.</span>
       </section>
+
       <section className="sf-list">
         {orders.map((o) => {
           const pct = Number(o.SiparisMiktari)
@@ -106,24 +137,20 @@ export default function SalesFlowPanel() {
                   <i>{o.RezervasyonDurumu}</i>
                 </div>
               </div>
+
               <div className="sf-progress">
                 <span style={{ width: `${Math.min(100, pct)}%` }} />
               </div>
+
               <div className="sf-meta">
+                <span>Sipariş: <b>{Number(o.SiparisMiktari)}</b></span>
+                <span>Rezerve: <b>{Number(o.RezerveMiktar)}</b></span>
+                <span>Sevk: <b>{Number(o.SevkEdilenMiktar)}</b></span>
                 <span>
-                  Sipariş: <b>{Number(o.SiparisMiktari)}</b>
-                </span>
-                <span>
-                  Rezerve: <b>{Number(o.RezerveMiktar)}</b>
-                </span>
-                <span>
-                  Sevk: <b>{Number(o.SevkEdilenMiktar)}</b>
-                </span>
-                <span>
-                  Tutar:{" "}
-                  <b>{Number(o.ToplamTutar || 0).toLocaleString("tr-TR")} ₺</b>
+                  Tutar: <b>{Number(o.ToplamTutar || 0).toLocaleString("tr-TR")} ₺</b>
                 </span>
               </div>
+
               <details>
                 <summary>{o.lines.length} ürün satırı</summary>
                 <table>
@@ -138,9 +165,7 @@ export default function SalesFlowPanel() {
                   <tbody>
                     {o.lines.map((l) => (
                       <tr key={l.SiparisDetayId}>
-                        <td>
-                          {l.UrunKodu} · {l.UrunAdi}
-                        </td>
+                        <td>{l.UrunKodu} · {l.UrunAdi}</td>
                         <td>{Number(l.Miktar)}</td>
                         <td>{Number(l.RezerveMiktar)}</td>
                         <td>{Number(l.SevkEdilenMiktar)}</td>
@@ -149,9 +174,10 @@ export default function SalesFlowPanel() {
                   </tbody>
                 </table>
               </details>
+
               <footer>
                 <button
-                  disabled={!!busy || o.RezervasyonDurumu === "Tam"}
+                  disabled={!!busy || !warehouseId || o.RezervasyonDurumu === "Tam"}
                   onClick={() => run(o.SiparisId, "reserve")}
                 >
                   Stok Rezerve Et
