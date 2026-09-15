@@ -276,7 +276,7 @@ function install({ app, poolPromise, sql }) {
       const header = (await new sql.Request(tx)
         .input('FaturaKodu',sql.NVarChar(100),code)
         .input('Yon',sql.NVarChar(50),order.SiparisYonu === 'ALIŞ' || order.SiparisYonu === 'Alış' ? 'Alış' : 'Satış')
-        .input('FaturaTarihi',sql.DateTime2,SYSUTCDATETIME())
+        .input('FaturaTarihi',sql.DateTime2,new Date())
         .input('VadeTarihi',sql.DateTime2,order.TahsilatTarihi||null)
         .input('CariKodu',sql.NVarChar(100),order.CariKodu||null)
         .input('CariAdi',sql.NVarChar(250),order.CariAdi||null)
