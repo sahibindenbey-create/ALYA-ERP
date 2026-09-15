@@ -25,9 +25,7 @@ if (!express.application.__alyaCompanyContextPatched) {
     if (!this.__alyaCompanyContextInstalled) {
       const contextMiddleware = (req, res, next) => {
         const companyId = getRequestedCompanyId(req);
-        if (companyId === null) {
-          return res.status(400).json({ success: false, error: 'Geçersiz CompanyId' });
-        }
+        if (companyId === null) return res.status(400).json({ success: false, error: 'Geçersiz CompanyId' });
         storage.run({ companyId }, next);
       };
       this.__alyaCompanyContextInstalled = true;
@@ -43,9 +41,7 @@ if (requestPrototype && !requestPrototype.__alyaCompanyQueryPatched) {
   const originalQuery = requestPrototype.query;
   requestPrototype.query = function companyAwareQuery(command, callback) {
     const companyId = storage.getStore()?.companyId;
-    if (!companyId || typeof command !== 'string') {
-      return originalQuery.call(this, command, callback);
-    }
+    if (!companyId || typeof command !== 'string') return originalQuery.call(this, command, callback);
     const prefix = `EXEC sys.sp_set_session_context @key=N'CompanyId', @value=${companyId};`;
     return originalQuery.call(this, `${prefix}\n${command}`, callback);
   };
@@ -67,6 +63,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       const { install: installInvoiceActions } = require('./kolaybi-invoice-actions');
       const { install: installStockV2 } = require('./stokV2Routes');
       const { install: installUrunStok } = require('./urunStokRoutes');
+      const { install: installSalesFlow } = require('./salesFlowRoutesV2');
       const deps = { app: this, poolPromise, sql };
       installErp(deps);
       installInvoice(deps);
@@ -78,6 +75,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       installInvoiceActions(deps);
       installStockV2(deps);
       installUrunStok(deps);
+      installSalesFlow(deps);
       this.__alyaKolaybiRoutesInstalled = true;
     }
     return originalListen.apply(this, args);
