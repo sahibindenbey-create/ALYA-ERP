@@ -74,7 +74,7 @@ function install({ app, poolPromise, sql }) {
     }catch(error){try{await transaction.rollback();}catch(_){} fail(res,error,error.message.includes('bulunamadı')?404:400);}
   });
 
-  app.post('/api/stok/v2/reservations', async (req,res)=>{
+  app.post('/api/stok/v2/reservations', async (req, res) => {
     const b=req.body||{}; const productId=Number(b.productId),warehouseId=Number(b.warehouseId),locationId=Number(b.locationId),quantity=Number(b.quantity);
     if(!Number.isInteger(productId)||!Number.isInteger(warehouseId)||!Number.isInteger(locationId)||!Number.isFinite(quantity)||quantity<=0||!b.referenceType||!b.referenceId) return fail(res,new Error('Ürün, depo, lokasyon, miktar ve referans zorunludur.'),400);
     const tx=new sql.Transaction(await poolPromise);
@@ -124,8 +124,11 @@ SELECT TOP(200) s.SayimId,s.SayimNo,s.DepoId,d.DepoAdi,s.Durum,s.SayimTarihi,s.A
       const f=await new sql.Request(tx).input('SayimNo',sql.NVarChar(64),no).input('DepoId',sql.Int,warehouseId).input('Aciklama',sql.NVarChar(500),b.note||null).query(`INSERT dbo.StokSayimFisleri(CompanyId,SayimNo,DepoId,Durum,SayimTarihi,Aciklama) VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@SayimNo,@DepoId,N'Tamamlandı',SYSUTCDATETIME(),@Aciklama);SELECT SCOPE_IDENTITY() SayimId;`);
       await new sql.Request(tx).input('SayimId',sql.BigInt,f.recordset[0].SayimId).input('UrunId',sql.Int,productId).input('LokasyonId',sql.Int,locationId).input('Sistem',sql.Decimal(18,4),row.Miktar).input('Sayilan',sql.Decimal(18,4),counted).query(`INSERT dbo.StokSayimKalemleri(SayimId,UrunId,LokasyonId,SistemMiktari,SayilanMiktar) VALUES(@SayimId,@UrunId,@LokasyonId,@Sistem,@Sayilan)`);
       await new sql.Request(tx).input('Id',sql.BigInt,row.StokBakiyeId).input('Miktar',sql.Decimal(18,4),counted).query(`UPDATE dbo.StokBakiyeleri SET Miktar=@Miktar,UpdatedAt=SYSUTCDATETIME() WHERE StokBakiyeId=@Id`);
-      const h=new sql.Request(tx).input('UrunId',sql.Int,productId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',sql.Int,locationId).input('Depo',sql.NVarChar(100),'').input('Miktar',sql.Decimal(18,4),Math.abs(counted-Number(row.Miktar))).input('Onceki',sql.Decimal(18,4),row.Miktar).input('Sonraki',sql.Decimal(18,4),counted).input('RefId',sql.Int,Number(f.recordset[0].SayimId));
-      await h.query(`INSERT dbo.StokHareketleri(CompanyId,UrunId,Depo,DepoId,LokasyonId,HareketTipi,Miktar,OncekiStok,SonrakiStok,ReferansTipi,ReferansId,Aciklama,IslemTarihi) VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@UrunId,@Depo,@DepoId,@LokasyonId,N'Sayım',CASE WHEN @Miktar=0 THEN CAST(0.0001 AS DECIMAL(18,4)) ELSE @Miktar END,@Onceki,@Sonraki,N'STOK_SAYIM',@RefId,@Aciklama,SYSUTCDATETIME())`);
+      const diff=Math.abs(counted-Number(row.Miktar));
+      if(diff>0){
+        const h=new sql.Request(tx).input('UrunId',sql.Int,productId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',sql.Int,locationId).input('Depo',sql.NVarChar(100),'').input('Miktar',sql.Decimal(18,4),diff).input('Onceki',sql.Decimal(18,4),row.Miktar).input('Sonraki',sql.Decimal(18,4),counted).input('RefId',sql.Int,Number(f.recordset[0].SayimId)).input('Aciklama',sql.NVarChar(500),b.note||null);
+        await h.query(`INSERT dbo.StokHareketleri(CompanyId,UrunId,Depo,DepoId,LokasyonId,HareketTipi,Miktar,OncekiStok,SonrakiStok,ReferansTipi,ReferansId,Aciklama,IslemTarihi) VALUES(TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')),@UrunId,@Depo,@DepoId,@LokasyonId,N'Sayım',@Miktar,@Onceki,@Sonraki,N'STOK_SAYIM',@RefId,@Aciklama,SYSUTCDATETIME())`);
+      }
       await tx.commit();res.json({success:true,SayimId:f.recordset[0].SayimId,SayimNo:no});
     }catch(error){try{await tx.rollback();}catch(_){}fail(res,error,400);}
   });
