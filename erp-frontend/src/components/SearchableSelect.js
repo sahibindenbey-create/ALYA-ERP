@@ -23,9 +23,13 @@ const SearchableSelect = ({ options, value, onChange, placeholder = "Seçiniz...
 
   const selected = options.find(o => String(o.value) === String(value));
 
+  // Türkçe karakterlerde de büyük/küçük harf duyarsız arama yap.
+  const normalizeSearch = (text) => String(text || "").toLocaleLowerCase("tr-TR");
+
+  const normalizedSearch = normalizeSearch(search);
   const filtered = options.filter(o =>
-    (o.label || "").toLowerCase().includes(search.toLowerCase()) ||
-    (o.sublabel || "").toLowerCase().includes(search.toLowerCase())
+    normalizeSearch(o.label).includes(normalizedSearch) ||
+    normalizeSearch(o.sublabel).includes(normalizedSearch)
   );
 
   return (
