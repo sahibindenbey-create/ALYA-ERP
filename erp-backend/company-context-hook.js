@@ -65,6 +65,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       const { install: installEDocument } = require('./kolaybi-e-document');
       const { install: installEDocumentWaybill } = require('./kolaybi-waybill-edocument-sync');
       const { install: installInvoiceActions } = require('./kolaybi-invoice-actions');
+      const { install: installStockV2 } = require('./stokV2Routes');
       const deps = { app: this, poolPromise, sql };
       installErp(deps);
       installInvoice(deps);
@@ -74,6 +75,7 @@ if (!express.application.__alyaKolaybiRoutesPatched) {
       installEDocument(deps);
       installEDocumentWaybill(deps);
       installInvoiceActions(deps);
+      installStockV2(deps);
       this.__alyaKolaybiRoutesInstalled = true;
     }
     return originalListen.apply(this, args);
