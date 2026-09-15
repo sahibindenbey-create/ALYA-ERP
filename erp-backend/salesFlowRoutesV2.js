@@ -8,6 +8,20 @@ function install({ app, poolPromise, sql }) {
   const companyId = req => Number(storage.getStore()?.companyId || req.headers['x-company-id'] || 1);
   const fail = (res, err, status = 500) => res.status(status || err.statusCode || 500).json({ success: false, error: err.message || String(err) });
 
+  app.get('/api/sales-flow/warehouses', async (req, res) => {
+    try {
+      const pool = await poolPromise;
+      const r = await pool.request().query(`
+        SELECT d.DepoId,d.DepoKodu,d.DepoAdi,d.DepoTipi
+        FROM dbo.Depolar d
+        WHERE d.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId'))
+          AND ISNULL(d.IsActive,1)=1
+        ORDER BY d.DepoKodu,d.DepoId;
+      `);
+      res.json({ success:true, warehouses:r.recordset || [] });
+    } catch (err) { fail(res, err); }
+  });
+
   app.get('/api/sales-flow/orders', async (req, res) => {
     try {
       const pool = await poolPromise;
@@ -95,7 +109,7 @@ function install({ app, poolPromise, sql }) {
               .query(`UPDATE dbo.StokRezervasyonlari SET Miktar=Miktar+@Q,ReferansSatirId=${Number(line.SiparisDetayId)},UpdatedAt=SYSUTCDATETIME() WHERE RezervasyonId=@Id`);
           } else {
             await new sql.Request(tx)
-              .input('UrunId',sql.Int,line.UrunId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',sql.Int,stock.LokasyonId)
+              .input('UrunId',sql.Int,line.UrunId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',stock.LokasyonId)
               .input('ReferansId',sql.NVarChar(120),String(orderId)).input('Q',sql.Decimal(18,4),take)
               .input('SatirId',sql.BigInt,line.SiparisDetayId)
               .query(`INSERT dbo.StokRezervasyonlari(CompanyId,UrunId,DepoId,LokasyonId,ReferansTipi,ReferansId,ReferansSatirId,Miktar)
