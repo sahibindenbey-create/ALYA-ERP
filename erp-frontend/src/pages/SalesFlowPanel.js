@@ -63,6 +63,20 @@ export default function SalesFlowPanel() {
     }
   };
 
+  const createInvoice = async (id) => {
+    try {
+      setBusy(`${id}-invoice`);
+      setError("");
+      const { data } = await axios.post(`${API}/orders/${id}/invoice`);
+      window.alert(`${data.invoiceNo} numaralı fatura oluşturuldu.`);
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.error || e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
   const total = orders.reduce((a, o) => a + Number(o.ToplamTutar || 0), 0);
 
   return (
@@ -70,7 +84,7 @@ export default function SalesFlowPanel() {
       <header>
         <div>
           <small>SATIŞ OPERASYON MERKEZİ</small>
-          <h2>Sipariş → Rezervasyon → Sevkiyat</h2>
+          <h2>Sipariş → Rezervasyon → Sevkiyat → Fatura</h2>
           <p>Kaynak belge bağlantılı, şirket ve dönem kontrollü süreç.</p>
         </div>
         <button onClick={load}>Yenile</button>
@@ -125,6 +139,9 @@ export default function SalesFlowPanel() {
                 (Number(o.SevkEdilenMiktar) / Number(o.SiparisMiktari)) * 100,
               )
             : 0;
+          const shipped = Number(o.SevkEdilenMiktar || 0);
+          const invoiced = Number(o.FaturalananMiktar || 0);
+          const invoicePending = shipped > invoiced;
           return (
             <article className="sf-order" key={o.SiparisId}>
               <div className="sf-order-head">
@@ -145,7 +162,8 @@ export default function SalesFlowPanel() {
               <div className="sf-meta">
                 <span>Sipariş: <b>{Number(o.SiparisMiktari)}</b></span>
                 <span>Rezerve: <b>{Number(o.RezerveMiktar)}</b></span>
-                <span>Sevk: <b>{Number(o.SevkEdilenMiktar)}</b></span>
+                <span>Sevk: <b>{shipped}</b></span>
+                <span>Faturalanan: <b>{invoiced}</b></span>
                 <span>
                   Tutar: <b>{Number(o.ToplamTutar || 0).toLocaleString("tr-TR")} ₺</b>
                 </span>
@@ -188,6 +206,12 @@ export default function SalesFlowPanel() {
                   onClick={() => run(o.SiparisId, "dispatch")}
                 >
                   İrsaliye Oluştur
+                </button>
+                <button
+                  disabled={!!busy || !invoicePending}
+                  onClick={() => createInvoice(o.SiparisId)}
+                >
+                  Fatura Oluştur
                 </button>
               </footer>
             </article>
