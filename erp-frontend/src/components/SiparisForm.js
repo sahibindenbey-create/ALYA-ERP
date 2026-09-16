@@ -22,6 +22,10 @@ const SiparisForm = ({ mode = "giris" }) => {
   const [gecmisSearch, setGecmisSearch] = useState("");
   const [gecmisYonFiltre, setGecmisYonFiltre] = useState("Hepsi");
   const [gecmisDurumFiltre, setGecmisDurumFiltre] = useState("Hepsi");
+  const [companyProfile, setCompanyProfile] = useState(null);
+
+  const isYamankaya = companyProfile?.FirmaTipi === "INSAAT" || companyProfile?.SiparisSablonu === "INSAAT_SEVKIYAT";
+  const unitOptions = isYamankaya ? ["PALET", "RULO", "KG", "TON", "ADET", "METRE"] : ["ADET", "KG", "KOLİ", "METRE", "TAKIM", "SET"];
 
   const [form, setForm] = useState({
     siparisKodu: "SIP-" + Date.now(), siparisYonu: "Satış",
@@ -32,13 +36,27 @@ const SiparisForm = ({ mode = "giris" }) => {
     faturaUlke: "TÜRKİYE", faturaIl: "", faturaIlce: "", faturaAdres: "",
     sevkiyatUlke: "TÜRKİYE", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdres: "",
     odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE",
-    teslimatSekli: "", paketlemeSekli: "", lojistikDetay: "", siparisVerenDepartman: ""
+    teslimatSekli: "", paketlemeSekli: "", lojistikDetay: "", siparisVerenDepartman: "",
+    projeAdi: "", santiyeAdi: "", aracPlaka: "", sevkiyatNotu: ""
   });
 
   const [entry, setEntry] = useState({
     urunKodu: "", urunAdi: "", miktar: "", birim: "ADET",
     koliIci: 1, koliAdedi: 0, listeFiyati: "", iskonto: 0, urunTuru: "Ürün"
   });
+
+  const fetchCompanyProfile = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/company-profile`);
+      if (res.data?.profile) {
+        const profile = res.data.profile;
+        setCompanyProfile(profile);
+        setEntry(en => ({ ...en, birim: profile.VarsayilanBirim || en.birim }));
+      }
+    } catch (err) {
+      console.error("Şirket profili alınamadı:", err);
+    }
+  };
 
   const fetchCariler = async () => {
     try { const res = await axios.get(`${API_URL}/cariler`); setCarilerListesi(res.data); }
@@ -53,7 +71,13 @@ const SiparisForm = ({ mode = "giris" }) => {
     catch (err) { console.error("Sipariş geçmişi alınamadı:", err); }
   };
 
-  useEffect(() => { fetchCariler(); fetchUrunler(); fetchSiparisGecmisi(); }, []);
+  useEffect(() => { fetchCompanyProfile(); fetchCariler(); fetchUrunler(); fetchSiparisGecmisi(); }, []);
+
+  useEffect(() => {
+    if (companyProfile?.VarsayilanBirim && !entry.urunKodu) {
+      setEntry(en => ({ ...en, birim: companyProfile.VarsayilanBirim }));
+    }
+  }, [companyProfile, entry.urunKodu]);
 
   const handleCariSecim = (cariKodu) => {
     const normalize = value => String(value || "").toLocaleLowerCase('tr-TR').trim();
@@ -80,7 +104,7 @@ const SiparisForm = ({ mode = "giris" }) => {
         urunKodu: secilen.UrunKodu,
         urunAdi: secilen.UrunAdi,
         urunTuru: tur,
-        birim: secilen.Birim || "ADET",
+        birim: secilen.Birim || companyProfile?.VarsayilanBirim || "ADET",
         koliIci: isHizmet ? 1 : (koliIci > 0 ? koliIci : 1),
         listeFiyati: secilen.ListeFiyati || ""
       }));
@@ -128,11 +152,11 @@ const SiparisForm = ({ mode = "giris" }) => {
     const koliAdedi = isHizmet ? 0 : Math.ceil(miktar / koliIci);
     const yeniSatir = { ...entry, koliIci, koliAdedi, kdvOrani, iskBirimFiyat, kdvTutari: kdvTutari * miktar, birimFiyatKdvDahil, satirToplam, id: Date.now() };
     setItems(prev => [...prev, yeniSatir]);
-    setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", listeFiyati: "", koliIci: 1, urunTuru: "Ürün" }));
+    setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", listeFiyati: "", koliIci: 1, urunTuru: "Ürün", birim: companyProfile?.VarsayilanBirim || en.birim }));
   };
 
   const resetForm = () => {
-    setForm(f => ({ siparisKodu: "SIP-" + Date.now(), siparisYonu: f.siparisYonu, siparisTarihi: new Date().toISOString().split('T')[0], teslimatTarihi: "", tahsilatTarihi: "", siparisTipi: "YENİ SİPARİŞ", siparisVeren: "BAYİ", musteriTemsilcisi: "ERKAN DALGIN", cariKodu: "", cariAdi: "", faturaUlke: "TÜRKİYE", faturaIl: "", faturaIlce: "", faturaAdres: "", sevkiyatUlke: "TÜRKİYE", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdres: "", odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE", teslimatSekli: "", paketlemeSekli: "", lojistikDetay: "", siparisVerenDepartman: "" }));
+    setForm(f => ({ siparisKodu: "SIP-" + Date.now(), siparisYonu: f.siparisYonu, siparisTarihi: new Date().toISOString().split('T')[0], teslimatTarihi: "", tahsilatTarihi: "", siparisTipi: "YENİ SİPARİŞ", siparisVeren: "BAYİ", musteriTemsilcisi: "ERKAN DALGIN", cariKodu: "", cariAdi: "", faturaUlke: "TÜRKİYE", faturaIl: "", faturaIlce: "", faturaAdres: "", sevkiyatUlke: "TÜRKİYE", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdres: "", odemeSekli: "HAVALE/EFT", vade: "PEŞİN / HAVALE", teslimatSekli: "", paketlemeSekli: "", lojistikDetay: "", siparisVerenDepartman: "", projeAdi: "", santiyeAdi: "", aracPlaka: "", sevkiyatNotu: "" }));
     setItems([]); setAdresAyni(false);
   };
 
@@ -184,6 +208,12 @@ const SiparisForm = ({ mode = "giris" }) => {
               <div className="vba-f"><label>LOJİSTİK DETAY</label><input value={form.lojistikDetay} onChange={e=>setForm({...form,lojistikDetay:e.target.value})}/></div>
               <div className="vba-f"><label>SİPARİŞ VEREN DEPARTMAN</label><input value={form.siparisVerenDepartman} onChange={e=>setForm({...form,siparisVerenDepartman:e.target.value})}/></div>
             </div>}
+            {isYamankaya && form.siparisYonu === "Satış" && <div className="vba-row" style={{marginTop:14}}>
+              <div className="vba-f"><label>PROJE ADI</label><input value={form.projeAdi} onChange={e=>setForm({...form,projeAdi:e.target.value})} placeholder="Proje / iş adı"/></div>
+              <div className="vba-f"><label>ŞANTİYE / TESİS</label><input value={form.santiyeAdi} onChange={e=>setForm({...form,santiyeAdi:e.target.value})} placeholder="Şantiye veya tesis"/></div>
+              <div className="vba-f"><label>ARAÇ / PLAKA</label><input value={form.aracPlaka} onChange={e=>setForm({...form,aracPlaka:e.target.value})} placeholder="Araç / plaka"/></div>
+              <div className="vba-f"><label>SEVKİYAT NOTU</label><input value={form.sevkiyatNotu} onChange={e=>setForm({...form,sevkiyatNotu:e.target.value})} placeholder="Yükleme / sevkiyat notu"/></div>
+            </div>}
           </div>
           <div className="vba-panel">
             <div className="vba-row"><div className="vba-f" style={{flex:0.9}}><label>{form.siparisYonu === "Alış" ? "TEDARİKÇİ" : "MÜŞTERİ"} KODU / ADI</label><SearchableSelect options={cariOptions} value={form.cariKodu} onChange={val=>handleCariSecim(val)} placeholder={form.siparisYonu === "Alış" ? "Tedarikçi seçin..." : "Müşteri seçin..."}/></div><div className="vba-f"><label>CARİ ADI</label><input value={form.cariAdi} onChange={e=>setForm({...form,cariAdi:e.target.value})}/></div></div>
@@ -193,16 +223,17 @@ const SiparisForm = ({ mode = "giris" }) => {
             </div>
           </div>
           <div className="vba-product-bar">
-            <div className="vba-pb-labels"><span>ÜRÜN / HİZMET</span><span>MİKTAR</span><span>BİRİM</span><span>KOLİ İÇİ</span><span>LİSTE FİYAT</span><span>İSK %</span><span>İŞLEM</span></div>
+            <div className="vba-pb-labels"><span>ÜRÜN / HİZMET</span><span>MİKTAR</span><span>BİRİM</span><span>{isYamankaya ? "AMBALAJ / İÇERİK" : "KOLİ İÇİ"}</span><span>LİSTE FİYAT</span><span>İSK %</span><span>İŞLEM</span></div>
             <div className="vba-pb-inputs">
               <div className="vba-product-select"><SearchableSelect options={urunlerListesi.map(u=>({value:u.UrunId,label:u.UrunAdi,sublabel:`${u.UrunKodu} · ${u.Tur || "Ürün"}`}))} value={urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu)?.UrunId || ""} onChange={val=>handleUrunSecim(val)} placeholder="Ürün / hizmet seçin..."/></div>
               <input style={{minWidth:0}} type="number" value={entry.miktar} onChange={e=>setEntry({...entry,miktar:e.target.value})}/>
-              <select style={{minWidth:0}} value={entry.birim} onChange={e=>setEntry({...entry,birim:e.target.value})}><option>ADET</option><option>KG</option></select>
+              <select style={{minWidth:0}} value={entry.birim} onChange={e=>setEntry({...entry,birim:e.target.value})}>{unitOptions.map(unit=><option key={unit}>{unit}</option>)}</select>
               {entry.urunTuru === "Hizmet" ? <div className="vba-service-placeholder" aria-hidden="true">—</div> : <input style={{minWidth:0}} value={entry.koliIci} readOnly title="Üründen otomatik gelir"/>}
               <input style={{minWidth:0}} value={entry.listeFiyati} onChange={e=>setEntry({...entry,listeFiyati:e.target.value})}/>
               <input style={{minWidth:0}} value={entry.iskonto} onChange={e=>setEntry({...entry,iskonto:e.target.value})}/>
               <button type="button" className="vba-add-btn" onClick={urunEkle}>EKLE</button>
             </div>
+            {isYamankaya && <div className="siparis-cevrim-note">Yamankaya profili: palet / rulo / KG / ton bazlı sipariş girişi aktif. Ürün kartındaki birim korunur.</div>}
             {entry.urunTuru === "Hizmet" && <div className="siparis-cevrim-note">Hizmet kalemlerinde koli içi adet ve koli hesabı uygulanmaz.</div>}
             {form.siparisYonu === "Alış" && entry.urunTuru !== "Hizmet" && urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu)?.AlisBirimi && <div className="siparis-cevrim-note">ℹ️ Bu malzeme tedarikçiden <strong>{urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu).AlisBirimi}</strong> olarak alınıyor, stokta <strong>{urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu).Birim}</strong> olarak takip ediliyor.</div>}
           </div>
