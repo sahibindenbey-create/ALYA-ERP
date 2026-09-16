@@ -11,6 +11,7 @@ const registerTrendyol = require('./trendyol');
 const registerTrendyolExtra = require('./trendyol-extra');
 const registerKolaybi = require('./kolaybi');
 const bordro = require('./bordroHesapla');
+const { createAuthMiddleware, requirePermission } = require('./core/security');
 const app = express();
 const PORT = 5000;
 
@@ -50,6 +51,27 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// --- GÜVENLİK KAPISI --------------------------------------------------
+// server.js içindeki legacy route'ların (core/ dışında kalanlar) HİÇBİRİNDE
+// auth yoktu. Bu middleware /api/* altındaki her isteği, login dışında,
+// oturum doğrulamasından geçirir. core/ altındaki modüller kendi
+// router'larında zaten aynı korumayı uyguluyor; burası SADECE server.js'te
+// doğrudan tanımlı legacy route'ları (Cariler, İrsaliyeler, Faturalar,
+// Siparişler, Stok, Üretim, Fason, Kasa/Banka, Personel, Reçeteler, vb.)
+// kapsıyor.
+const PUBLIC_API_PATHS = new Set([
+  '/api/auth/login',
+]);
+
+const legacyAuthGate = createAuthMiddleware({ poolPromise, sql });
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();       // statik/health vs.
+  if (PUBLIC_API_PATHS.has(req.path)) return next();       // sadece login açık
+  return legacyAuthGate(req, res, next);
+});
+// ------------------------------------------------------------------------
 
 // Yüklenen dosyaları statik olarak sun (görüntüleme/indirme için)
 app.use('/uploads', express.static(UPLOAD_ROOT));
@@ -1443,7 +1465,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Yeni kullanıcı ekle (yönetici panelinden kullanılabilir)
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', requirePermission('core.admin'), async (req, res) => {
   try {
     const { kullaniciAdi, sifre, adSoyad, rol } = req.body;
     if (!kullaniciAdi || !sifre) {
@@ -1473,7 +1495,7 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 // Kullanıcı listesi (şifre bilgisi hariç)
-app.get('/api/auth/kullanicilar', async (req, res) => {
+app.get('/api/auth/kullanicilar', requirePermission('core.admin'), async (req, res) => {
   try {
     const pool = await poolPromise;
     const result = await pool.request()
@@ -1486,7 +1508,7 @@ app.get('/api/auth/kullanicilar', async (req, res) => {
 });
 
 // Kullanıcı bilgilerini güncelle (ad/rol/aktiflik)
-app.put('/api/auth/kullanicilar/:id', async (req, res) => {
+app.put('/api/auth/kullanicilar/:id', requirePermission('core.admin'), async (req, res) => {
   try {
     const pool = await poolPromise;
     const { id } = req.params;
@@ -1510,7 +1532,7 @@ app.put('/api/auth/kullanicilar/:id', async (req, res) => {
 });
 
 // Şifre sıfırla
-app.put('/api/auth/kullanicilar/:id/sifre', async (req, res) => {
+app.put('/api/auth/kullanicilar/:id/sifre', requirePermission('core.admin'), async (req, res) => {
   try {
     const pool = await poolPromise;
     const { id } = req.params;
@@ -1536,7 +1558,7 @@ app.put('/api/auth/kullanicilar/:id/sifre', async (req, res) => {
 });
 
 // Kullanıcıyı pasifleştir (soft delete)
-app.delete('/api/auth/kullanicilar/:id', async (req, res) => {
+app.delete('/api/auth/kullanicilar/:id', requirePermission('core.admin'), async (req, res) => {
   try {
     const pool = await poolPromise;
     const { id } = req.params;
