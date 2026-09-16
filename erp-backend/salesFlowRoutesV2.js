@@ -33,7 +33,9 @@ function install({ app, poolPromise, sql }) {
         FROM dbo.Siparisler s
         JOIN dbo.SiparisDetay d ON d.CompanyId=s.CompanyId AND d.SiparisId=s.SiparisId
         WHERE s.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId'))
-          AND ISNULL(s.IsActive,1)=1 AND ISNULL(s.OnayDurumu,N'Onaylandı')<>N'İptal'
+          AND ISNULL(s.IsActive,1)=1
+          AND ISNULL(s.SiparisYonu,N'Satış')=N'Satış'
+          AND ISNULL(s.OnayDurumu,N'Onaylandı')<>N'İptal'
           AND d.Miktar>d.SevkEdilenMiktar
         GROUP BY s.SiparisId,s.SiparisKodu,s.SiparisYonu,s.SiparisTarihi,s.CariKodu,s.CariAdi,
                  s.Durum,s.OnayDurumu,s.RezervasyonDurumu,s.ToplamTutar
@@ -42,7 +44,10 @@ function install({ app, poolPromise, sql }) {
         SELECT d.SiparisDetayId,d.SiparisId,d.UrunId,d.UrunKodu,d.UrunAdi,d.Miktar,d.Birim,
                d.BirimFiyatKdvDahil,d.SatirToplam,d.RezerveMiktar,d.SevkEdilenMiktar,d.FaturalananMiktar
         FROM dbo.SiparisDetay d
-        WHERE d.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId')) AND d.Miktar>d.SevkEdilenMiktar
+        JOIN dbo.Siparisler s ON s.CompanyId=d.CompanyId AND s.SiparisId=d.SiparisId
+        WHERE d.CompanyId=TRY_CONVERT(INT,SESSION_CONTEXT(N'CompanyId'))
+          AND ISNULL(s.SiparisYonu,N'Satış')=N'Satış'
+          AND d.Miktar>d.SevkEdilenMiktar
         ORDER BY d.SiparisId DESC,d.SiparisDetayId;
       `);
       const orders = r.recordsets[0] || [];
@@ -109,7 +114,7 @@ function install({ app, poolPromise, sql }) {
               .query(`UPDATE dbo.StokRezervasyonlari SET Miktar=Miktar+@Q,ReferansSatirId=${Number(line.SiparisDetayId)},UpdatedAt=SYSUTCDATETIME() WHERE RezervasyonId=@Id`);
           } else {
             await new sql.Request(tx)
-              .input('UrunId',sql.Int,line.UrunId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',stock.LokasyonId)
+              .input('UrunId',sql.Int,line.UrunId).input('DepoId',sql.Int,warehouseId).input('LokasyonId',sql.Int,stock.LokasyonId)
               .input('ReferansId',sql.NVarChar(120),String(orderId)).input('Q',sql.Decimal(18,4),take)
               .input('SatirId',sql.BigInt,line.SiparisDetayId)
               .query(`INSERT dbo.StokRezervasyonlari(CompanyId,UrunId,DepoId,LokasyonId,ReferansTipi,ReferansId,ReferansSatirId,Miktar)
