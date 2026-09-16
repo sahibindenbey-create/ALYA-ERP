@@ -42,7 +42,7 @@ const SiparisForm = ({ mode = "giris" }) => {
 
   const [entry, setEntry] = useState({
     urunKodu: "", urunAdi: "", miktar: "", birim: "ADET",
-    koliIci: 1, koliAdedi: 0, listeFiyati: "", iskonto: 0, urunTuru: "Ürün", kdvOrani: 20
+    koliIci: 1, koliAdedi: 0, listeFiyati: "", iskonto: 0, urunTuru: "Ürün"
   });
 
   const fetchCompanyProfile = async (companyIdOverride) => {
@@ -50,8 +50,9 @@ const SiparisForm = ({ mode = "giris" }) => {
       const companyId = Number(companyIdOverride || localStorage.getItem("selectedCompanyId") || 1);
       const res = await axios.get(`${API_URL}/company-profile`, { params: { CompanyId: companyId } });
       if (res.data?.profile) {
-        setCompanyProfile(res.data.profile);
-        setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", birim: "ADET", listeFiyati: "", kdvOrani: 20 }));
+        const profile = res.data.profile;
+        setCompanyProfile(profile);
+        setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", birim: en.birim }));
       }
     } catch (err) {
       console.error("Şirket profili alınamadı:", err);
@@ -81,7 +82,7 @@ const SiparisForm = ({ mode = "giris" }) => {
       const id = Number(event.detail?.CompanyId || localStorage.getItem("selectedCompanyId") || 1);
       setItems([]);
       setCompanyProfile(null);
-      setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", birim: "ADET", listeFiyati: "", kdvOrani: 20 }));
+      setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", birim: "ADET" }));
       fetchCompanyProfile(id);
     };
 
@@ -109,22 +110,14 @@ const SiparisForm = ({ mode = "giris" }) => {
       const tur = secilen.Tur || "Ürün";
       const isHizmet = tur === "Hizmet";
       const koliIci = Number(secilen.KoliIci ?? secilen.KoliIciAdet ?? secilen.KoliIciMiktar ?? 1);
-      const kdvOrani = Number(secilen.KdvOrani ?? 20);
       setEntry(en => ({
         ...en,
         urunKodu: secilen.UrunKodu,
         urunAdi: secilen.UrunAdi,
         urunTuru: tur,
-        birim: secilen.Birim || "ADET",
+        birim: secilen.Birim || en.birim || "ADET",
         koliIci: isHizmet ? 1 : (koliIci > 0 ? koliIci : 1),
-        listeFiyati: secilen.ListeFiyati ?? "",
-        kdvOrani,
-        urunKategori: secilen.Kategori || "",
-        barkod: secilen.Barkod || "",
-        gtipNo: secilen.GtipNo || "",
-        mensei: secilen.Mensei || "",
-        alisBirimi: secilen.AlisBirimi || "",
-        cevrimOrani: secilen.CevrimOrani ?? 1
+        listeFiyati: secilen.ListeFiyati || ""
       }));
     }
   };
@@ -161,26 +154,16 @@ const SiparisForm = ({ mode = "giris" }) => {
     const miktar = parseFloat(entry.miktar || 0);
     const iskonto = parseFloat(entry.iskonto || 0);
     const secilenUrun = urunlerListesi.find(u => u.UrunKodu === entry.urunKodu);
-    const kdvOrani = Number(entry.kdvOrani ?? secilenUrun?.KdvOrani ?? 20);
+    const kdvOrani = secilenUrun ? Number(secilenUrun.KdvOrani ?? 20) : 20;
     const koliIci = isHizmet ? 1 : Math.max(Number(entry.koliIci) || 1, 1);
     const iskBirimFiyat = lFiyat * (1 - iskonto / 100);
     const kdvTutari = iskBirimFiyat * (kdvOrani / 100);
     const birimFiyatKdvDahil = iskBirimFiyat + kdvTutari;
     const satirToplam = birimFiyatKdvDahil * miktar;
     const koliAdedi = isHizmet ? 0 : Math.ceil(miktar / koliIci);
-    const yeniSatir = {
-      ...entry,
-      koliIci,
-      koliAdedi,
-      kdvOrani,
-      iskBirimFiyat,
-      kdvTutari: kdvTutari * miktar,
-      birimFiyatKdvDahil,
-      satirToplam,
-      id: Date.now()
-    };
+    const yeniSatir = { ...entry, koliIci, koliAdedi, kdvOrani, iskBirimFiyat, kdvTutari: kdvTutari * miktar, birimFiyatKdvDahil, satirToplam, id: Date.now() };
     setItems(prev => [...prev, yeniSatir]);
-    setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", listeFiyati: "", koliIci: 1, urunTuru: "Ürün", birim: "ADET", kdvOrani: 20, urunKategori: "", barkod: "", gtipNo: "", mensei: "", alisBirimi: "", cevrimOrani: 1 }));
+    setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", listeFiyati: "", koliIci: 1, urunTuru: "Ürün", birim: en.birim }));
   };
 
   const resetForm = () => {
@@ -208,126 +191,71 @@ const SiparisForm = ({ mode = "giris" }) => {
     sublabel: `${c.CariKodu} · ${c.CariTipi === 1 ? "Müşteri" : c.CariTipi === 2 ? "Tedarikçi" : "Müşteri + Tedarikçi"}`
   }));
 
-  const urunOptions = urunlerListesi.map(u => ({
-    value: String(u.UrunId),
-    label: u.UrunAdi,
-    sublabel: `${u.UrunKodu} · ${u.Birim || "Adet"} · ${Number(u.ListeFiyati || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ${u.ParaBirimi || "TL"}`
-  }));
-
-  const exportColumns = [
-    { key: "SiparisKodu", label: "Sipariş Kodu" }, { key: "SiparisTarihi", label: "Tarih" }, { key: "CariAdi", label: "Cari" },
-    { key: "SiparisYonu", label: "Yön" }, { key: "SiparisTipi", label: "Tip" }, { key: "SiparisVeren", label: "Kaynak" },
-    { key: "Durum", label: "Durum" }, { key: "ToplamTutar", label: "Toplam" }
-  ];
-
-  const isListe = mode === "liste";
-
-  if (isListe) {
-    return (
-      <div className="siparis-container">
-        <div className="siparis-card">
-          <div className="siparis-header-row">
-            <div><div className="siparis-title">Sipariş Listesi</div><div className="siparis-subtitle">Tüm satış ve alış siparişleri</div></div>
-            <ExportToolbar data={filteredGecmis} columns={exportColumns} fileName="siparisler" />
-          </div>
-          <div className="siparis-history-filters">
-            <input value={gecmisSearch} onChange={e => setGecmisSearch(e.target.value)} placeholder="Sipariş kodu veya cari ara..." />
-            <select value={gecmisYonFiltre} onChange={e => setGecmisYonFiltre(e.target.value)}><option>Hepsi</option><option>Satış</option><option>Alış</option></select>
-            <select value={gecmisDurumFiltre} onChange={e => setGecmisDurumFiltre(e.target.value)}><option>Hepsi</option><option>Taslak</option><option>Onaylandı</option><option>Rezervasyon</option><option>İrsaliye</option><option>Faturalandı</option><option>İptal</option></select>
-          </div>
-          <div className="siparis-table-wrap"><table className="siparis-table"><thead><tr><th>Kod</th><th>Tarih</th><th>Cari</th><th>Yön</th><th>Tip</th><th>Kaynak</th><th>Durum</th><th>Tutar</th></tr></thead><tbody>
-            {filteredGecmis.map(s => <tr key={s.SiparisId}><td>{s.SiparisKodu}</td><td>{s.SiparisTarihi ? new Date(s.SiparisTarihi).toLocaleDateString('tr-TR') : "-"}</td><td>{s.CariAdi}</td><td>{s.SiparisYonu}</td><td>{s.SiparisTipi}</td><td>{s.SiparisVeren}</td><td>{s.Durum}</td><td>{Number(s.ToplamTutar || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td></tr>)}
-          </tbody></table></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="siparis-container">
-      <div className="siparis-card">
-        <div className="siparis-header-row"><div><div className="siparis-title">Yeni Sipariş</div><div className="siparis-subtitle">Satış / alış siparişi oluşturun</div></div></div>
-
-        <div className="siparis-section">
-          <div className="siparis-section-title">Sipariş Bilgileri</div>
-          <div className="siparis-grid">
-            <div><label>Sipariş Kodu</label><input value={form.siparisKodu} onChange={e => setForm(f => ({ ...f, siparisKodu: e.target.value }))} /></div>
-            <div><label>Sipariş Yönü</label><select value={form.siparisYonu} onChange={e => setForm(f => ({ ...f, siparisYonu: e.target.value }))}><option>Satış</option><option>Alış</option></select></div>
-            <div><label>Sipariş Tarihi</label><input type="date" value={form.siparisTarihi} onChange={e => setForm(f => ({ ...f, siparisTarihi: e.target.value }))} /></div>
-            <div><label>Teslimat Tarihi</label><input type="date" value={form.teslimatTarihi} onChange={e => setForm(f => ({ ...f, teslimatTarihi: e.target.value }))} /></div>
-            <div><label>Tahsilat Tarihi</label><input type="date" value={form.tahsilatTarihi} onChange={e => setForm(f => ({ ...f, tahsilatTarihi: e.target.value }))} /></div>
-            <div><label>Sipariş Tipi</label><select value={form.siparisTipi} onChange={e => setForm(f => ({ ...f, siparisTipi: e.target.value }))}>{siparisTipleri.map(x => <option key={x}>{x}</option>)}</select></div>
-            <div><label>Sipariş Veren</label><select value={form.siparisVeren} onChange={e => setForm(f => ({ ...f, siparisVeren: e.target.value }))}>{siparisVerenler.map(x => <option key={x}>{x}</option>)}</select></div>
-            <div><label>Müşteri Temsilcisi</label><select value={form.musteriTemsilcisi} onChange={e => setForm(f => ({ ...f, musteriTemsilcisi: e.target.value }))}>{temsilciler.map(x => <option key={x}>{x}</option>)}</select></div>
-          </div>
-        </div>
-
-        <div className="siparis-section">
-          <div className="siparis-section-title">Cari / Adres</div>
-          <div className="siparis-grid">
-            <div><label>Cari</label><SearchableSelect value={form.cariKodu} options={cariOptions} onChange={handleCariSecim} placeholder="Cari seçin..." /></div>
-            <div><label>Cari Adı</label><input value={form.cariAdi} onChange={e => setForm(f => ({ ...f, cariAdi: e.target.value }))} /></div>
-            <div><label>Fatura Ülke</label><input value={form.faturaUlke} onChange={e => setForm(f => ({ ...f, faturaUlke: e.target.value }))} /></div>
-            <div><label>Fatura İl</label><input value={form.faturaIl} onChange={e => setForm(f => ({ ...f, faturaIl: e.target.value }))} /></div>
-            <div><label>Fatura İlçe</label><input value={form.faturaIlce} onChange={e => setForm(f => ({ ...f, faturaIlce: e.target.value }))} /></div>
-            <div className="full"><label>Fatura Adres</label><textarea value={form.faturaAdres} onChange={e => setForm(f => ({ ...f, faturaAdres: e.target.value }))} /></div>
-            <div className="full"><label><input type="checkbox" checked={adresAyni} onChange={e => handleAdresSync(e.target.checked)} /> Sevkiyat adresi fatura adresi ile aynı</label></div>
-            <div><label>Sevkiyat Ülke</label><input value={form.sevkiyatUlke} onChange={e => setForm(f => ({ ...f, sevkiyatUlke: e.target.value }))} /></div>
-            <div><label>Sevkiyat İl</label><input value={form.sevkiyatIl} onChange={e => setForm(f => ({ ...f, sevkiyatIl: e.target.value }))} /></div>
-            <div><label>Sevkiyat İlçe</label><input value={form.sevkiyatIlce} onChange={e => setForm(f => ({ ...f, sevkiyatIlce: e.target.value }))} /></div>
-            <div className="full"><label>Sevkiyat Adres</label><textarea value={form.sevkiyatAdres} onChange={e => setForm(f => ({ ...f, sevkiyatAdres: e.target.value }))} /></div>
-          </div>
-        </div>
-
-        {isYamankaya && (
-          <div className="siparis-section">
-            <div className="siparis-section-title">İnşaat / Sevkiyat Bilgileri</div>
-            <div className="siparis-grid">
-              <div><label>Proje Adı</label><input value={form.projeAdi} onChange={e => setForm(f => ({ ...f, projeAdi: e.target.value }))} /></div>
-              <div><label>Şantiye / Tesis</label><input value={form.santiyeAdi} onChange={e => setForm(f => ({ ...f, santiyeAdi: e.target.value }))} /></div>
-              <div><label>Araç / Plaka</label><input value={form.aracPlaka} onChange={e => setForm(f => ({ ...f, aracPlaka: e.target.value }))} /></div>
-              <div className="full"><label>Sevkiyat Notu</label><textarea value={form.sevkiyatNotu} onChange={e => setForm(f => ({ ...f, sevkiyatNotu: e.target.value }))} /></div>
+    <div className="vba-container">
+      {mode === "giris" && <>
+        <div className="vba-header">SİPARİŞ KAYIT FORMU</div>
+        <div className="vba-body">
+          <div className="vba-panel siparis-yon-panel">
+            <label className="vba-label-sm" style={{ marginBottom: 10, display: "block" }}>SİPARİŞ YÖNÜ *</label>
+            <div className="siparis-yon-toggle">
+              <button type="button" className={form.siparisYonu === "Satış" ? "active" : ""} onClick={() => setForm({ ...form, siparisYonu: "Satış", cariKodu: "", cariAdi: "" })}>🛒 Satış Siparişi<small>Müşteriye satış</small></button>
+              <button type="button" className={form.siparisYonu === "Alış" ? "active" : ""} onClick={() => setForm({ ...form, siparisYonu: "Alış", cariKodu: "", cariAdi: "" })}>📥 Alış Siparişi<small>Tedarikçiden alış</small></button>
             </div>
           </div>
-        )}
-
-        <div className="siparis-section">
-          <div className="siparis-section-title">Ürün / Hizmet</div>
-          <div className="siparis-grid">
-            <div><label>Ürün / Hizmet</label><SearchableSelect value={entry.urunKodu ? String(urunlerListesi.find(u => u.UrunKodu === entry.urunKodu)?.UrunId || "") : ""} options={urunOptions} onChange={handleUrunSecim} placeholder="Ürün veya hizmet seçin..." /></div>
-            <div><label>Ürün Kodu</label><input value={entry.urunKodu} readOnly /></div>
-            <div><label>Ürün Adı</label><input value={entry.urunAdi} readOnly /></div>
-            <div><label>Birim</label><select value={entry.birim} onChange={e => setEntry(en => ({ ...en, birim: e.target.value }))}>{unitOptions.map(x => <option key={x}>{x}</option>)}</select></div>
-            <div><label>Miktar</label><input type="number" min="0" step="0.01" value={entry.miktar} onChange={e => setEntry(en => ({ ...en, miktar: e.target.value }))} /></div>
-            <div><label>Koli İçi Adet</label><input type="number" min="1" step="1" value={entry.koliIci} onChange={e => setEntry(en => ({ ...en, koliIci: e.target.value }) )} disabled={entry.urunTuru === "Hizmet"} /></div>
-            <div><label>Liste Fiyatı</label><input type="number" min="0" step="0.01" value={entry.listeFiyati} onChange={e => setEntry(en => ({ ...en, listeFiyati: e.target.value }))} /></div>
-            <div><label>İskonto %</label><input type="number" min="0" max="100" step="0.01" value={entry.iskonto} onChange={e => setEntry(en => ({ ...en, iskonto: e.target.value }))} /></div>
-            <div><label>KDV %</label><input type="number" min="0" max="100" step="1" value={entry.kdvOrani} onChange={e => setEntry(en => ({ ...en, kdvOrani: e.target.value }))} /></div>
-          </div>
-          <div className="siparis-actions"><button type="button" onClick={urunEkle} className="primary">+ Ürün Ekle</button></div>
         </div>
-
-        <div className="siparis-section">
-          <div className="siparis-section-title">Sipariş Kalemleri</div>
-          <div className="siparis-table-wrap"><table className="siparis-table"><thead><tr><th>Ürün</th><th>Kod</th><th>Miktar</th><th>Birim</th><th>Koli İçi</th><th>Koli</th><th>Liste Fiyatı</th><th>İskonto</th><th>KDV</th><th>Satır Toplam</th><th></th></tr></thead><tbody>
-            {items.map(it => <tr key={it.id}><td>{it.urunAdi}</td><td>{it.urunKodu}</td><td>{it.miktar}</td><td>{it.birim}</td><td>{it.koliIci}</td><td>{it.koliAdedi}</td><td>{Number(it.listeFiyati || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td><td>%{it.iskonto}</td><td>%{it.kdvOrani}</td><td>{Number(it.satirToplam || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</td><td><button type="button" onClick={() => urunSil(it.id)}>Sil</button></td></tr>)}
+        <div className="vba-body">
+          <div className="vba-panel">
+            <div className="vba-row">
+              <div className="vba-f"><label>SİPARİŞ NO</label><input value={form.siparisKodu} readOnly className="vba-read" /></div>
+              <div className="vba-f"><label>TARİH</label><input type="date" value={form.siparisTarihi} onChange={e=>setForm({...form, siparisTarihi:e.target.value})} /></div>
+              <div className="vba-f"><label>SİPARİŞ TİPİ</label><select value={form.siparisTipi} onChange={e=>setForm({...form,siparisTipi:e.target.value})}>{siparisTipleri.map(t=><option key={t}>{t}</option>)}</select></div>
+              <div className="vba-f"><label>SİPARİŞ VEREN</label><select value={form.siparisVeren} onChange={e=>setForm({...form,siparisVeren:e.target.value})}>{siparisVerenler.map(v=><option key={v}>{v}</option>)}</select></div>
+              <div className="vba-f"><label>MÜŞTERİ TEMSİLCİSİ</label><select value={form.musteriTemsilcisi} onChange={e=>setForm({...form,musteriTemsilcisi:e.target.value})}>{temsilciler.map(m=><option key={m}>{m}</option>)}</select></div>
+            </div>
+            {form.siparisYonu === "Alış" && <div className="vba-row" style={{marginTop:14}}>
+              <div className="vba-f"><label>TESLİMAT ŞEKLİ</label><input value={form.teslimatSekli} onChange={e=>setForm({...form,teslimatSekli:e.target.value})}/></div>
+              <div className="vba-f"><label>PAKETLEME ŞEKLİ</label><input value={form.paketlemeSekli} onChange={e=>setForm({...form,paketlemeSekli:e.target.value})}/></div>
+              <div className="vba-f"><label>LOJİSTİK DETAY</label><input value={form.lojistikDetay} onChange={e=>setForm({...form,lojistikDetay:e.target.value})}/></div>
+              <div className="vba-f"><label>SİPARİŞ VEREN DEPARTMAN</label><input value={form.siparisVerenDepartman} onChange={e=>setForm({...form,siparisVerenDepartman:e.target.value})}/></div>
+            </div>}
+            {isYamankaya && form.siparisYonu === "Satış" && <div className="vba-row" style={{marginTop:14}}>
+              <div className="vba-f"><label>PROJE ADI</label><input value={form.projeAdi} onChange={e=>setForm({...form,projeAdi:e.target.value})} placeholder="Proje / iş adı"/></div>
+              <div className="vba-f"><label>ŞANTİYE / TESİS</label><input value={form.santiyeAdi} onChange={e=>setForm({...form,santiyeAdi:e.target.value})} placeholder="Şantiye veya tesis"/></div>
+              <div className="vba-f"><label>ARAÇ / PLAKA</label><input value={form.aracPlaka} onChange={e=>setForm({...form,aracPlaka:e.target.value})} placeholder="Araç / plaka"/></div>
+              <div className="vba-f"><label>SEVKİYAT NOTU</label><input value={form.sevkiyatNotu} onChange={e=>setForm({...form,sevkiyatNotu:e.target.value})} placeholder="Yükleme / sevkiyat notu"/></div>
+            </div>}
+          </div>
+          <div className="vba-panel">
+            <div className="vba-row"><div className="vba-f" style={{flex:0.9}}><label>{form.siparisYonu === "Alış" ? "TEDARİKÇİ" : "MÜŞTERİ"} KODU / ADI</label><SearchableSelect options={cariOptions} value={form.cariKodu} onChange={val=>handleCariSecim(val)} placeholder={form.siparisYonu === "Alış" ? "Tedarikçi seçin..." : "Müşteri seçin..."}/></div><div className="vba-f"><label>CARİ ADI</label><input value={form.cariAdi} onChange={e=>setForm({...form,cariAdi:e.target.value})}/></div></div>
+            <div className="vba-address-grid">
+              <div className="vba-addr-col"><label className="vba-label-sm">FATURA ADRES BİLGİLERİ</label><input placeholder="Ülke" value={form.faturaUlke} onChange={e=>setForm({...form,faturaUlke:e.target.value})}/><div className="vba-row-sm"><input placeholder="İl" value={form.faturaIl} onChange={e=>setForm({...form,faturaIl:e.target.value})}/><input placeholder="İlçe" value={form.faturaIlce} onChange={e=>setForm({...form,faturaIlce:e.target.value})}/></div><textarea placeholder="Adres Detay" value={form.faturaAdres} onChange={e=>setForm({...form,faturaAdres:e.target.value})}/></div>
+              <div className="vba-addr-col"><div className="vba-row-sm" style={{justifyContent:'space-between'}}><label className="vba-label-sm">SEVKİYAT ADRES BİLGİLERİ</label><label style={{fontSize:'9px'}}><input type="checkbox" checked={adresAyni} onChange={e=>handleAdresSync(e.target.checked)}/> Fatura ile Aynı</label></div><input placeholder="Ülke" value={form.sevkiyatUlke} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatUlke:e.target.value})}/><div className="vba-row-sm"><input placeholder="İl" value={form.sevkiyatIl} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatIl:e.target.value})}/><input placeholder="İlçe" value={form.sevkiyatIlce} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatIlce:e.target.value})}/></div><textarea placeholder="Adres Detay" value={form.sevkiyatAdres} disabled={adresAyni} onChange={e=>setForm({...form,sevkiyatAdres:e.target.value})}/></div>
+            </div>
+          </div>
+          <div className="vba-product-bar">
+            <div className="vba-pb-labels"><span>ÜRÜN / HİZMET</span><span>MİKTAR</span><span>BİRİM</span><span>{isYamankaya ? "AMBALAJ / İÇERİK" : "KOLİ İÇİ"}</span><span>LİSTE FİYAT</span><span>İSK %</span><span>İŞLEM</span></div>
+            <div className="vba-pb-inputs">
+              <div className="vba-product-select"><SearchableSelect options={urunlerListesi.map(u=>({value:u.UrunId,label:u.UrunAdi,sublabel:`${u.UrunKodu} · ${u.Tur || "Ürün"}`}))} value={urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu)?.UrunId || ""} onChange={val=>handleUrunSecim(val)} placeholder="Ürün / hizmet seçin..."/></div>
+              <input style={{minWidth:0}} type="number" value={entry.miktar} onChange={e=>setEntry({...entry,miktar:e.target.value})}/>
+              <select style={{minWidth:0}} value={entry.birim} onChange={e=>setEntry({...entry,birim:e.target.value})}>{unitOptions.map(unit=><option key={unit}>{unit}</option>)}</select>
+              {entry.urunTuru === "Hizmet" ? <div className="vba-service-placeholder" aria-hidden="true">—</div> : <input style={{minWidth:0}} value={entry.koliIci} readOnly title="Üründen otomatik gelir"/>}
+              <input style={{minWidth:0}} value={entry.listeFiyati} onChange={e=>setEntry({...entry,listeFiyati:e.target.value})}/>
+              <input style={{minWidth:0}} value={entry.iskonto} onChange={e=>setEntry({...entry,iskonto:e.target.value})}/>
+              <button type="button" className="vba-add-btn" onClick={urunEkle}>EKLE</button>
+            </div>
+            {isYamankaya && <div className="siparis-cevrim-note">Yamankaya profili: palet / rulo / KG / ton bazlı sipariş girişi aktif. Ürün kartındaki birim korunur.</div>}
+            {entry.urunTuru === "Hizmet" && <div className="siparis-cevrim-note">Hizmet kalemlerinde koli içi adet ve koli hesabı uygulanmaz.</div>}
+            {form.siparisYonu === "Alış" && entry.urunTuru !== "Hizmet" && urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu)?.AlisBirimi && <div className="siparis-cevrim-note">ℹ️ Bu malzeme tedarikçiden <strong>{urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu).AlisBirimi}</strong> olarak alınıyor, stokta <strong>{urunlerListesi.find(u=>u.UrunKodu===entry.urunKodu).Birim}</strong> olarak takip ediliyor.</div>}
+          </div>
+          <div className="vba-grid"><table><thead><tr><th>NO</th><th>ÜRÜN KODU</th><th>ÜRÜN ADI</th><th>MİKTAR</th><th>BİRİM</th><th>KOLİ ADET</th><th>İSK. FİYAT</th><th>KDV</th><th>TOPLAM</th><th></th></tr></thead><tbody>
+            {items.map((it,idx)=><tr key={it.id}><td>{idx+1}</td><td>{it.urunKodu}</td><td>{it.urunAdi}</td><td>{it.miktar}</td><td>{it.birim}</td><td>{it.urunTuru === "Hizmet" ? "—" : it.koliAdedi}</td><td>{it.iskBirimFiyat.toFixed(2)}</td><td>{it.kdvTutari.toFixed(2)}</td><td style={{fontWeight:'bold'}}>{it.satirToplam.toLocaleString()} ₺</td><td><button type="button" onClick={()=>urunSil(it.id)} className="vba-del-btn">Sil</button></td></tr>)}
+            {items.length===0 && <tr><td colSpan={10} style={{textAlign:'center',color:'#999',padding:'12px'}}>Henüz ürün eklenmedi</td></tr>}
           </tbody></table></div>
+          <div className="vba-panel" style={{marginTop:'auto'}}><div className="vba-row"><div className="vba-f"><label>ÖDEME ŞEKLİ</label><select value={form.odemeSekli} onChange={e=>setForm({...form,odemeSekli:e.target.value})}>{odemeSekilleri.map(o=><option key={o}>{o}</option>)}</select></div><div className="vba-f"><label>KK / ÇEK VADE</label><select value={form.vade} onChange={e=>setForm({...form,vade:e.target.value})}>{vadeSecenekleri.map(v=><option key={v}>{v}</option>)}</select></div><div className="vba-f"><label>TAHSİLAT TARİHİ</label><input type="date" value={form.tahsilatTarihi} onChange={e=>setForm({...form,tahsilatTarihi:e.target.value})}/></div><div className="vba-f"><label>TESLİMAT TARİHİ</label><input type="date" value={form.teslimatTarihi} onChange={e=>setForm({...form,teslimatTarihi:e.target.value})}/></div><div className="vba-totals"><div className="vba-total-breakdown"><div>Ara Toplam: <strong>{items.reduce((a,b)=>a+(b.satirToplam-b.kdvTutari),0).toLocaleString()} ₺</strong></div><div>KDV: <strong>{items.reduce((a,b)=>a+b.kdvTutari,0).toLocaleString()} ₺</strong></div></div><div className="vba-total-row">GENEL TOPLAM: <span>{items.reduce((a,b)=>a+b.satirToplam,0).toLocaleString()} ₺</span></div><button className="vba-save-btn" onClick={handleKaydet} disabled={kaydediliyor}>{kaydediliyor?"KAYDEDİLİYOR...":"SİPARİŞİ KAYDET (YENİ DURUM)"}</button></div></div>
         </div>
-
-        <div className="siparis-section">
-          <div className="siparis-section-title">Ödeme / Lojistik</div>
-          <div className="siparis-grid">
-            <div><label>Ödeme Şekli</label><select value={form.odemeSekli} onChange={e => setForm(f => ({ ...f, odemeSekli: e.target.value }))}>{odemeSekilleri.map(x => <option key={x}>{x}</option>)}</select></div>
-            <div><label>Vade</label><select value={form.vade} onChange={e => setForm(f => ({ ...f, vade: e.target.value }))}>{vadeSecenekleri.map(x => <option key={x}>{x}</option>)}</select></div>
-            <div><label>Teslimat Şekli</label><input value={form.teslimatSekli} onChange={e => setForm(f => ({ ...f, teslimatSekli: e.target.value }))} /></div>
-            <div><label>Paketleme Şekli</label><input value={form.paketlemeSekli} onChange={e => setForm(f => ({ ...f, paketlemeSekli: e.target.value }))} /></div>
-            <div><label>Lojistik Detay</label><input value={form.lojistikDetay} onChange={e => setForm(f => ({ ...f, lojistikDetay: e.target.value }))} /></div>
-            <div><label>Sipariş Veren Departman</label><input value={form.siparisVerenDepartman} onChange={e => setForm(f => ({ ...f, siparisVerenDepartman: e.target.value }))} /></div>
-          </div>
-        </div>
-
-        <div className="siparis-actions"><button type="button" onClick={handleKaydet} className="primary" disabled={kaydediliyor}>{kaydediliyor ? "Kaydediliyor..." : "Siparişi Kaydet"}</button></div>
-      </div>
+      </>}
+      {mode === "liste" && <div className="vba-panel" style={{marginTop:20}}><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}><h3 style={{margin:0}}>Sipariş Listesi ({filteredGecmis.length})</h3></div><div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:12,marginBottom:12}}><input type="text" placeholder="Cari adı veya sipariş no ara..." value={gecmisSearch} onChange={e=>setGecmisSearch(e.target.value)} style={{flex:2,minWidth:220,padding:'8px 12px',borderRadius:6,border:'1px solid #ccc'}}/><select value={gecmisYonFiltre} onChange={e=>setGecmisYonFiltre(e.target.value)}><option value="Hepsi">Tüm Yönler</option><option value="Satış">🛒 Satış</option><option value="Alış">📥 Alış</option></select><select value={gecmisDurumFiltre} onChange={e=>setGecmisDurumFiltre(e.target.value)}><option value="Hepsi">Tüm Durumlar</option><option value="YENİ">YENİ</option><option value="ONAYLANDI">ONAYLANDI</option><option value="TAMAMLANDI">TAMAMLANDI</option><option value="İPTAL">İPTAL</option></select></div><ExportToolbar data={filteredGecmis} columns={[{key:'SiparisKodu',label:'Sipariş No'},{key:'SiparisYonu',label:'Yön'},{key:'CariAdi',label:'Cari'},{key:'SiparisTipi',label:'Tip'},{key:'Durum',label:'Durum'},{key:'ToplamTutar',label:'Toplam'}]} filename="siparis-listesi"/><div className="vba-grid" style={{marginTop:12}}><table><thead><tr><th>SİPARİŞ NO</th><th>YÖN</th><th>TARİH</th><th>CARİ</th><th>TİP</th><th>DURUM</th><th>TOPLAM</th></tr></thead><tbody>{filteredGecmis.map(s=><tr key={s.SiparisId}><td>{s.SiparisKodu}</td><td><span className={`erp-badge ${s.SiparisYonu === "Alış" ? "orange" : "blue"}`}>{s.SiparisYonu === "Alış" ? "📥 Alış" : "🛒 Satış"}</span></td><td>{s.SiparisTarihi ? new Date(s.SiparisTarihi).toLocaleDateString('tr-TR') : ''}</td><td>{s.CariAdi}</td><td>{s.SiparisTipi}</td><td>{s.Durum}</td><td style={{fontWeight:'bold'}}>{Number(s.ToplamTutar||0).toLocaleString()} ₺</td></tr>)}{filteredGecmis.length===0&&<tr><td colSpan={7} style={{textAlign:'center',color:'#999',padding:'12px'}}>Kayıt bulunamadı</td></tr>}</tbody></table></div></div>}
     </div>
   );
 };
