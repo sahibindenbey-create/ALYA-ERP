@@ -45,13 +45,14 @@ const SiparisForm = ({ mode = "giris" }) => {
     koliIci: 1, koliAdedi: 0, listeFiyati: "", iskonto: 0, urunTuru: "Ürün"
   });
 
-  const fetchCompanyProfile = async () => {
+  const fetchCompanyProfile = async (companyIdOverride) => {
     try {
-      const res = await axios.get(`${API_URL}/company-profile`);
+      const companyId = Number(companyIdOverride || localStorage.getItem("selectedCompanyId") || 1);
+      const res = await axios.get(`${API_URL}/company-profile`, { params: { CompanyId: companyId } });
       if (res.data?.profile) {
         const profile = res.data.profile;
         setCompanyProfile(profile);
-        setEntry(en => ({ ...en, birim: profile.VarsayilanBirim || en.birim }));
+        setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", birim: profile.VarsayilanBirim || en.birim }));
       }
     } catch (err) {
       console.error("Şirket profili alınamadı:", err);
@@ -71,7 +72,23 @@ const SiparisForm = ({ mode = "giris" }) => {
     catch (err) { console.error("Sipariş geçmişi alınamadı:", err); }
   };
 
-  useEffect(() => { fetchCompanyProfile(); fetchCariler(); fetchUrunler(); fetchSiparisGecmisi(); }, []);
+  useEffect(() => {
+    fetchCompanyProfile();
+    fetchCariler();
+    fetchUrunler();
+    fetchSiparisGecmisi();
+
+    const handleCompanyChanged = (event) => {
+      const id = Number(event.detail?.CompanyId || localStorage.getItem("selectedCompanyId") || 1);
+      setItems([]);
+      setCompanyProfile(null);
+      setEntry(en => ({ ...en, urunKodu: "", urunAdi: "", miktar: "", birim: "ADET" }));
+      fetchCompanyProfile(id);
+    };
+
+    window.addEventListener("companyChanged", handleCompanyChanged);
+    return () => window.removeEventListener("companyChanged", handleCompanyChanged);
+  }, []);
 
   useEffect(() => {
     if (companyProfile?.VarsayilanBirim && !entry.urunKodu) {
