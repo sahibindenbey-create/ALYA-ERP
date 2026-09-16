@@ -19,7 +19,6 @@ function install({ app, poolPromise }) {
             FirmaTipi,
             SiparisSablonu,
             StokTakipTipi,
-            VarsayilanBirim,
             ProfilAktif
           FROM dbo.Sirketler
           WHERE CompanyId = @CompanyId AND IsActive = 1;
