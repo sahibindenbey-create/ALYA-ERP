@@ -61,7 +61,9 @@ app.use(express.json());
 // Siparişler, Stok, Üretim, Fason, Kasa/Banka, Personel, Reçeteler, vb.)
 // kapsıyor.
 const PUBLIC_API_PATHS = new Set([
-  '/api/auth/login',
+  '/api/core/auth/login',  // GERÇEK login: erp-frontend/src/pages/Login.js bunu çağırıyor,
+                            // core/coreRoutes.js token'ı burada üretiyor (createSessionToken).
+                            // Bu path kapıdan geçmezse hiç kimse token alamaz, login imkansız olur.
 ]);
 
 const legacyAuthGate = createAuthMiddleware({ poolPromise, sql });
@@ -1425,44 +1427,14 @@ app.delete('/api/fason/:id', async (req, res) => {
 
 /* =========================================================
    GİRİŞ (AUTH) MODÜLÜ
+   -----------------------------------------------------------
+   NOT: Gerçek login endpoint'i burada DEĞİL — core/coreRoutes.js
+   içinde POST /api/core/auth/login. Frontend (Login.js) o uca
+   istek atıyor ve tek token-üreten (createSessionToken) akış o.
+   Burada daha önce duran eski app.post('/api/auth/login', ...)
+   hiçbir yerden çağrılmıyordu, token döndürmüyordu ve rate-limit'siz
+   bir şifre doğrulama oracle'ı olarak açıkta duruyordu; kaldırıldı.
    ========================================================= */
-
-function verifyPassword(password, salt, storedHash) {
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return hash === storedHash;
-}
-
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { kullaniciAdi, sifre } = req.body;
-    if (!kullaniciAdi || !sifre) {
-      return res.status(400).json({ error: 'Kullanıcı adı ve şifre gereklidir.' });
-    }
-
-    const pool = await poolPromise;
-    const result = await pool.request()
-      .input('KullaniciAdi', sql.NVarChar, kullaniciAdi)
-      .query('SELECT * FROM Kullanicilar WHERE KullaniciAdi = @KullaniciAdi AND IsActive = 1');
-
-    if (result.recordset.length === 0) {
-      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı.' });
-    }
-
-    const user = result.recordset[0];
-    const gecerli = verifyPassword(sifre, user.SifreSalt, user.SifreHash);
-    if (!gecerli) {
-      return res.status(401).json({ error: 'Kullanıcı adı veya şifre hatalı.' });
-    }
-
-    res.json({
-      success: true,
-      user: { id: user.KullaniciId, name: user.AdSoyad, kullaniciAdi: user.KullaniciAdi, role: user.Rol }
-    });
-  } catch (err) {
-    console.error('Hata:', err);
-    res.status(500).json({ error: 'Giriş sırasında hata oluştu', detail: err.message });
-  }
-});
 
 // Yeni kullanıcı ekle (yönetici panelinden kullanılabilir)
 app.post('/api/auth/register', requirePermission('core.admin'), async (req, res) => {
