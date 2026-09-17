@@ -76,7 +76,15 @@ app.use((req, res, next) => {
 // ------------------------------------------------------------------------
 
 // Yüklenen dosyaları statik olarak sun (görüntüleme/indirme için)
-app.use('/uploads', express.static(UPLOAD_ROOT));
+// NOT: Öncesinde /uploads tamamen herkese açıktı (auth yoktu) - dosya adını
+// bilen (ya da DB'den öğrenen) herkes, oturum açmadan cari evrakı/ürün
+// dosyası/ihracat evrakı indirebiliyordu. En azından geçerli bir oturum
+// şart koşuluyor. NOT: Bu, "indiren kişi gerçekten o dosyanın ait olduğu
+// şirkete yetkili mi" sorusunu TAM çözmüyor (o kontrol için DosyaYolu'nun
+// hangi CariEvrak/UrunDosya/IhracatEvrak kaydına ait olduğu ve o kaydın
+// CompanyId'sinin req.companyId ile eşleştiği ayrıca doğrulanmalı - ileride
+// yapılacaklar listesine eklenmeli).
+app.use('/uploads', legacyAuthGate, express.static(UPLOAD_ROOT));
 
 // Test endpoint
 app.get('/', (req, res) => {

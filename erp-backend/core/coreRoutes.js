@@ -10,10 +10,61 @@ function verifyPassword(password, salt, storedHash) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
+// --- Basit brute-force koruması (harici paket gerektirmez) -----------------
+// IP + kullanıcı adı başına: 15 dakikada en fazla 5 başarısız deneme.
+// Process bazlı bellek içi; çoklu instance/PM2 cluster kullanılıyorsa
+// ileride Redis tabanlı bir çözüme taşınmalı (tek instance için yeterli).
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const loginAttempts = new Map(); // key -> { count, firstAttemptAt }
+
+function loginRateLimitKey(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  const username = String(req.body?.kullaniciAdi || '').trim().toLowerCase();
+  return `${ip}::${username}`;
+}
+
+function checkLoginRateLimit(req, res) {
+  const key = loginRateLimitKey(req);
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (entry && now - entry.firstAttemptAt < LOGIN_WINDOW_MS) {
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      const retryAfterSec = Math.ceil((LOGIN_WINDOW_MS - (now - entry.firstAttemptAt)) / 1000);
+      res.set('Retry-After', String(retryAfterSec));
+      res.status(429).json({ success: false, error: 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.' });
+      return false;
+    }
+  } else {
+    loginAttempts.set(key, { count: 0, firstAttemptAt: now });
+  }
+  return true;
+}
+
+function registerFailedLogin(req) {
+  const key = loginRateLimitKey(req);
+  const entry = loginAttempts.get(key);
+  if (entry) entry.count += 1;
+}
+
+function clearLoginAttempts(req) {
+  loginAttempts.delete(loginRateLimitKey(req));
+}
+
+// Bellek büyümesini önlemek için eski kayıtları periyodik temizle
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of loginAttempts) {
+    if (now - entry.firstAttemptAt >= LOGIN_WINDOW_MS) loginAttempts.delete(key);
+  }
+}, LOGIN_WINDOW_MS).unref();
+// -----------------------------------------------------------------------------
+
 module.exports = function registerCoreRoutes(app, poolPromise, sql) {
   const router = express.Router();
 
   router.post('/auth/login', async (req, res) => {
+    if (!checkLoginRateLimit(req, res)) return;
     try {
       const { kullaniciAdi, sifre } = req.body || {};
       if (!kullaniciAdi || !sifre) return res.status(400).json({ success: false, error: 'Kullanıcı adı ve şifre gereklidir.' });
@@ -23,6 +74,7 @@ module.exports = function registerCoreRoutes(app, poolPromise, sql) {
         .query(`SELECT TOP (1) KullaniciId,KullaniciAdi,AdSoyad,SifreSalt,SifreHash,IsActive FROM dbo.Kullanicilar WHERE KullaniciAdi=@KullaniciAdi AND IsActive=1;`);
       const user = userResult.recordset[0];
       if (!user || !verifyPassword(String(sifre), user.SifreSalt, user.SifreHash)) {
+        registerFailedLogin(req);
         return res.status(401).json({ success: false, error: 'Kullanıcı adı veya şifre hatalı.' });
       }
       const companies = await pool.request().input('KullaniciId', sql.Int, user.KullaniciId).query(`
@@ -38,6 +90,7 @@ module.exports = function registerCoreRoutes(app, poolPromise, sql) {
       const defaultCompany = companies.recordset[0];
       const context = await loadSecurityContext(poolPromise, sql, user.KullaniciId, defaultCompany.CompanyId);
       const token = createSessionToken(user);
+      clearLoginAttempts(req);
       res.json({
         success: true,
         token,
