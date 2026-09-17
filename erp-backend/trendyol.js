@@ -1,4 +1,5 @@
 const registerTrendyol = ({ app, poolPromise, sql }) => {
+  const marketplaceBridge = require('./core/marketplaceFlowRoutes');
   const sellerId = process.env.TRENDYOL_SELLER_ID;
   const apiKey = process.env.TRENDYOL_API_KEY;
   const apiSecret = process.env.TRENDYOL_API_SECRET;
@@ -398,6 +399,55 @@ const registerTrendyol = ({ app, poolPromise, sql }) => {
             `);
 
           inserted++;
+
+          // ---------------------------------------------------------
+          // BİRLEŞİK PAZARYERİ SİSTEMİNE KÖPRÜ (additive, best-effort)
+          // -----------------------------------------------------------
+          // Trendyol siparişini PazaryeriSiparisleriV2'ye de yazar, ürün
+          // eşleşmesi tamsa otomatik Satış Siparişi'ne çevirip stoğu
+          // düşürür (bkz. ALYA-ERP-VERI-AKISI-HARITASI.md, bulgu #1 ve #2).
+          // Bu blok kasıtlı olarak KENDİ try/catch'i içinde: burada bir
+          // sorun olursa yukarıdaki asıl PlatformSiparisler kaydı ve genel
+          // senkronizasyon ETKİLENMEZ, sadece bu paket için yeni sistem
+          // güncellemesi atlanır.
+          try {
+            const kanalId = await marketplaceBridge.ensureMarketplaceChannel(transaction, sql, req.companyId, 'TRENDYOL', 'Trendyol');
+            const rawLines = Array.isArray(p.lines) ? p.lines : [];
+            if (kanalId && rawLines.length) {
+              const genelToplam = Number(p.packageTotalPrice ?? p.grossAmount ?? p.totalPrice ?? 0);
+              const already = await new sql.Request(transaction).input('C', sql.Int, req.companyId).input('K', sql.BigInt, kanalId).input('N', sql.NVarChar(120), String(orderNumber || packageId))
+                .query(`SELECT PazaryeriSiparisId FROM dbo.PazaryeriSiparisleriV2 WHERE CompanyId=@C AND KanalId=@K AND HariciSiparisNo=@N;`);
+              let pazaryeriSiparisId = already.recordset[0]?.PazaryeriSiparisId;
+              if (!pazaryeriSiparisId) {
+                const insHeader = await new sql.Request(transaction).input('C', sql.Int, req.companyId).input('K', sql.BigInt, kanalId)
+                  .input('N', sql.NVarChar(120), String(orderNumber || packageId)).input('M', sql.NVarChar(250), p.shipmentAddress?.fullName || null)
+                  .input('D', sql.DateTime2, p.orderDate ? new Date(Number(p.orderDate)) : new Date()).input('T', sql.Decimal(18, 2), genelToplam)
+                  .input('HD', sql.NVarChar(60), p.status || p.shipmentPackageStatus || p.packageStatus || null).input('J', sql.NVarChar(sql.MAX), JSON.stringify(p))
+                  .query(`INSERT dbo.PazaryeriSiparisleriV2(CompanyId,KanalId,HariciSiparisNo,MusteriAdi,SiparisTarihi,ParaBirimi,GenelToplam,HariciDurum,RawJson)
+                          OUTPUT INSERTED.PazaryeriSiparisId VALUES(@C,@K,@N,@M,@D,N'TRY',@T,@HD,@J);`);
+                pazaryeriSiparisId = insHeader.recordset[0].PazaryeriSiparisId;
+                for (const line of rawLines) {
+                  const sku = String(line.stockCode || line.merchantSku || line.barcode || '').trim();
+                  const qty = Number(line.quantity || 0);
+                  const price = Number(line.lineUnitPrice ?? line.price ?? 0);
+                  if (!sku || !(qty > 0)) continue;
+                  await new sql.Request(transaction).input('C', sql.Int, req.companyId).input('H', sql.BigInt, pazaryeriSiparisId).input('K', sql.BigInt, kanalId)
+                    .input('S', sql.NVarChar(120), sku).input('A', sql.NVarChar(250), line.productName || null).input('Q', sql.Decimal(18, 4), qty)
+                    .input('F', sql.Decimal(18, 4), price).input('T', sql.Decimal(18, 2), qty * price)
+                    .query(`DECLARE @P INT=(SELECT UrunId FROM dbo.PazaryeriUrunEslemeleriV2 WHERE CompanyId=@C AND KanalId=@K AND HariciSku=@S AND IsActive=1);
+                            INSERT dbo.PazaryeriSiparisKalemleriV2(CompanyId,PazaryeriSiparisId,HariciSku,UrunId,UrunAdi,Miktar,BirimFiyat,SatirToplam,EslemeDurumu)
+                            VALUES(@C,@H,@S,@P,@A,@Q,@F,@T,CASE WHEN @P IS NULL THEN N'Bekliyor' ELSE N'Eşleşti' END);`);
+                }
+                await new sql.Request(transaction).input('C', sql.Int, req.companyId).input('H', sql.BigInt, pazaryeriSiparisId)
+                  .query(`UPDATE dbo.PazaryeriSiparisleriV2 SET ErpDurumu=CASE WHEN EXISTS(SELECT 1 FROM dbo.PazaryeriSiparisKalemleriV2 WHERE CompanyId=@C AND PazaryeriSiparisId=@H AND UrunId IS NULL)THEN N'Eşleme Bekliyor' ELSE N'Hazır' END WHERE CompanyId=@C AND PazaryeriSiparisId=@H;`);
+              }
+              if (req.auth?.userId) {
+                await marketplaceBridge.convertMarketplaceOrderToSalesOrder(transaction, req, pazaryeriSiparisId, sql);
+              }
+            }
+          } catch (bridgeErr) {
+            console.warn('Trendyol -> birleşik pazaryeri köprüsü atlandı (paket:', packageId, '):', bridgeErr.message);
+          }
         }
 
         await transaction.commit();
