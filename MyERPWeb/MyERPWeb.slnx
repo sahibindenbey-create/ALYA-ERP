@@ -1,6 +1,0 @@
-<Solution>
-  <Folder Name="/DATA/">
-    <File Path="MyERPDbContext.cs" />
-  </Folder>
-  <Project Path="MyERPWeb.csproj" />
-</Solution>
