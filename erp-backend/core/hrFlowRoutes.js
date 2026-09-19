@@ -43,10 +43,10 @@ r.post('/advances/:id/decision',requirePermission('erp.approve'),async(req,res)=
               OUTPUT INSERTED.FisId VALUES(@C,@JN,SYSUTCDATETIME(),N'Avans Ödeme',N'IK_AVANS',@I,@A,@U);`);
     const fisId=fisResult.recordset[0].FisId;
 
-    await new sql.Request(t).input('C',sql.Int,req.companyId).input('J',sql.Int,fisId).input('T',sql.Decimal(18,2),advance.Tutar).input('H',sql.NVarChar(30),account)
+    await new sql.Request(t).input('C',sql.Int,req.companyId).input('J',sql.BigInt,fisId).input('T',sql.Decimal(18,2),advance.Tutar).input('H',sql.NVarChar(30),account)
       .query(`INSERT dbo.MuhasebeFisSatirlari(CompanyId,FisId,HesapKodu,Aciklama,Borc,Alacak)VALUES(@C,@J,N'195',N'Personel avansı',@T,0),(@C,@J,@H,N'Avans ödemesi',0,@T);`);
 
-    await new sql.Request(t).input('C',sql.Int,req.companyId).input('I',sql.BigInt,id).input('U',sql.Int,req.auth.userId).input('F',sql.Int,fisId).input('CH',sql.NVarChar(30),channel).input('AN',sql.NVarChar(80),avansNo)
+    await new sql.Request(t).input('C',sql.Int,req.companyId).input('I',sql.BigInt,id).input('U',sql.Int,req.auth.userId).input('F',sql.BigInt,fisId).input('CH',sql.NVarChar(30),channel).input('AN',sql.NVarChar(80),avansNo)
       .query(`UPDATE dbo.IkAvanslar SET Durum=N'Onaylandı',ApprovedBy=@U,ApprovedAt=SYSUTCDATETIME(),MuhasebeFisId=@F,OdemeKanali=@CH,AvansNo=@AN WHERE CompanyId=@C AND AvansId=@I;`);
 
     await writeAudit({poolPromise,sql,companyId:req.companyId,userId:req.auth.userId,actionCode:'HR_ADVANCE_APPROVED',entityType:'IkAvans',entityId:id,after:{avansNo,journalNo,channel,amount:advance.Tutar},req,transaction:t});

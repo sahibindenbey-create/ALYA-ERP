@@ -47,6 +47,34 @@ referans veriyor. Yani proje bir noktada kök `sql/`'deki yaklaşımı benimseyi
 `erp-backend/sql/` altında bu isimle devam etmiş; sadece 002–009 arası hiç
 temizlenmemiş kalıntılar.
 
+## ⚠️ ÖNEMLİ KURAL: 041'den sonraki migration'larda çok-şirketli seed INSERT
+
+`041` ile `SecurityPolicy_CompanyIsolation` aktif hale geldikten (STATE=ON)
+sonra yazılan migration'larda, birden fazla şirkete aynı anda veri ekleyen
+(`INSERT ... SELECT ... FROM dbo.Sirketler`) bir adım varsa, bu SSMS'te
+normal şekilde çalıştırıldığında **başarısız olur** — çünkü SSMS oturumunda
+`SESSION_CONTEXT('CompanyId')` hiç ayarlanmamıştır ve block predicate tüm
+şirketler için `NULL = CompanyId` karşılaştırması yapıp isteği reddeder
+(bkz. `046_IK_AVANS_MUHASEBE.sql`'in ilk sürümünde yaşanan hata).
+
+**Çözüm deseni** (046 v2'de uygulanan, gelecekte de kullanılmalı):
+```sql
+DECLARE @PolicyWasOn BIT = 0;
+IF EXISTS (SELECT 1 FROM sys.security_policies WHERE name=N'SecurityPolicy_CompanyIsolation' AND is_enabled=1) SET @PolicyWasOn=1;
+BEGIN TRY
+    IF @PolicyWasOn=1 ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation WITH (STATE=OFF);
+    -- ... çok şirketli INSERT'ler burada ...
+    IF @PolicyWasOn=1 ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation WITH (STATE=ON);
+END TRY
+BEGIN CATCH
+    IF @PolicyWasOn=1 AND EXISTS(SELECT 1 FROM sys.security_policies WHERE name=N'SecurityPolicy_CompanyIsolation' AND is_enabled=0)
+        ALTER SECURITY POLICY dbo.SecurityPolicy_CompanyIsolation WITH (STATE=ON);
+    THROW;
+END CATCH
+```
+RLS'in kapalı kaldığı pencere en aza indirilmeli (sadece o INSERT'ler) ve
+CATCH bloğu RLS'i her durumda tekrar açtığından emin olmalı.
+
 ## Yeni bir ortam kurarken (sıfırdan deploy)
 
 1. Önce kök `sql/001` → `008` çalıştırılmalı.
