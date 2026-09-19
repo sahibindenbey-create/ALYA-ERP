@@ -16,7 +16,20 @@ güvenlik politikasını oluşturuyor. 2026-09-17 tarihli bir prod kapsam
 taramasında bu politikanın **125'ten fazla tabloyu** aktif olarak koruduğu
 doğrulandı.
 
-## `erp-backend/sql/` (001–044)
+## Güncelleme (2026-09-19): Kayıp 041 dosyası bulundu
+
+Bu dokümanın ilk sürümünde `041_FIX_MISSING_COMPANY_ISOLATION_PREDICATE.sql`
+repoda **hiç yoktu** ve README bunu "prod'da doğrulanmalı" diye
+işaretlemişti. Dosya artık burada — ama GitHub'a değil, bir geliştiricinin
+**yerel makinesinde**, hiç commit edilmeden duruyormuş. İçeriği production'ın
+gerçek durumuyla (`SecurityPolicy_CompanyIsolation`, `fn_CompanyIsolationPredicate`,
+35 tabloluk kapsam) birebir örtüşüyor — yani bu dosya bir noktada SSMS'te elle
+çalıştırılmış, işini yapmış, ama hiç versiyon kontrolüne girmemiş. Şimdi
+girdi. `044_COMPANY_ISOLATION_RECONCILIATION.sql` bu dosyanın **üzerine**
+inşa edildi (aynı fonksiyonu kullanır, kalan tabloları tamamlar) — aralarında
+çakışma yok, ikisi de idempotent.
+
+## `erp-backend/sql/` (001–046)
 
 Projenin **o tarihten sonra devam eden, aktif geliştirilen** migration
 klasörü — yeni migration'lar artık buraya ekleniyor (bkz. `044_...sql`).
