@@ -37,16 +37,15 @@ async function convertMarketplaceOrderToSalesOrder(t, req, pazaryeriSiparisId, s
   const kod = `PZY-${order.KanalKodu}-${order.HariciSiparisNo}`.slice(0, 100);
   const siparisResult = await new sql.Request(t)
     .input('SiparisKodu', sql.NVarChar, kod)
-    .input('SiparisYonu', sql.NVarChar, 'Satış')
     .input('SiparisTarihi', sql.DateTime2, order.SiparisTarihi)
     .input('SiparisTipi', sql.NVarChar, 'Pazaryeri')
     .input('SiparisVeren', sql.NVarChar, order.KanalAdi)
     .input('CariKodu', sql.NVarChar, cariKodu)
     .input('CariAdi', sql.NVarChar, order.MusteriAdi || `${order.KanalAdi} Pazaryeri Müşterisi`)
     .input('ToplamTutar', sql.Decimal(18, 2), order.GenelToplam)
-    .query(`INSERT INTO dbo.Siparisler (SiparisKodu, SiparisYonu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar, Durum, RezervasyonDurumu)
+    .query(`INSERT INTO dbo.Siparisler (SiparisKodu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar, Durum, OnayDurumu, RezervasyonDurumu)
             OUTPUT INSERTED.SiparisId
-            VALUES (@SiparisKodu, @SiparisYonu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar, N'YENİ', N'Yok');`);
+            VALUES (@SiparisKodu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar, N'YENİ', N'Bekliyor', N'Yok');`);
   const siparisId = siparisResult.recordset[0].SiparisId;
 
   for (const it of items) {
