@@ -29,7 +29,26 @@ girdi. `044_COMPANY_ISOLATION_RECONCILIATION.sql` bu dosyanın **üzerine**
 inşa edildi (aynı fonksiyonu kullanır, kalan tabloları tamamlar) — aralarında
 çakışma yok, ikisi de idempotent.
 
-## `erp-backend/sql/` (001–046)
+## ⚠️ ÖNEMLİ DERS: Kullanıcı-şirket eşleme tablolarına RLS eklenmemeli
+
+`044`, `UserCompanies` ve `UserRoles`'a da RLS ekledi (`RLS_Reconciled_044_*`).
+Bu **yanlış bir karardı** ve `048` ile geri alındı: bu tablolar "kullanıcı
+hangi şirketlere/rollere sahip" bilgisini tutar; `/api/core/companies`
+("bana atanmış TÜM şirketleri listele") gibi sorgular, `company-context-hook.js`
+her isteğe o an seçili olan `X-Company-Id`'yi otomatik enjekte ettiği için,
+RLS aktifken **sadece zaten seçili olan tek şirkete** filtreleniyordu — bu da
+kullanıcının hiçbir zaman başka bir şirkete geçememesine yol açan bir kısır
+döngü yarattı (bkz. gerçek bir kullanıcı testinde tespit edilen "sadece bir
+şirket görünüyor" hatası).
+
+`core/security.js`'teki `loadSecurityContext()` ve `core/coreRoutes.js`'teki
+`/companies` sorgusu zaten `KullaniciId`/`CompanyId` ile **açıkça** filtreleniyor
+— tablo seviyesinde RLS burada hiçbir ek güvenlik sağlamıyor. **Genel kural**:
+bir tablo "hangi kullanıcı hangi şirkete erişebilir" bilgisinin KENDİSİni
+tutuyorsa (yani CompanyId bir *veri* değil, bir *yetki tanımı* ise), o tabloya
+RLS eklenmemeli — `Sirketler`, `UserCompanies`, `UserRoles` bu kategoridedir.
+
+## `erp-backend/sql/` (001–048)
 
 Projenin **o tarihten sonra devam eden, aktif geliştirilen** migration
 klasörü — yeni migration'lar artık buraya ekleniyor (bkz. `044_...sql`).
