@@ -19,6 +19,21 @@ async function convertMarketplaceOrderToSalesOrder(t, req, pazaryeriSiparisId, s
   if (order.SiparisId) return order.SiparisId; // zaten dönüştürülmüş
   if (!items.length || items.some(x => !x.UrunId)) return null; // eşleşmeyen kalem var, henüz hazır değil
 
+  // Pazaryeri siparişlerinin bağlanacağı bir Cari'si olmalı - aksi halde
+  // fatura kesme gibi Cari'ye bağımlı sonraki adımlar çalışamaz (köprü
+  // kopar). Her alıcı için ayrı Cari açmak yerine (perakende/pazaryeri
+  // satışlarında standart pratik), KANAL BAŞINA tek bir genel Cari
+  // bulunur/oluşturulur; gerçek alıcı adı Siparişte serbest metin olarak
+  // (CariAdi/MusteriAdi) tutulmaya devam eder.
+  const cariKodu = `PZY-${order.KanalKodu}`.slice(0, 50);
+  const cariCheck = await new sql.Request(t).input('C', sql.Int, req.companyId).input('K', sql.NVarChar, cariKodu)
+    .query(`SELECT CariKodu FROM dbo.CariListesi WHERE CompanyId=@C AND CariKodu=@K;`);
+  if (!cariCheck.recordset[0]) {
+    await new sql.Request(t).input('C', sql.Int, req.companyId).input('K', sql.NVarChar, cariKodu)
+      .input('A', sql.NVarChar, `${order.KanalAdi} Pazaryeri Müşterisi`).input('T', sql.Int, 1)
+      .query(`INSERT INTO dbo.CariListesi (CompanyId, CariKodu, CariAdi, CariTipi) VALUES (@C, @K, @A, @T);`);
+  }
+
   const kod = `PZY-${order.KanalKodu}-${order.HariciSiparisNo}`.slice(0, 100);
   const siparisResult = await new sql.Request(t)
     .input('SiparisKodu', sql.NVarChar, kod)
@@ -26,11 +41,12 @@ async function convertMarketplaceOrderToSalesOrder(t, req, pazaryeriSiparisId, s
     .input('SiparisTarihi', sql.DateTime2, order.SiparisTarihi)
     .input('SiparisTipi', sql.NVarChar, 'Pazaryeri')
     .input('SiparisVeren', sql.NVarChar, order.KanalAdi)
-    .input('CariAdi', sql.NVarChar, order.MusteriAdi || order.KanalAdi)
+    .input('CariKodu', sql.NVarChar, cariKodu)
+    .input('CariAdi', sql.NVarChar, order.MusteriAdi || `${order.KanalAdi} Pazaryeri Müşterisi`)
     .input('ToplamTutar', sql.Decimal(18, 2), order.GenelToplam)
-    .query(`INSERT INTO dbo.Siparisler (SiparisKodu, SiparisYonu, SiparisTarihi, SiparisTipi, SiparisVeren, CariAdi, ToplamTutar, Durum, RezervasyonDurumu)
+    .query(`INSERT INTO dbo.Siparisler (SiparisKodu, SiparisYonu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar, Durum, RezervasyonDurumu)
             OUTPUT INSERTED.SiparisId
-            VALUES (@SiparisKodu, @SiparisYonu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariAdi, @ToplamTutar, N'YENİ', N'Yok');`);
+            VALUES (@SiparisKodu, @SiparisYonu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar, N'YENİ', N'Yok');`);
   const siparisId = siparisResult.recordset[0].SiparisId;
 
   for (const it of items) {
@@ -49,7 +65,7 @@ async function convertMarketplaceOrderToSalesOrder(t, req, pazaryeriSiparisId, s
 
   await new sql.Request(t).input('C', sql.Int, req.companyId).input('H', sql.BigInt, pazaryeriSiparisId).input('S', sql.Int, siparisId)
     .query(`UPDATE dbo.PazaryeriSiparisleriV2 SET SiparisId=@S, ErpDurumu=N'Siparişe Aktarıldı', UpdatedAt=SYSUTCDATETIME() WHERE CompanyId=@C AND PazaryeriSiparisId=@H;`);
-  await writeAudit({ poolPromise: null, sql, companyId: req.companyId, userId: req.auth.userId, actionCode: 'MARKETPLACE_ORDER_CONVERTED', entityType: 'Siparis', entityId: siparisId, after: { pazaryeriSiparisId, kod }, req, transaction: t });
+  await writeAudit({ poolPromise: null, sql, companyId: req.companyId, userId: req.auth.userId, actionCode: 'MARKETPLACE_ORDER_CONVERTED', entityType: 'Siparis', entityId: siparisId, after: { pazaryeriSiparisId, kod, cariKodu }, req, transaction: t });
   return siparisId;
 }module.exports=function(app,poolPromise,sql){const r=express.Router();r.use(createAuthMiddleware({poolPromise,sql}));r.get('/overview',requirePermission('erp.read'),async(req,res)=>{try{const p=await poolPromise,q=await p.request().input('C',sql.Int,req.companyId).query(`SELECT * FROM dbo.PazaryeriKanallariV2 WHERE CompanyId=@C ORDER BY KanalAdi;SELECT TOP(300)s.*,k.KanalAdi,(SELECT COUNT(*) FROM dbo.PazaryeriSiparisKalemleriV2 x WHERE x.CompanyId=s.CompanyId AND x.PazaryeriSiparisId=s.PazaryeriSiparisId)KalemSayisi,(SELECT COUNT(*) FROM dbo.PazaryeriSiparisKalemleriV2 x WHERE x.CompanyId=s.CompanyId AND x.PazaryeriSiparisId=s.PazaryeriSiparisId AND x.UrunId IS NULL)EslesmeyenKalem FROM dbo.PazaryeriSiparisleriV2 s JOIN dbo.PazaryeriKanallariV2 k ON k.CompanyId=s.CompanyId AND k.KanalId=s.KanalId WHERE s.CompanyId=@C ORDER BY s.PazaryeriSiparisId DESC;SELECT TOP(200)e.*,k.KanalAdi,u.UrunKodu,u.UrunAdi FROM dbo.PazaryeriUrunEslemeleriV2 e JOIN dbo.PazaryeriKanallariV2 k ON k.CompanyId=e.CompanyId AND k.KanalId=e.KanalId JOIN dbo.Urunler u ON u.CompanyId=e.CompanyId AND u.UrunId=e.UrunId WHERE e.CompanyId=@C ORDER BY e.EslemeId DESC;SELECT TOP(100)x.*,k.KanalAdi FROM dbo.PazaryeriSenkronizasyonlariV2 x JOIN dbo.PazaryeriKanallariV2 k ON k.CompanyId=x.CompanyId AND k.KanalId=x.KanalId WHERE x.CompanyId=@C ORDER BY x.SenkronId DESC;SELECT UrunId,UrunKodu,UrunAdi FROM dbo.Urunler WHERE CompanyId=@C AND ISNULL(IsActive,1)=1 ORDER BY UrunAdi;`);res.json({channels:q.recordsets[0],orders:q.recordsets[1],mappings:q.recordsets[2],syncs:q.recordsets[3],products:q.recordsets[4]});}catch(e){fail(res,e)}});r.post('/mappings',requirePermission('erp.write'),async(req,res)=>{
   const channel=Number(req.body?.channelId),product=Number(req.body?.productId),sku=String(req.body?.externalSku||'').trim();
