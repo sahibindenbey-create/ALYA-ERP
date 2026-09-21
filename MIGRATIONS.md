@@ -48,6 +48,42 @@ bir tablo "hangi kullanıcı hangi şirkete erişebilir" bilgisinin KENDİSİni
 tutuyorsa (yani CompanyId bir *veri* değil, bir *yetki tanımı* ise), o tabloya
 RLS eklenmemeli — `Sirketler`, `UserCompanies`, `UserRoles` bu kategoridedir.
 
+## ⚠️ ÖNEMLİ DERS: Kod ile gerçek şema arasındaki farklar
+
+2026-09 tarihli bir hata ayıklama oturumunda, kod tabanının bazı
+bölümlerinin **hiç test edilmemiş** olduğu ve gerçek veritabanı şemasından
+önemli ölçüde saptığı ortaya çıktı. Özetle bulunanlar:
+
+- **`Siparisler.SiparisYonu` kolonu hiç yoktu.** `server.js`'teki ana "Yeni
+  Sipariş" formu (`POST /api/siparisler`), teklif→sipariş dönüşümü, platform
+  toplu içe aktarma, `salesFlowRoutes.js`'in tamamı (`/orders`, `/reserve`,
+  `/dispatch`), ve KolayBi materializasyonu — hepsi bu kolona yazıyor/okuyordu.
+  Muhtemelen satın alma `SatinAlmaSiparisleriV2`'ye taşındığından beri
+  `Siparisler` zaten sadece satış siparişi tutuyor, "yön" kolonuna hiç gerek
+  kalmamıştı ama kolon kaldırılırken onu kullanan kod hiç güncellenmemişti.
+  **Tümü temizlendi** (bkz. commit `c0b4710`).
+- **Ana sipariş formu ayrıca `TeslimatSekli`, `PaketlemeSekli`,
+  `LojistikDetay`, `SiparisVerenDepartman` gibi var olmayan kolonlara da
+  yazıyordu**, üstelik `NOT NULL` olan `Durum`/`OnayDurumu`'nu hiç
+  sağlamıyordu. Yani bu form muhtemelen bu veritabanında **hiçbir zaman
+  başarıyla çalışmamıştı**.
+- `MuhasebeFisleri.FisId` `BIGINT`, ama İK avansı entegrasyon kodu `INT`
+  varsaymıştı (bkz. `046`).
+- `PlatformSiparisler.CompanyId` `NOT NULL` ama `DEFAULT` kısıtı yoktu
+  (bkz. `047`).
+
+**Genel kural**: Var olan bir tabloya yeni bir `INSERT`/`UPDATE` eklerken
+ya da değiştirirken, **önce gerçek şemayı sorgulayın** — kod içindeki başka
+bir yerde aynı tabloya yazan kodun doğru olduğunu varsaymayın, o da yanlış
+olabilir. Bunun için `sql/diagnostics/tablo_zorunlu_kolonlar_sablonu.sql`
+kullanılabilir.
+
+## Tanı ve Bakım Script'leri
+
+`erp-backend/sql/diagnostics/` klasöründe, bu tür sorunları hızlıca teşhis
+etmek için tekrar kullanılabilir, salt-okunur script'ler var — bkz.
+[`sql/diagnostics/README.md`](./erp-backend/sql/diagnostics/README.md).
+
 ## `erp-backend/sql/` (001–048)
 
 Projenin **o tarihten sonra devam eden, aktif geliştirilen** migration

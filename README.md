@@ -266,17 +266,22 @@ Yeni bir migration eklerken:
 
 ## Bilinen Kısıtlar / Yapılacaklar
 
-- `core/` altındaki bazı "overview" tipi salt-okunur uç noktalar (örn.
-  bütçe özeti, maliyetlendirme özeti) yalnızca "oturum açık mı" kontrolü
-  yapıyor, ince taneli `requirePermission` kontrolü yok. Bu kasıtlı bir
-  tasarım olabilir (dashboard'lar herkese açık) ama iş kurallarına göre
-  gözden geçirilmeli — hangi rolün finansal özet verilerini görebileceği
-  netleştirilmeli.
 - `/uploads/*` altındaki dosyalar artık geçerli bir oturum gerektiriyor,
   ama "bu dosya gerçekten bu kullanıcının şirketine mi ait" doğrulaması
   henüz yok (yalnızca "oturum açık mı" kontrol ediliyor). Dosya yolunun
   hangi `CariEvrak`/`UrunDosya`/`IhracatEvrak` kaydına ait olduğu ve o
   kaydın `CompanyId`'sinin istek sahibiyle eşleştiği ayrıca doğrulanmalı.
+- `kolaybiBusinessMaterializationRoutes.js`'deki (yalnızca Şirket 2/
+  Yamankaya'ya özel) KolayBi sipariş materializasyonu, `Siparisler.SiparisYonu`
+  kolonu kaldırılınca "Alış" yönlü KolayBi kayıtlarını da `Siparisler`'e
+  (artık yalnızca-satış tablosu) yazar hale geldi — semantik olarak yanlış,
+  ayrı bir düzeltme gerektiriyor (muhtemelen `SatinAlmaSiparisleriV2`'ye
+  yönlendirilmeli).
+- Kod tabanı ile gerçek veritabanı şeması arasında zaman zaman farklar
+  bulunuyor (bkz. [`MIGRATIONS.md`](./MIGRATIONS.md) — "Kod ile gerçek şema
+  arasındaki farklar"). Yeni bir tabloya yazan kod eklerken/değiştirirken
+  önce `erp-backend/sql/diagnostics/tablo_zorunlu_kolonlar_sablonu.sql` ile
+  gerçek şemayı doğrulayın.
 - İrsaliye detay görünümü ve şirket izolasyonu düzeltmeleri uygulandıktan
   sonra Faturalar, Siparişler gibi diğer modüllerde de benzer eksik
   `CompanyId` filtrelerinin olup olmadığı taranmalı.
