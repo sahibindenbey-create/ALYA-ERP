@@ -374,7 +374,6 @@ app.post('/api/siparisler', async (req, res) => {
     const headerRequest = new sql.Request(transaction);
     const headerResult = await headerRequest
       .input('SiparisKodu', sql.NVarChar, form.siparisKodu)
-      .input('SiparisYonu', sql.NVarChar, form.siparisYonu || 'Satış')
       .input('SiparisTarihi', sql.Date, form.siparisTarihi)
       .input('TeslimatTarihi', sql.Date, form.teslimatTarihi || null)
       .input('TahsilatTarihi', sql.Date, form.tahsilatTarihi || null)
@@ -394,27 +393,21 @@ app.post('/api/siparisler', async (req, res) => {
       .input('OdemeSekli', sql.NVarChar, form.odemeSekli)
       .input('Vade', sql.NVarChar, form.vade)
       .input('ToplamTutar', sql.Decimal(18, 2), toplamTutar)
-      .input('TeslimatSekli', sql.NVarChar, form.teslimatSekli || null)
-      .input('PaketlemeSekli', sql.NVarChar, form.paketlemeSekli || null)
-      .input('LojistikDetay', sql.NVarChar, form.lojistikDetay || null)
-      .input('SiparisVerenDepartman', sql.NVarChar, form.siparisVerenDepartman || null)
       .query(`
         INSERT INTO Siparisler (
-          SiparisKodu, SiparisYonu, SiparisTarihi, TeslimatTarihi, TahsilatTarihi,
+          SiparisKodu, SiparisTarihi, TeslimatTarihi, TahsilatTarihi,
           SiparisTipi, SiparisVeren, MusteriTemsilcisi, CariKodu, CariAdi,
           FaturaUlke, FaturaIl, FaturaIlce, FaturaAdres,
           SevkiyatUlke, SevkiyatIl, SevkiyatIlce, SevkiyatAdres,
-          OdemeSekli, Vade, ToplamTutar,
-          TeslimatSekli, PaketlemeSekli, LojistikDetay, SiparisVerenDepartman
+          OdemeSekli, Vade, ToplamTutar, Durum, OnayDurumu, RezervasyonDurumu
         )
         OUTPUT INSERTED.SiparisId
         VALUES (
-          @SiparisKodu, @SiparisYonu, @SiparisTarihi, @TeslimatTarihi, @TahsilatTarihi,
+          @SiparisKodu, @SiparisTarihi, @TeslimatTarihi, @TahsilatTarihi,
           @SiparisTipi, @SiparisVeren, @MusteriTemsilcisi, @CariKodu, @CariAdi,
           @FaturaUlke, @FaturaIl, @FaturaIlce, @FaturaAdres,
           @SevkiyatUlke, @SevkiyatIl, @SevkiyatIlce, @SevkiyatAdres,
-          @OdemeSekli, @Vade, @ToplamTutar,
-          @TeslimatSekli, @PaketlemeSekli, @LojistikDetay, @SiparisVerenDepartman
+          @OdemeSekli, @Vade, @ToplamTutar, N'YENİ', N'Bekliyor', N'Yok'
         )
       `);
 
@@ -909,7 +902,6 @@ app.post('/api/teklifler/:id/siparise-donustur', async (req, res) => {
     const headerRequest = new sql.Request(transaction);
     const headerResult = await headerRequest
       .input('SiparisKodu', sql.NVarChar, siparisKodu)
-      .input('SiparisYonu', sql.NVarChar, teklif.Yon)
       .input('SiparisTarihi', sql.Date, new Date())
       .input('SiparisTipi', sql.NVarChar, 'Tekliften Dönüştürüldü')
       .input('SiparisVeren', sql.NVarChar, teklif.CariAdi)
@@ -917,9 +909,9 @@ app.post('/api/teklifler/:id/siparise-donustur', async (req, res) => {
       .input('CariAdi', sql.NVarChar, teklif.CariAdi)
       .input('ToplamTutar', sql.Decimal(18, 2), teklif.GenelToplam)
       .query(`
-        INSERT INTO Siparisler (SiparisKodu, SiparisYonu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar)
+        INSERT INTO Siparisler (SiparisKodu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar, Durum, OnayDurumu, RezervasyonDurumu)
         OUTPUT INSERTED.SiparisId
-        VALUES (@SiparisKodu, @SiparisYonu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar)
+        VALUES (@SiparisKodu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar, N'YENİ', N'Bekliyor', N'Yok')
       `);
     const siparisId = headerResult.recordset[0].SiparisId;
 
@@ -1575,7 +1567,6 @@ app.post('/api/siparisler/toplu-import', async (req, res) => {
         const headerRequest = new sql.Request(transaction);
         const headerResult = await headerRequest
           .input('SiparisKodu', sql.NVarChar, s.form.siparisKodu)
-          .input('SiparisYonu', sql.NVarChar, 'Satış')
           .input('SiparisTarihi', sql.Date, s.form.siparisTarihi)
           .input('SiparisTipi', sql.NVarChar, s.form.siparisTipi || 'YENİ SİPARİŞ')
           .input('SiparisVeren', sql.NVarChar, s.form.siparisVeren)
@@ -1583,9 +1574,9 @@ app.post('/api/siparisler/toplu-import', async (req, res) => {
           .input('CariAdi', sql.NVarChar, s.form.cariAdi)
           .input('ToplamTutar', sql.Decimal(18, 2), toplamTutar)
           .query(`
-            INSERT INTO Siparisler (SiparisKodu, SiparisYonu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar)
+            INSERT INTO Siparisler (SiparisKodu, SiparisTarihi, SiparisTipi, SiparisVeren, CariKodu, CariAdi, ToplamTutar, Durum, OnayDurumu, RezervasyonDurumu)
             OUTPUT INSERTED.SiparisId
-            VALUES (@SiparisKodu, @SiparisYonu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar)
+            VALUES (@SiparisKodu, @SiparisTarihi, @SiparisTipi, @SiparisVeren, @CariKodu, @CariAdi, @ToplamTutar, N'YENİ', N'Bekliyor', N'Yok')
           `);
 
         const siparisId = headerResult.recordset[0].SiparisId;
@@ -1633,7 +1624,7 @@ app.get('/api/son-islemler', async (req, res) => {
     const pool = await poolPromise;
     const result = await pool.request().query(`
       SELECT TOP 12 * FROM (
-        SELECT SiparisKodu AS Kod, N'Sipariş' AS Modul, SiparisTarihi AS Tarih, CariAdi, Durum, ToplamTutar AS Tutar, SiparisYonu AS Yon
+        SELECT SiparisKodu AS Kod, N'Sipariş' AS Modul, SiparisTarihi AS Tarih, CariAdi, Durum, ToplamTutar AS Tutar
         FROM Siparisler
         UNION ALL
         SELECT FaturaKodu, N'Fatura', FaturaTarihi, CariAdi, Durum, GenelToplam, Yon
@@ -1696,7 +1687,6 @@ app.get('/api/siparisler/:id/irsaliye-taslak', async (req, res) => {
 
     res.json({
       form: {
-        yon: s.SiparisYonu,
         cariKodu: s.CariKodu,
         cariAdi: s.CariAdi,
         siparisId: s.SiparisId,
