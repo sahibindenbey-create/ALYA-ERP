@@ -435,6 +435,7 @@ const registerTrendyol = ({ app, poolPromise, sql }) => {
                     .input('S', sql.NVarChar(120), sku).input('A', sql.NVarChar(250), line.productName || null).input('Q', sql.Decimal(18, 4), qty)
                     .input('F', sql.Decimal(18, 4), price).input('T', sql.Decimal(18, 2), qty * price)
                     .query(`DECLARE @P INT=(SELECT UrunId FROM dbo.PazaryeriUrunEslemeleriV2 WHERE CompanyId=@C AND KanalId=@K AND HariciSku=@S AND IsActive=1);
+                            IF @P IS NULL SET @P=(SELECT TOP(1)UrunId FROM dbo.Urunler WHERE CompanyId=@C AND (UrunKodu=@S OR Barkod=@S));
                             INSERT dbo.PazaryeriSiparisKalemleriV2(CompanyId,PazaryeriSiparisId,HariciSku,UrunId,UrunAdi,Miktar,BirimFiyat,SatirToplam,EslemeDurumu)
                             VALUES(@C,@H,@S,@P,@A,@Q,@F,@T,CASE WHEN @P IS NULL THEN N'Bekliyor' ELSE N'Eşleşti' END);`);
                 }
