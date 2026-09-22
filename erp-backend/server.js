@@ -116,8 +116,8 @@ app.post('/api/cariler', async (req, res) => {
     const {
       CompanyId, CariKodu, CariAdi, CariTipi, MusteriTuru, Segment,
       VergiDairesi, VergiNo, TCNo,
-      FaturaIl, FaturaIlce, FaturaAdresDetay,
-      SevkiyatIl, SevkiyatIlce, SevkiyatAdresDetay,
+      FaturaIl, FaturaIlce, FaturaAdresDetay, FaturaPostaKodu,
+      SevkiyatIl, SevkiyatIlce, SevkiyatAdresDetay, SevkiyatPostaKodu,
       Yetkili1Ad, Yetkili1Gorev, Yetkili1Cep, Yetkili1Mail,
       Yetkili2Ad, Yetkili2Gorev, Yetkili2Cep, Yetkili2Mail,
       RiskLimiti, VadeGunu, ParaBirimi, Iletisim, Notlar
@@ -136,9 +136,11 @@ app.post('/api/cariler', async (req, res) => {
       .input('FaturaIl', sql.NVarChar, FaturaIl || null)
       .input('FaturaIlce', sql.NVarChar, FaturaIlce || null)
       .input('FaturaAdresDetay', sql.NVarChar, FaturaAdresDetay || null)
+      .input('FaturaPostaKodu', sql.NVarChar, FaturaPostaKodu || null)
       .input('SevkiyatIl', sql.NVarChar, SevkiyatIl || null)
       .input('SevkiyatIlce', sql.NVarChar, SevkiyatIlce || null)
       .input('SevkiyatAdresDetay', sql.NVarChar, SevkiyatAdresDetay || null)
+      .input('SevkiyatPostaKodu', sql.NVarChar, SevkiyatPostaKodu || null)
       .input('Yetkili1Ad', sql.NVarChar, Yetkili1Ad || null)
       .input('Yetkili1Gorev', sql.NVarChar, Yetkili1Gorev || null)
       .input('Yetkili1Cep', sql.NVarChar, Yetkili1Cep || null)
@@ -156,8 +158,8 @@ app.post('/api/cariler', async (req, res) => {
         INSERT INTO CariListesi (
           CompanyId, CariKodu, CariAdi, CariTipi, MusteriTuru, Segment,
           VergiDairesi, VergiNo, TCNo,
-          FaturaIl, FaturaIlce, FaturaAdresDetay,
-          SevkiyatIl, SevkiyatIlce, SevkiyatAdresDetay,
+          FaturaIl, FaturaIlce, FaturaAdresDetay, FaturaPostaKodu,
+          SevkiyatIl, SevkiyatIlce, SevkiyatAdresDetay, SevkiyatPostaKodu,
           Yetkili1Ad, Yetkili1Gorev, Yetkili1Cep, Yetkili1Mail,
           Yetkili2Ad, Yetkili2Gorev, Yetkili2Cep, Yetkili2Mail,
           RiskLimiti, VadeGunu, ParaBirimi, Iletisim, Notlar
@@ -166,8 +168,8 @@ app.post('/api/cariler', async (req, res) => {
         VALUES (
           @CompanyId, @CariKodu, @CariAdi, @CariTipi, @MusteriTuru, @Segment,
           @VergiDairesi, @VergiNo, @TCNo,
-          @FaturaIl, @FaturaIlce, @FaturaAdresDetay,
-          @SevkiyatIl, @SevkiyatIlce, @SevkiyatAdresDetay,
+          @FaturaIl, @FaturaIlce, @FaturaAdresDetay, @FaturaPostaKodu,
+          @SevkiyatIl, @SevkiyatIlce, @SevkiyatAdresDetay, @SevkiyatPostaKodu,
           @Yetkili1Ad, @Yetkili1Gorev, @Yetkili1Cep, @Yetkili1Mail,
           @Yetkili2Ad, @Yetkili2Gorev, @Yetkili2Cep, @Yetkili2Mail,
           @RiskLimiti, @VadeGunu, @ParaBirimi, @Iletisim, @Notlar
@@ -189,8 +191,8 @@ app.put('/api/cariler/:id', async (req, res) => {
     const {
       CariAdi, CariTipi, MusteriTuru, Segment,
       VergiDairesi, VergiNo, TCNo,
-      FaturaIl, FaturaIlce, FaturaAdresDetay,
-      SevkiyatIl, SevkiyatIlce, SevkiyatAdresDetay,
+      FaturaIl, FaturaIlce, FaturaAdresDetay, FaturaPostaKodu,
+      SevkiyatIl, SevkiyatIlce, SevkiyatAdresDetay, SevkiyatPostaKodu,
       Yetkili1Ad, Yetkili1Gorev, Yetkili1Cep, Yetkili1Mail,
       Yetkili2Ad, Yetkili2Gorev, Yetkili2Cep, Yetkili2Mail,
       RiskLimiti, VadeGunu, ParaBirimi, Iletisim, Notlar
@@ -208,9 +210,11 @@ app.put('/api/cariler/:id', async (req, res) => {
       .input('FaturaIl', sql.NVarChar, FaturaIl || null)
       .input('FaturaIlce', sql.NVarChar, FaturaIlce || null)
       .input('FaturaAdresDetay', sql.NVarChar, FaturaAdresDetay || null)
+      .input('FaturaPostaKodu', sql.NVarChar, FaturaPostaKodu || null)
       .input('SevkiyatIl', sql.NVarChar, SevkiyatIl || null)
       .input('SevkiyatIlce', sql.NVarChar, SevkiyatIlce || null)
       .input('SevkiyatAdresDetay', sql.NVarChar, SevkiyatAdresDetay || null)
+      .input('SevkiyatPostaKodu', sql.NVarChar, SevkiyatPostaKodu || null)
       .input('Yetkili1Ad', sql.NVarChar, Yetkili1Ad || null)
       .input('Yetkili1Gorev', sql.NVarChar, Yetkili1Gorev || null)
       .input('Yetkili1Cep', sql.NVarChar, Yetkili1Cep || null)
@@ -228,8 +232,8 @@ app.put('/api/cariler/:id', async (req, res) => {
         UPDATE CariListesi SET
           CariAdi=@CariAdi, CariTipi=@CariTipi, MusteriTuru=@MusteriTuru, Segment=@Segment,
           VergiDairesi=@VergiDairesi, VergiNo=@VergiNo, TCNo=@TCNo,
-          FaturaIl=@FaturaIl, FaturaIlce=@FaturaIlce, FaturaAdresDetay=@FaturaAdresDetay,
-          SevkiyatIl=@SevkiyatIl, SevkiyatIlce=@SevkiyatIlce, SevkiyatAdresDetay=@SevkiyatAdresDetay,
+          FaturaIl=@FaturaIl, FaturaIlce=@FaturaIlce, FaturaAdresDetay=@FaturaAdresDetay, FaturaPostaKodu=@FaturaPostaKodu,
+          SevkiyatIl=@SevkiyatIl, SevkiyatIlce=@SevkiyatIlce, SevkiyatAdresDetay=@SevkiyatAdresDetay, SevkiyatPostaKodu=@SevkiyatPostaKodu,
           Yetkili1Ad=@Yetkili1Ad, Yetkili1Gorev=@Yetkili1Gorev, Yetkili1Cep=@Yetkili1Cep, Yetkili1Mail=@Yetkili1Mail,
           Yetkili2Ad=@Yetkili2Ad, Yetkili2Gorev=@Yetkili2Gorev, Yetkili2Cep=@Yetkili2Cep, Yetkili2Mail=@Yetkili2Mail,
           RiskLimiti=@RiskLimiti, VadeGunu=@VadeGunu, ParaBirimi=@ParaBirimi, Iletisim=@Iletisim, Notlar=@Notlar

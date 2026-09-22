@@ -138,7 +138,7 @@ const TeklifForm = ({ defaultYon, mode = "tam" }) => {
     ? teklifler
         .filter(t => listeYonFiltre === "Hepsi" || t.Yon === listeYonFiltre)
         .filter(t => listeDurumFiltre === "Hepsi" || t.Durum === listeDurumFiltre)
-        .filter(t => (t.CariAdi || "").toLowerCase().includes(listeSearch.toLowerCase()) || (t.TeklifKodu || "").toLowerCase().includes(listeSearch.toLowerCase()))
+        .filter(t => (t.CariAdi || "").toLocaleLowerCase("tr-TR").includes(listeSearch.toLocaleLowerCase("tr-TR")) || (t.TeklifKodu || "").toLocaleLowerCase("tr-TR").includes(listeSearch.toLocaleLowerCase("tr-TR")))
     : (defaultYon ? teklifler.filter(t => t.Yon === defaultYon) : teklifler);
 
   return (

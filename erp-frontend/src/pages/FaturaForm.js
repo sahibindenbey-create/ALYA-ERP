@@ -138,7 +138,7 @@ const FaturaForm = ({ defaultYon, mode = "tam" }) => {
   const gorunenFaturalar = mode === "liste"
     ? faturalar
         .filter(f => listeYonFiltre === "Hepsi" || f.Yon === listeYonFiltre)
-        .filter(f => (f.CariAdi || "").toLowerCase().includes(listeSearch.toLowerCase()) || (f.FaturaKodu || "").toLowerCase().includes(listeSearch.toLowerCase()))
+        .filter(f => (f.CariAdi || "").toLocaleLowerCase("tr-TR").includes(listeSearch.toLocaleLowerCase("tr-TR")) || (f.FaturaKodu || "").toLocaleLowerCase("tr-TR").includes(listeSearch.toLocaleLowerCase("tr-TR")))
     : (defaultYon ? faturalar.filter(f => f.Yon === defaultYon) : faturalar);
 
   return (

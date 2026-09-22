@@ -31,7 +31,7 @@ const TumPlatformlarPage = () => {
   const gorunen = siparisler
     .filter(s => platformFiltre === "Hepsi" || s.SiparisVeren === platformFiltre)
     .filter(s =>
-      (s.CariAdi || "").toLowerCase().includes(search.toLowerCase()) ||
+      (s.CariAdi || "").toLocaleLowerCase("tr-TR").includes(search.toLocaleLowerCase("tr-TR")) ||
       (s.SiparisKodu || "").toLowerCase().includes(search.toLowerCase())
     );
 

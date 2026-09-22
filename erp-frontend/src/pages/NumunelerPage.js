@@ -75,7 +75,7 @@ const NumunelerPage = () => {
   const gorunen = numuneler
     .filter(n => durumFiltre === "Hepsi" || n.Durum === durumFiltre)
     .filter(n =>
-      (n.CariAdi || "").toLowerCase().includes(search.toLowerCase()) ||
+      (n.CariAdi || "").toLocaleLowerCase("tr-TR").includes(search.toLocaleLowerCase("tr-TR")) ||
       (n.UrunAdiTablo || n.UrunAdiSerbest || "").toLowerCase().includes(search.toLowerCase())
     );
 

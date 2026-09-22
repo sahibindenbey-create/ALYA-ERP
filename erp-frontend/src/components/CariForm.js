@@ -17,7 +17,7 @@ const CariForm = ({ mode = "giris" }) => {
     companyId: 1,
     cariKodu: "", cariTipi: "", musteriTuru: "", cariAdi: "", segment: "",
     vergiDairesi: "", vergiNo: "", tcNo: "", faturaIl: "", faturaIlce: "",
-    faturaAdresDetay: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "",
+    faturaAdresDetay: "", faturaPostaKodu: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "", sevkiyatPostaKodu: "",
     yetkili1Ad: "", yetkili1Gorev: "", yetkili1Cep: "", yetkili1Mail: "",
     yetkili2Ad: "", yetkili2Gorev: "", yetkili2Cep: "", yetkili2Mail: "",
     dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL",
@@ -37,7 +37,7 @@ const CariForm = ({ mode = "giris" }) => {
     companyId: 1,
     cariKodu: "", cariTipi: "", musteriTuru: "", cariAdi: "", segment: "",
     vergiDairesi: "", vergiNo: "", tcNo: "", faturaIl: "", faturaIlce: "",
-    faturaAdresDetay: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "",
+    faturaAdresDetay: "", faturaPostaKodu: "", sevkiyatIl: "", sevkiyatIlce: "", sevkiyatAdresDetay: "", sevkiyatPostaKodu: "",
     yetkili1Ad: "", yetkili1Gorev: "", yetkili1Cep: "", yetkili1Mail: "",
     yetkili2Ad: "", yetkili2Gorev: "", yetkili2Cep: "", yetkili2Mail: "",
     dosyalar: [], riskLimiti: "0", vadeGunu: "0", paraBirimi: "TL",
@@ -61,9 +61,11 @@ const CariForm = ({ mode = "giris" }) => {
       faturaIl: item.FaturaIl || "",
       faturaIlce: item.FaturaIlce || "",
       faturaAdresDetay: item.FaturaAdresDetay || "",
+      faturaPostaKodu: item.FaturaPostaKodu || "",
       sevkiyatIl: item.SevkiyatIl || "",
       sevkiyatIlce: item.SevkiyatIlce || "",
       sevkiyatAdresDetay: item.SevkiyatAdresDetay || "",
+      sevkiyatPostaKodu: item.SevkiyatPostaKodu || "",
       yetkili1Ad: item.Yetkili1Ad || "",
       yetkili1Gorev: item.Yetkili1Gorev || "",
       yetkili1Cep: item.Yetkili1Cep || "",
@@ -163,10 +165,11 @@ const CariForm = ({ mode = "giris" }) => {
         ...prev,
         sevkiyatIl: prev.faturaIl,
         sevkiyatIlce: prev.faturaIlce,
-        sevkiyatAdresDetay: prev.faturaAdresDetay
+        sevkiyatAdresDetay: prev.faturaAdresDetay,
+        sevkiyatPostaKodu: prev.faturaPostaKodu
       }));
     }
-  }, [ayniAdres, formData.faturaIl, formData.faturaIlce, formData.faturaAdresDetay]);
+  }, [ayniAdres, formData.faturaIl, formData.faturaIlce, formData.faturaAdresDetay, formData.faturaPostaKodu]);
 
   const buildPayload = () => ({
     CompanyId: formData.companyId,
@@ -181,9 +184,11 @@ const CariForm = ({ mode = "giris" }) => {
     FaturaIl: formData.faturaIl,
     FaturaIlce: formData.faturaIlce,
     FaturaAdresDetay: formData.faturaAdresDetay,
+    FaturaPostaKodu: formData.faturaPostaKodu,
     SevkiyatIl: ayniAdres ? formData.faturaIl : formData.sevkiyatIl,
     SevkiyatIlce: ayniAdres ? formData.faturaIlce : formData.sevkiyatIlce,
     SevkiyatAdresDetay: ayniAdres ? formData.faturaAdresDetay : formData.sevkiyatAdresDetay,
+    SevkiyatPostaKodu: ayniAdres ? formData.faturaPostaKodu : formData.sevkiyatPostaKodu,
     Yetkili1Ad: formData.yetkili1Ad,
     Yetkili1Gorev: formData.yetkili1Gorev,
     Yetkili1Cep: formData.yetkili1Cep,
@@ -241,9 +246,11 @@ const CariForm = ({ mode = "giris" }) => {
     }
   };
 
-  const filteredList = savedData.filter(item => 
-    (item.CariAdi || "").toLowerCase().includes(listSearch.toLowerCase()) || 
-    (item.VergiNo || item.TCNo || item.CariKodu || "").includes(listSearch)
+  const normalizeTr = (s) => (s || "").toLocaleLowerCase("tr-TR");
+  const searchNormalized = normalizeTr(listSearch);
+  const filteredList = savedData.filter(item =>
+    normalizeTr(item.CariAdi).includes(searchNormalized) ||
+    normalizeTr(item.VergiNo || item.TCNo || item.CariKodu).includes(searchNormalized)
   );
 
   return (
@@ -324,6 +331,14 @@ const CariForm = ({ mode = "giris" }) => {
                   <option value="Küçük">Küçük</option>
                   <option value="Orta">Orta</option>
                   <option value="Büyük">Büyük</option>
+                  <option value="Trendyol Müşteri">Trendyol Müşteri</option>
+                  <option value="Hepsiburada Müşteri">Hepsiburada Müşteri</option>
+                  <option value="Amazon Müşteri">Amazon Müşteri</option>
+                  <option value="N11 Müşteri">N11 Müşteri</option>
+                  <option value="ÇiçekSepeti Müşteri">ÇiçekSepeti Müşteri</option>
+                  <option value="Pazarama Müşteri">Pazarama Müşteri</option>
+                  <option value="PttAVM Müşteri">PttAVM Müşteri</option>
+                  <option value="Perakende Müşteri">Perakende Müşteri</option>
                 </select>
               </div>
             </div>
@@ -375,6 +390,7 @@ const CariForm = ({ mode = "giris" }) => {
                 {(illerListesi.find(x => x.name === formData.faturaIl)?.districts || []).map(ilce => <option key={ilce} value={ilce}>{ilce}</option>)}
               </select>
             </div>
+            <input name="faturaPostaKodu" value={formData.faturaPostaKodu} onChange={handleChange} placeholder="Posta Kodu" maxLength={10} className="mt-10" style={{ maxWidth: 160 }} />
             <textarea name="faturaAdresDetay" value={formData.faturaAdresDetay} onChange={handleChange} placeholder="Fatura Adresi..." className="mt-10" />
             <div className="copy-option" onClick={() => setAyniAdres(!ayniAdres)}>
               <input type="checkbox" checked={ayniAdres} readOnly />
@@ -392,6 +408,7 @@ const CariForm = ({ mode = "giris" }) => {
                     {(illerListesi.find(x => x.name === formData.sevkiyatIl)?.districts || []).map(ilce => <option key={ilce} value={ilce}>{ilce}</option>)}
                   </select>
                 </div>
+                <input name="sevkiyatPostaKodu" value={formData.sevkiyatPostaKodu} onChange={handleChange} placeholder="Posta Kodu" maxLength={10} className="mt-10" style={{ maxWidth: 160 }} />
                 <textarea name="sevkiyatAdresDetay" value={formData.sevkiyatAdresDetay} onChange={handleChange} placeholder="Sevkiyat Adresi..." className="mt-10" />
               </div>
             )}
@@ -483,12 +500,12 @@ const CariForm = ({ mode = "giris" }) => {
             </thead>
             <tbody>
               {filteredList.map((item) => (
-                <tr key={item.CariId}>
+                <tr key={item.CariId} onClick={() => handleEditClick(item)} title="Düzenlemek için tıklayın">
                   <td><strong>{item.CariKodu}</strong></td>
                   <td>{item.CariAdi}</td>
                   <td>{item.VergiNo || item.TCNo}</td>
                   <td>{item.CariTipi === 1 ? 'Müşteri' : item.CariTipi === 2 ? 'Tedarikçi' : 'Her İkisi'}</td>
-                  <td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <button className="btn-edit" onClick={() => handleEditClick(item)} style={{ marginRight: 6 }}>Düzenle</button>
                     <button className="btn-edit" onClick={() => setEkstreCari(item)} style={{ marginRight: 6 }}>Ekstre</button>
                     <button className="btn-del" onClick={() => handleDelete(item.CariId)}>Sil</button>

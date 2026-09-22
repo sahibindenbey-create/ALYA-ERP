@@ -175,6 +175,8 @@ input:focus { border-color: #3f51b5; outline: none; }
 /* Tablo */
 .modern-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
 .modern-table th { background: #f1f5f9; padding: 15px; text-align: left; border-bottom: 2px solid #e2e8f0; }
+.modern-table tbody tr { cursor: pointer; transition: background 0.12s ease; }
+.modern-table tbody tr:hover { background: #eef2ff; }
 .modern-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
 .btn-del { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
 .btn-edit { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
