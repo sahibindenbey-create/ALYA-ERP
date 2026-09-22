@@ -129,7 +129,10 @@ const NumunelerPage = () => {
       </div>
 
       <div className="fin-card">
-        <div className="fin-card-header"><h3>Numune Listesi ({gorunen.length})</h3></div>
+        <div className="fin-card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <h3 style={{ margin: 0 }}>Numune Listesi ({gorunen.length})</h3>
+          <button onClick={fetchAll} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #2563eb", background: "#2563eb", color: "#fff", cursor: "pointer", fontWeight: 600 }}>🔄 Listele</button>
+        </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <input
             type="text"

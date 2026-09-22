@@ -234,7 +234,12 @@ const TeklifForm = ({ defaultYon, mode = "tam" }) => {
       )}
 
       <div className="fat-list-card">
-        <h3>{mode === "liste" ? "Tüm Teklifler" : defaultYon === "Alış" ? "Alış Teklifleri" : "Satış Teklifleri"} ({gorunenTeklifler.length})</h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <h3 style={{ margin: 0 }}>{mode === "liste" ? "Tüm Teklifler" : defaultYon === "Alış" ? "Alış Teklifleri" : "Satış Teklifleri"} ({gorunenTeklifler.length})</h3>
+          <button onClick={fetchAll} disabled={loading} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #2563eb", background: loading ? "#eee" : "#2563eb", color: loading ? "#888" : "#fff", cursor: loading ? "default" : "pointer", fontWeight: 600 }}>
+            {loading ? "Yükleniyor..." : "🔄 Listele"}
+          </button>
+        </div>
         {mode === "liste" && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             <input
