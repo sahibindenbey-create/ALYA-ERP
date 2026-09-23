@@ -12,6 +12,9 @@ const IrsaliyeListPage = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
+  const [cariSearch, setCariSearch] = useState("");
+  const [tarihBaslangic, setTarihBaslangic] = useState("");
+  const [tarihBitis, setTarihBitis] = useState("");
 
   const fetchList = async () => {
     setLoading(true);
@@ -52,10 +55,25 @@ const IrsaliyeListPage = () => {
     }
   };
 
-  const filtered = useMemo(
-    () => filter === "Tümü" ? irsaliyeler : irsaliyeler.filter(i => i.Yon === filter),
-    [irsaliyeler, filter]
-  );
+  const filtered = useMemo(() => {
+    let result = filter === "Tümü" ? irsaliyeler : irsaliyeler.filter(i => i.Yon === filter);
+    if (cariSearch.trim()) {
+      const q = cariSearch.toLocaleLowerCase("tr-TR");
+      result = result.filter(i =>
+        (i.CariAdi || "").toLocaleLowerCase("tr-TR").includes(q) ||
+        (i.CariKodu || "").toLocaleLowerCase("tr-TR").includes(q) ||
+        (i.IrsaliyeKodu || "").toLocaleLowerCase("tr-TR").includes(q)
+      );
+    }
+    if (tarihBaslangic) {
+      result = result.filter(i => i.IrsaliyeTarihi && new Date(i.IrsaliyeTarihi) >= new Date(tarihBaslangic));
+    }
+    if (tarihBitis) {
+      const bitisSonu = new Date(tarihBitis); bitisSonu.setHours(23, 59, 59, 999);
+      result = result.filter(i => i.IrsaliyeTarihi && new Date(i.IrsaliyeTarihi) <= bitisSonu);
+    }
+    return result;
+  }, [irsaliyeler, filter, cariSearch, tarihBaslangic, tarihBitis]);
 
   const toplam = useMemo(
     () => filtered.reduce((sum, i) => sum + Number(i.ToplamTutar || 0), 0),
@@ -109,6 +127,29 @@ const IrsaliyeListPage = () => {
             {item !== "Tümü" && ` (${irsaliyeler.filter(i => i.Yon === item).length})`}
           </button>
         ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="text"
+          placeholder="Cari adı, kodu veya irsaliye no ara..."
+          value={cariSearch}
+          onChange={e => setCariSearch(e.target.value)}
+          style={{ flex: 2, minWidth: 220, padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }}
+        />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#555" }}>
+          Başlangıç:
+          <input type="date" value={tarihBaslangic} onChange={e => setTarihBaslangic(e.target.value)} style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }} />
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#555" }}>
+          Bitiş:
+          <input type="date" value={tarihBitis} onChange={e => setTarihBitis(e.target.value)} style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc" }} />
+        </label>
+        {(cariSearch || tarihBaslangic || tarihBitis) && (
+          <button type="button" onClick={() => { setCariSearch(""); setTarihBaslangic(""); setTarihBitis(""); }} style={{ padding: "8px 12px", borderRadius: 6, border: "1px solid #ddd", background: "#f5f5f5" }}>
+            ✕ Filtreleri Temizle
+          </button>
+        )}
       </div>
 
       <div className="irs-list-card">

@@ -240,7 +240,7 @@ async function upsertProduct(pool, sql, companyId, row) {
         UPDATE dbo.Urunler SET
           UrunAdi=@UrunAdi, Birim=@Birim, Kategori=@Kategori, StokMiktari=@StokMiktari,
           AlisFiyati=@AlisFiyati, ListeFiyati=@ListeFiyati, KdvOrani=@KdvOrani,
-          Barkod=@Barkod, Aciklama=@Aciklama, IsActive=1, UpdatedAt=SYSDATETIME()
+          Barkod=@Barkod, Aciklama=@Aciklama, IsActive=1
         WHERE CompanyId=@CompanyId AND UrunKodu=@UrunKodu;
       END
       ELSE
